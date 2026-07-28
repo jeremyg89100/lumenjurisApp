@@ -1,13 +1,22 @@
-// Création « de zéro », façon juriste, EN LIGNE (pas de pop-up) : une question
-// fermée à la fois, on clique une réponse, on passe à la suivante, puis le
-// contrat est rédigé et ouvert dans l'éditeur (variables surlignées).
-import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+// Création « de zéro », façon juriste, EN LIGNE (pas de pop-up). Deux chemins :
+//  · « Décrivez votre besoin » — un prompt libre + pièces jointes (PDF/Word),
+//    l'IA prend les arbitrages elle-même : pour le juriste qui n'a pas le temps.
+//  · « Répondez à quelques questions » — une question fermée à la fois, simple
+//    et concrète, aux options toujours conformes au droit français.
+// Dans les deux cas, le contrat est rédigé puis ouvert dans l'éditeur
+// (variables surlignées) et comporte systématiquement un article RGPD.
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft, Loader2, AlertCircle, ChevronLeft, ChevronRight,
+  Sparkles, ListChecks, Paperclip, ShieldCheck, X, FileText,
+} from "lucide-react";
 import type { BlockDef, ContractModel, VariableDef } from "../../../contractEngine/types";
 import {
-  generateContractQuestions, generateContractDraft,
-  type WizardQuestion, type ContractDraft,
+  generateContractQuestions, generateContractDraft, generateContractDraftFromBrief,
+  type WizardQuestion, type ContractDraft, type BriefAttachment,
 } from "./contractAi";
+import { contractApi } from "../contratheque/api";
+import { extractDocumentContent } from "../../../utils/documentExtractor";
 
 function slug(s: string): string {
   const o = s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -36,48 +45,136 @@ function buildModel(title: string, draft: ContractDraft): ContractModel {
   };
 }
 
-type Step = "loading" | "asking" | "generating" | "error";
+type Step = "mode" | "brief" | "loading" | "asking" | "generating" | "error";
+
+interface Attachment {
+  file: File;
+  status: "extracting" | "ready" | "failed";
+  text: string;
+}
+
+// Le .doc binaire (Word 97-2003) n'est lisible par aucun maillon de la chaîne
+// d'extraction : on ne le promet pas.
+const ACCEPTED = ".pdf,.docx";
+const MAX_ATTACHMENTS = 3;
 
 export function ScratchWizard({ title, onReady, onBack }: {
   title: string;
   onReady: (r: { model: ContractModel; fileBase: string }) => void;
   onBack: () => void;
 }) {
-  const [step, setStep] = useState<Step>("loading");
+  const [step, setStep] = useState<Step>("mode");
   const [questions, setQuestions] = useState<WizardQuestion[]>([]);
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  // Mode « Décrire le besoin »
+  const [brief, setBrief] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Garde d'annulation : chaque navigation invalide les appels IA en vol, pour
+  // qu'une réponse tardive ne détourne pas l'écran courant ni n'ouvre l'éditeur
+  // après un abandon. Incrémenté à chaque navigation et au démontage.
+  const opId = useRef(0);
+  // Étape d'où la rédaction a été lancée (retour pendant « generating »).
+  const origin = useRef<"brief" | "asking">("brief");
 
+  useEffect(() => () => { opId.current += 1; }, []);
+
+  // Le questionnaire n'est préparé que si l'utilisateur choisit le mode guidé.
+  const startGuided = async () => {
+    const id = ++opId.current;
+    setStep("loading");
+    setError("");
+    try {
+      const qs = await generateContractQuestions(title);
+      if (opId.current !== id) return; // l'utilisateur a navigué entre-temps
+      setQuestions(qs);
+      setIdx(0);
+      setAnswers({});
+      setStep("asking");
+    } catch {
+      if (opId.current !== id) return;
+      setError("Service IA indisponible — impossible de préparer les questions.");
+      setStep("error");
+    }
+  };
+
+  // Repart proprement du choix de mode si le titre change (nouveau contrat).
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setStep("loading");
-      setError("");
-      try {
-        const qs = await generateContractQuestions(title);
-        if (cancelled) return;
-        setQuestions(qs);
-        setIdx(0);
-        setStep("asking");
-      } catch {
-        if (!cancelled) { setError("Service IA indisponible — impossible de préparer les questions."); setStep("error"); }
-      }
-    })();
-    return () => { cancelled = true; };
+    opId.current += 1;
+    setStep("mode"); setError(""); setBrief(""); setAttachments([]);
+    setQuestions([]); setIdx(0); setAnswers({});
   }, [title]);
 
   async function finish(finalAnswers: Record<string, string>) {
+    const id = ++opId.current;
+    origin.current = "asking";
     setStep("generating");
     setError("");
     try {
       const qa = questions.map((q) => ({ question: q.question, answer: finalAnswers[q.id] ?? "" }));
       const draft = await generateContractDraft(title, qa);
+      if (opId.current !== id) return;
       onReady({ model: buildModel(title, draft), fileBase: slug(title) });
     } catch {
+      if (opId.current !== id) return;
       setError("Échec de la rédaction. Réessayez.");
       setStep("asking");
     }
+  }
+
+  async function finishBrief() {
+    if (!brief.trim()) return;
+    const id = ++opId.current;
+    origin.current = "brief";
+    setStep("generating");
+    setError("");
+    try {
+      const docs: BriefAttachment[] = attachments
+        .filter((a) => a.status === "ready" && a.text.trim())
+        .map((a) => ({ name: a.file.name, text: a.text }));
+      const draft = await generateContractDraftFromBrief(title, brief, docs);
+      if (opId.current !== id) return;
+      onReady({ model: buildModel(title, draft), fileBase: slug(title) });
+    } catch {
+      if (opId.current !== id) return;
+      setError("Échec de la rédaction. Réessayez.");
+      setStep("brief");
+    }
+  }
+
+  /** Extraction du texte d'une pièce jointe. PDF : d'abord en local (rapide),
+   *  puis serveur en repli ; Word (.docx) : extraction serveur. */
+  async function extractAttachment(file: File): Promise<string> {
+    if (/\.pdf$/i.test(file.name)) {
+      try {
+        const r = await extractDocumentContent(file);
+        if (r.text?.trim()) return r.text;
+      } catch { /* repli serveur ci-dessous */ }
+    }
+    const r = await contractApi.extract(file);
+    if (r.ocr_text?.trim()) return r.ocr_text;
+    throw new Error("extraction impossible");
+  }
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const room = MAX_ATTACHMENTS - attachments.length;
+    const files = Array.from(list)
+      .filter((f) => /\.(pdf|docx)$/i.test(f.name))
+      .slice(0, Math.max(0, room));
+    for (const file of files) {
+      setAttachments((prev) => [...prev, { file, status: "extracting", text: "" }]);
+      void extractAttachment(file)
+        .then((text) => {
+          setAttachments((prev) => prev.map((a) => (a.file === file ? { ...a, status: "ready", text } : a)));
+        })
+        .catch(() => {
+          setAttachments((prev) => prev.map((a) => (a.file === file ? { ...a, status: "failed" } : a)));
+        });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function answer(value: string) {
@@ -90,14 +187,131 @@ export function ScratchWizard({ title, onReady, onBack }: {
 
   const q = questions[idx];
   const total = questions.length;
+  const extracting = attachments.some((a) => a.status === "extracting");
+
+  const backTarget = () => {
+    opId.current += 1; // annule tout appel IA en vol
+    if (step === "generating") {
+      // Revient à l'étape d'origine sans rien perdre (brief, réponses, pièces).
+      setStep(origin.current); setError("");
+    } else if (step === "brief" || step === "asking" || step === "loading" || step === "error") {
+      setStep("mode"); setError("");
+    } else {
+      onBack();
+    }
+  };
 
   return (
     <div className="mx-auto max-w-lg">
-      <button onClick={onBack} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-brand">
+      <button onClick={step === "mode" ? onBack : backTarget} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-brand">
         <ArrowLeft className="h-4 w-4" /> Retour
       </button>
 
       <div className="rounded-card border border-line bg-white p-6 shadow-card">
+        {step === "mode" && (
+          <div className="space-y-3">
+            <button
+              onClick={() => setStep("brief")}
+              className="w-full rounded-xl border border-line bg-white p-4 text-left transition-all hover:border-brand/50 hover:bg-brand-light/40 group"
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <Sparkles className="h-4 w-4 text-brand" /> Décrire le besoin
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-muted">
+                Une consigne libre, des pièces jointes si utile. L’outil arbitre le reste.
+              </span>
+            </button>
+            <button
+              onClick={() => void startGuided()}
+              className="w-full rounded-xl border border-line bg-white p-4 text-left transition-all hover:border-brand/50 hover:bg-brand-light/40 group"
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <ListChecks className="h-4 w-4 text-brand" /> Cadrer par questions
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-muted">
+                4 à 7 choix structurants, un par écran. Vous tranchez, l’outil rédige.
+              </span>
+            </button>
+            <p className="flex items-center gap-1.5 pt-1 text-[11px] text-ink-subtle">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand" />
+              Article RGPD inclus dans chaque contrat.
+            </p>
+          </div>
+        )}
+
+        {step === "brief" && (
+          <div className="space-y-4">
+            <p className="text-base font-semibold text-ink">Votre besoin, en quelques phrases</p>
+            <textarea
+              autoFocus
+              aria-label="Votre besoin, en quelques phrases"
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              rows={6}
+              placeholder={`Ex. « Maintenance informatique pour une PME, facturation mensuelle, intervention sous 48 h, accès distant aux serveurs du client, résiliation avec préavis d’un mois. »`}
+              className="w-full resize-y rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition-all focus:border-brand/40 focus:shadow-ring-brand placeholder:text-ink-placeholder"
+            />
+
+            {/* Pièces jointes : le contrat s'adapte à leur contenu */}
+            <div className="space-y-2">
+              {attachments.map((a, i) => (
+                <div key={`${a.file.name}-${i}`} className="flex items-center gap-2 rounded-lg bg-surface-subtle px-3 py-2">
+                  <FileText className="h-4 w-4 shrink-0 text-ink-subtle" />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-secondary">{a.file.name}</span>
+                  {a.status === "extracting" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-ink-subtle"><Loader2 className="h-3 w-3 animate-spin" /> lecture…</span>
+                  )}
+                  {a.status === "ready" && <span className="text-[11px] font-medium text-success-dark">prêt</span>}
+                  {a.status === "failed" && (
+                    <span className="text-[11px] text-danger" title="Le texte n’a pas pu être lu : ce document ne sera pas pris en compte dans la rédaction.">
+                      illisible — sera ignoré
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                    className="rounded p-0.5 text-ink-subtle hover:bg-surface-muted hover:text-danger"
+                    title="Retirer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              {attachments.length < MAX_ATTACHMENTS && (
+                <>
+                  <input ref={fileInputRef} type="file" accept={ACCEPTED} multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    title="3 documents au maximum"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" /> Joindre un document (PDF, Word)
+                  </button>
+                </>
+              )}
+            </div>
+
+            {error && <p className="text-xs text-danger">{error}</p>}
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => void finishBrief()}
+                disabled={brief.trim().length < 15 || extracting}
+                title={
+                  extracting
+                    ? "Lecture des pièces jointes en cours…"
+                    : brief.trim().length < 15
+                      ? "Décrivez votre besoin en une phrase au moins"
+                      : undefined
+                }
+                className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-card transition-all hover:bg-brand-hover disabled:opacity-50"
+              >
+                {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Rédiger le contrat
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === "loading" && (
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
             <Loader2 className="h-6 w-6 animate-spin text-brand" />
@@ -109,6 +323,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
             <Loader2 className="h-6 w-6 animate-spin text-brand" />
             <p className="text-sm text-ink-muted">Rédaction du contrat…</p>
+            <p className="text-xs text-ink-subtle">Article RGPD inclus.</p>
           </div>
         )}
 

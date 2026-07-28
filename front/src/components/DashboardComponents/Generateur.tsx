@@ -917,15 +917,15 @@ function ScratchEntry({ onStart, onBack }: { onStart: (title: string) => void; o
         <ol className="space-y-2 text-sm text-ink-muted">
           <li className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-brand-light text-brand text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-            Décrivez le contrat souhaité
+            Nommez le contrat souhaité
           </li>
           <li className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-brand-light text-brand text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-            Répondez aux questions, une à la fois
+            Décrivez votre besoin — ou cadrez par questions
           </li>
           <li className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-brand-light text-brand text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-            Le contrat est rédigé puis ouvert dans l&apos;éditeur
+            Le contrat s&apos;ouvre dans l&apos;éditeur, article RGPD inclus
           </li>
         </ol>
       </div>
