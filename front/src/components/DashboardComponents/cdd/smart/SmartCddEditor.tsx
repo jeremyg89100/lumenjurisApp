@@ -12,7 +12,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { jsPDF } from "jspdf";
 import {
   Download, FileText, FileSignature, Bold, Italic, List, Quote,
-  Sparkles, X, Loader2, ShieldCheck, ShieldAlert, MessagesSquare, Check, ChevronDown,
+  Sparkles, X, Loader2, ShieldCheck, ShieldAlert, MessagesSquare, Check, ChevronDown, Share2,
 } from "lucide-react";
 import { cddAccroissementModel } from "../../../../contractEngine/models/cddAccroissement";
 import type { ContractModel } from "../../../../contractEngine/types";
@@ -26,6 +26,8 @@ import ReactMarkdown from "react-markdown";
 import { instructClause, instructContract, verifyConvention } from "./clauseAi";
 import { contractApi } from "../../contratheque/api";
 import { negotiationApi } from "../../negotiation/api";
+import { ShareContractPanel } from "../../negotiation/ShareContractPanel";
+import { PipelineStepBar } from "../../negotiation/PipelineStepBar";
 
 const isEmptyClause = (c: string) => c.trim() === "Sans objet.";
 
@@ -136,6 +138,24 @@ function markerText(nodes?: JNode[]): string {
       : n.type === "variable" ? `{{${String(n.attrs?.name ?? "")}}}`
       : markerText(n.content),
     )
+    .join("");
+}
+
+/**
+ * Sérialisation mixte (complétion guidée) : marqueurs `{{nom}}` pour les champs
+ * assignés aux autres parties, valeur en clair pour les champs du créateur.
+ */
+function mixedText(nodes: JNode[] | undefined, externalIds: Set<string>): string {
+  if (!nodes) return "";
+  return nodes
+    .map((n) => {
+      if (n.type === "text") return n.text ?? "";
+      if (n.type === "variable") {
+        const name = String(n.attrs?.name ?? "");
+        return externalIds.has(name) ? `{{${name}}}` : String(n.attrs?.value || "");
+      }
+      return mixedText(n.content, externalIds);
+    })
     .join("");
 }
 
@@ -341,6 +361,9 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
   const [ccFinderMsg, setCcFinderMsg] = useState<string | null>(null);
   const [negoLoading, setNegoLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Partage à l'autre partie (négociation ou complétion guidée)
+  const [shareOpen, setShareOpen] = useState(false);
+  const [sharedNego, setSharedNego] = useState<{ id: string; mode: "NEGOTIATION" | "COMPLETION" } | null>(null);
 
   // ── Modification globale par l'IA (barre sticky sous le contrat) ─────────
   const [globalAi, setGlobalAi] = useState<{
@@ -464,31 +487,47 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
     navigate("/analyzer", { state: { text: getContractText(), fileName: fileBase } });
   };
 
+  /** Enregistre le contrat en contrathèque (PDF + texte) et renvoie son identifiant. */
+  const saveToContratheque = async (): Promise<{ id: string }> => {
+    const dataUri = buildPdfDoc().output("datauristring");
+    const fileBase64 = dataUri.split(",")[1] ?? "";
+    const created = await contractApi.create({
+      title: fileBase,
+      ocrText: getContractText(),
+      fileBase64,
+      metadataFields: [],
+      contractType: model.label ?? null,
+      counterpartyName: null,
+      currency: "EUR",
+      renewalType: "NONE",
+      status: "ACTIVE",
+    });
+    return { id: created.id };
+  };
+
   /** Négocier : enregistre le contrat en contrathèque puis ouvre l'espace de négociation. */
   const goNegotiation = async () => {
     if (!editor || negoLoading) return;
     setNegoLoading(true);
     setActionError(null);
     try {
-      const dataUri = buildPdfDoc().output("datauristring");
-      const fileBase64 = dataUri.split(",")[1] ?? "";
-      const created = await contractApi.create({
-        title: fileBase,
-        ocrText: getContractText(),
-        fileBase64,
-        metadataFields: [],
-        contractType: model.label ?? null,
-        counterpartyName: null,
-        currency: "EUR",
-        renewalType: "NONE",
-        status: "ACTIVE",
-      });
+      const created = await saveToContratheque();
       const nego = await negotiationApi.enter(created.id, `Négociation — ${fileBase}`);
       navigate(`/negociation/${nego.id}`);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Impossible d'ouvrir la négociation.");
       setNegoLoading(false);
     }
+  };
+
+  /** Sérialisation mixte pour la complétion guidée (marqueurs côté autres parties). */
+  const getMarkedContractText = (externalIds: Set<string>) => {
+    if (!editor) return "";
+    const json = editor.getJSON() as JNode;
+    return (json.content ?? [])
+      .map((n) => mixedText(n.content, externalIds))
+      .filter((t) => t.trim())
+      .join("\n\n");
   };
 
   const exportDocx = async () => {
@@ -547,6 +586,21 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
         </nav>,
         headerSlot,
       )}
+
+      {/* Fil de l'expérience : Rédiger → Compléter → Partager → Signer */}
+      <div className="mb-4">
+        <PipelineStepBar
+          state={{
+            filled: model.variables.filter((v) => isFilled(v.id)).length,
+            total: model.variables.length,
+            shared: Boolean(sharedNego),
+            sharedMode: sharedNego?.mode,
+          }}
+          onShare={() => setShareOpen(true)}
+          onSign={goSignature}
+          onFollow={() => sharedNego && navigate(`/negociation/${sharedNego.id}`)}
+        />
+      </div>
 
       {/* Corps : panneau latéral + éditeur */}
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -621,8 +675,9 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
                   {genOpen && (
                     <>
                       <div className="fixed inset-0 z-30" onClick={() => setGenOpen(false)} />
-                      <div className="absolute right-0 top-full z-40 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-card-md">
-                        <MenuItem icon={FileSignature} label="Envoyer en signature" onClick={goSignature} tone="brand" />
+                      <div className="absolute right-0 top-full z-40 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-card-md">
+                        <MenuItem icon={Share2} label="Partager à l'autre partie" onClick={() => setShareOpen(true)} tone="brand" />
+                        <MenuItem icon={FileSignature} label="Envoyer en signature" onClick={goSignature} />
                         <MenuItem icon={MessagesSquare} label="Ouvrir la négociation" onClick={() => void goNegotiation()} />
                         <MenuItem icon={ShieldAlert} label="Réviser (risques)" onClick={goReview} />
                         {hasConvention && (
@@ -800,6 +855,18 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
           </div>
         </div>
       )}
+
+      {/* Partage à l'autre partie : complétion guidée ou négociation */}
+      <ShareContractPanel
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title={model.label || fileBase}
+        variables={model.variables.map((v) => ({ id: v.id, label: v.label, value: values[v.id] ?? "" }))}
+        getMarkedText={getMarkedContractText}
+        getPlainText={getContractText}
+        createContract={saveToContratheque}
+        onShared={(r) => setSharedNego({ id: r.negotiationId, mode: r.mode })}
+      />
     </div>
   );
 }

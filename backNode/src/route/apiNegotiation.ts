@@ -3,6 +3,11 @@ import type { Request, Response, Router, NextFunction } from "express"
 import { authMiddleware } from "../middleware/authMiddleware.js"
 import { NegotiationService } from "../services/negotiation/classNegotiation.js"
 import { enterNegotiation, abortNegotiation, exitToSignature } from "../services/negotiation/stateMachine.js"
+import {
+  enterCompletion, saveGuestFields, completeByGuest, listForOwner,
+} from "../services/negotiation/completion.js"
+import type { CompletionFieldInput } from "../services/negotiation/completion.js"
+import { sendGuestInvite } from "../services/negotiation/mail.js"
 import type {
   ProposalStatusValue, CommentVisibilityValue, ParticipantSideValue, ParticipantRoleValue,
 } from "../services/negotiation/classNegotiation.js"
@@ -41,7 +46,33 @@ router.post("/public/:token/comments", async (req: Request, res: Response) => {
   return res.status(201).json({ success: true, data: r })
 })
 
+// Complétion guidée : enregistrement (partiel autorisé) des champs de l'invité.
+router.patch("/public/:token/fields", async (req: Request, res: Response) => {
+  const { values } = req.body as { values?: Record<string, string> }
+  if (!values || typeof values !== "object") {
+    return res.status(400).json({ success: false, message: "values requis (objet champExternalId → valeur)." })
+  }
+  const r = await saveGuestFields(req.params["token"] as string, values)
+  if (!r) return res.status(404).json({ success: false, message: "Lien invalide, expiré ou hors mode complétion." })
+  return res.json({ success: true, data: r })
+})
+
+// Complétion guidée : l'invité déclare avoir terminé → contrôle des champs
+// requis, interpolation du texte et validation si toutes les parties ont fini.
+router.post("/public/:token/complete", async (req: Request, res: Response) => {
+  const r = await completeByGuest(req.params["token"] as string)
+  if (!r) return res.status(404).json({ success: false, message: "Lien invalide, expiré ou hors mode complétion." })
+  if (!r.done) return res.status(422).json({ success: false, message: "Des champs requis sont vides.", data: r })
+  return res.json({ success: true, data: r })
+})
+
 // ─── Entrée du tunnel & liste ──────────────────────────────────────────────────
+
+// Page « Mes négociations » : toutes les sessions de l'utilisateur.
+router.get("/", authMiddleware, async (req: Request, res: Response) => {
+  const data = await listForOwner(Number(req.idUser))
+  return res.json({ success: true, data })
+})
 
 router.post("/enter", authMiddleware, requireEditor, async (req: Request, res: Response) => {
   const { contractExternalId, title } = req.body as { contractExternalId?: string; title?: string }
@@ -50,6 +81,23 @@ router.post("/enter", authMiddleware, requireEditor, async (req: Request, res: R
   if (!r) return res.status(500).json({ success: false, message: "Impossible d'ouvrir la négociation." })
   // Normalise vers `id` pour cohérence avec le reste de l'API.
   return res.status(201).json({ success: true, data: { id: r.externalId, status: r.status } })
+})
+
+// Complétion guidée : texte avec marqueurs {{variableId}} + champs assignés.
+router.post("/enter-completion", authMiddleware, requireEditor, async (req: Request, res: Response) => {
+  const { contractExternalId, title, contentText, fields, autoToSignature } = req.body as {
+    contractExternalId?: string; title?: string; contentText?: string
+    fields?: CompletionFieldInput[]; autoToSignature?: boolean
+  }
+  if (!contractExternalId || !contentText || !Array.isArray(fields) || fields.length === 0) {
+    return res.status(400).json({ success: false, message: "contractExternalId, contentText et fields requis." })
+  }
+  const r = await enterCompletion({
+    contractExternalId, ownerUserId: Number(req.idUser),
+    title, contentText, fields, autoToSignature: Boolean(autoToSignature),
+  })
+  if (!r) return res.status(500).json({ success: false, message: "Impossible d'ouvrir la complétion." })
+  return res.status(201).json({ success: true, data: { id: r.externalId } })
 })
 
 router.get("/contract/:contractExternalId", authMiddleware, async (req: Request, res: Response) => {
@@ -159,10 +207,47 @@ router.delete("/:externalId/participants/:participantExternalId", authMiddleware
 // ─── Partage externe (lien invité) ──────────────────────────────────────────────
 
 router.post("/:externalId/guests", authMiddleware, requireEditor, async (req: Request, res: Response) => {
-  const { participantExternalId, ttlHours } = req.body as { participantExternalId?: string; ttlHours?: number }
-  const r = await svc.inviteGuest(req.params["externalId"] as string, { participantExternalId: participantExternalId ?? null, ttlHours })
+  const { participantExternalId, ttlHours, name, email, role, fillSide, sendEmail } = req.body as {
+    participantExternalId?: string; ttlHours?: number
+    name?: string; email?: string; role?: string
+    fillSide?: "COUNTERPARTY" | "THIRD_PARTY"; sendEmail?: boolean
+  }
+  const externalId = req.params["externalId"] as string
+  const r = await svc.inviteGuest(externalId, {
+    participantExternalId: participantExternalId ?? null, ttlHours,
+    name: name?.trim() || null, email: email?.trim() || null,
+    role: role as ParticipantRoleValue | "FILLER" | undefined,
+    fillSide: fillSide ?? null,
+  })
   if (!r) return res.status(404).json({ success: false, message: "Négociation introuvable." })
-  return res.status(201).json({ success: true, data: r })
+  // Envoi d'e-mail best-effort : le lien reste copiable même si le SMTP échoue.
+  let emailSent = false
+  if (sendEmail !== false && r.email) {
+    const detail = await svc.get(externalId)
+    emailSent = await sendGuestInvite({
+      to: r.email, guestName: r.name ?? null,
+      documentTitle: detail?.title ?? "Document Lumen Juris",
+      token: r.token, mode: (detail?.mode as "NEGOTIATION" | "COMPLETION") ?? "NEGOTIATION",
+    })
+    if (emailSent) await svc.markGuestSent(externalId, r.id)
+  }
+  return res.status(201).json({ success: true, data: { ...r, emailSent } })
+})
+
+// Relance : renvoie l'e-mail d'invitation à un invité dont le lien est actif.
+router.post("/:externalId/guests/:guestExternalId/remind", authMiddleware, requireEditor, async (req: Request, res: Response) => {
+  const externalId = req.params["externalId"] as string
+  const g = await svc.markGuestSent(externalId, req.params["guestExternalId"] as string)
+  if (!g) return res.status(404).json({ success: false, message: "Lien introuvable, expiré ou révoqué." })
+  if (!g.email) return res.status(422).json({ success: false, message: "Ce lien n'a pas de destinataire e-mail." })
+  const detail = await svc.get(externalId)
+  const sent = await sendGuestInvite({
+    to: g.email, guestName: g.name ?? null,
+    documentTitle: detail?.title ?? "Document Lumen Juris",
+    token: g.token, mode: (detail?.mode as "NEGOTIATION" | "COMPLETION") ?? "NEGOTIATION",
+    reminder: true,
+  })
+  return res.json({ success: true, data: { emailSent: sent } })
 })
 
 router.post("/:externalId/guests/:guestExternalId/revoke", authMiddleware, requireEditor, async (req: Request, res: Response) => {

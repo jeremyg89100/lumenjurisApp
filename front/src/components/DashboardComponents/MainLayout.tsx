@@ -17,7 +17,8 @@ import {
   X,
   Sparkles,
   ShieldHalf,
-  User
+  User,
+  MessagesSquare
 } from "lucide-react";
 
 import HeaderNavigationBar from "../MainHeader/HeaderNavigationBar";
@@ -60,6 +61,7 @@ const navItems: NavItem[] = [
       { icon: Droplets, label: "Mes images", path: "/generateur/filigranes" },
     ],
   },
+  { icon: MessagesSquare, label: "Négociation", path: "/negociations" },
   { icon: PenTool, label: "Signature", path: "/signature" },
   { icon: ScrollText, label: "Bibliothèque de clauses", path: "/clauses" },
   { icon: ShieldCheck, label: "Analyse des risques", path: "/conformite" },

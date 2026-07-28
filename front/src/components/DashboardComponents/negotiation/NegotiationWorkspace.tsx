@@ -10,7 +10,9 @@ import type { AddAnnotationPayload } from "./NegotiationDoc";
 import { ParticipantsPanel } from "./ParticipantsPanel";
 import { ShareDialog } from "./ShareDialog";
 import { VersionDiff } from "./VersionDiff";
-import { STATUS_LABEL, STATUS_STYLE } from "./types";
+import { CompletionOwnerPanel } from "./CompletionOwnerPanel";
+import { buildPdfFromText } from "./buildPdfFromText";
+import { STATUS_LABEL, STATUS_STYLE, MODE_LABEL, MODE_STYLE } from "./types";
 import type { NegotiationDetail } from "./types";
 import { AlertBanner } from "../../common/AlertBanner";
 import { ConfirmationModal } from "../../ui/ConfirmationModal";
@@ -79,7 +81,19 @@ export function NegotiationWorkspace() {
 
   async function exitToSignature() {
     if (!data) return;
-    try { await negotiationApi.exit(data.id); setVersionSuccess(true) }
+    try {
+      await negotiationApi.exit(data.id);
+      // Enchaîne concrètement : PDF de la version finale → assistant signature.
+      const final = data.versions.find((v) => v.isFinal) ?? data.versions[data.versions.length - 1];
+      if (final) {
+        const pdf = buildPdfFromText(data.title, final.contentText);
+        navigate("/signature", {
+          state: { incomingPdf: pdf.output("datauristring"), incomingName: `${data.title}.pdf` },
+        });
+        return;
+      }
+      setVersionSuccess(true);
+    }
     catch (e) { setVersionError(true); }
   }
   async function validateDisplayed() {
@@ -133,7 +147,8 @@ export function NegotiationWorkspace() {
           <button onClick={() => navigate(`/contratheque/${data.contractExternalId}`)} className="inline-flex items-center gap-1 text-xs text-ink-subtle hover:text-brand font-medium"><ChevronLeft className="w-3.5 h-3.5" /> Retour au contrat</button>
           <div className="flex items-center gap-3 mt-2">
             <h1 className="text-xl font-bold text-ink tracking-tight truncate">{data.title}</h1>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-chip" style={{ backgroundColor: st.bg, color: st.fg }}>{STATUS_LABEL[data.status]}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-chip" style={{ backgroundColor: MODE_STYLE[data.mode].bg, color: MODE_STYLE[data.mode].fg }}>{MODE_LABEL[data.mode]}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-chip" style={{ backgroundColor: st.bg, color: st.fg }}>{data.status === "VALIDATED" ? "Prêt à signer" : STATUS_LABEL[data.status]}</span>
           </div>
         </div>
         {canEdit && data.status !== "CLOSED" && (
@@ -169,6 +184,11 @@ export function NegotiationWorkspace() {
       )}
 
       {newVersionOpen && canEdit && <NewVersionForm negotiationId={data.id} nextNumber={data.versions.length + 1} onDone={() => { setNewVersionOpen(false); void load(); }} />}
+
+      {/* Complétion guidée : suivi des champs, relances et passage en signature */}
+      {data.mode === "COMPLETION" && (
+        <CompletionOwnerPanel data={data} canEdit={canEdit} onChanged={() => void load()} />
+      )}
 
       {/* Vue document collaborative */}
       <NegotiationDoc

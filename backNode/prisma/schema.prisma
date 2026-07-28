@@ -820,6 +820,21 @@ enum ParticipantRole {
   COMMENTER // peut commenter
   PROPOSER // peut proposer des redlines
   VALIDATOR // peut valider la version finale
+  FILLER // complète les champs qui lui sont assignés (mode COMPLETION)
+}
+
+// Parcours d'une session : négociation du texte, ou complétion guidée des
+// champs par l'autre partie avant signature (ex. convention de stage).
+enum NegotiationMode {
+  NEGOTIATION // redlines, commentaires, versions
+  COMPLETION // l'autre partie remplit ses champs puis le contrat part en signature
+}
+
+// Partie à laquelle un champ est assigné en mode COMPLETION.
+enum FieldSide {
+  OWNER // le créateur du contrat
+  COUNTERPARTY // l'autre partie (ex. le stagiaire)
+  THIRD_PARTY // un tiers (ex. l'établissement d'enseignement)
 }
 
 enum ProposalStatus {
@@ -845,6 +860,9 @@ enum NegotiationAuditAction {
   PARTICIPANT_REMOVED
   GUEST_INVITED
   GUEST_REVOKED
+  GUEST_REMINDED
+  FIELD_FILLED
+  COMPLETION_FINISHED
   VALIDATED
   ABORTED
 }
@@ -857,6 +875,8 @@ model NegotiationSession {
   contractExternalId String // couplage par ID (isolation, pas de FK)
   title              String
   status             NegotiationStatus @default(DRAFT)
+  mode               NegotiationMode   @default(NEGOTIATION)
+  autoToSignature    Boolean           @default(false) // COMPLETION : proposer la signature dès que tout est rempli
   ownerUserId        Int // créateur interne (scalaire, pas de FK)
   finalVersionId     Int? // version validée → consommée par la signature
   createdAt          DateTime          @default(now())
@@ -868,9 +888,33 @@ model NegotiationSession {
   participants  NegotiationParticipant[]
   guestAccesses GuestAccess[]
   auditLogs     NegotiationAudit[]
+  fields        NegotiationField[]
 
   @@index([contractExternalId])
   @@index([ownerUserId])
+}
+
+/// Champ à compléter par une partie en mode COMPLETION. `variableId` référence le
+/// marqueur `{{variableId}}` laissé dans le texte de la version initiale ; la
+/// complétion interpole les valeurs et produit la version finale.
+model NegotiationField {
+  idField    Int       @id @default(autoincrement())
+  externalId String    @unique
+  variableId String // identifiant du marqueur dans le texte
+  label      String
+  type       String    @default("text") // text | date | email | number | iban
+  side       FieldSide @default(COUNTERPARTY)
+  required   Boolean   @default(true)
+  position   Int       @default(0)
+  value      String?   @db.Text
+  filledById Int? // participant ayant rempli le champ
+  filledAt   DateTime?
+
+  negotiationId Int
+  negotiation   NegotiationSession @relation(fields: [negotiationId], references: [idNegotiation], onDelete: Cascade)
+
+  @@unique([negotiationId, variableId])
+  @@index([negotiationId])
 }
 
 /// Version immuable du texte contractuel pendant la négociation. Base de comparaison entre rounds.
@@ -963,6 +1007,10 @@ model GuestAccess {
   externalId    String    @unique
   token         String    @unique // secret du lien invité
   participantId Int?
+  name          String? // lien nominatif : destinataire affiché sur la page invité
+  email         String? // destinataire de l'invitation et des relances
+  fillSide      FieldSide? // COMPLETION : côté des champs que cet invité remplit
+  lastSentAt    DateTime? // dernier envoi d'e-mail (invitation ou relance)
   expiresAt     DateTime
   revokedAt     DateTime?
   createdAt     DateTime  @default(now())
