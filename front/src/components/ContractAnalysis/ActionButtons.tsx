@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Share2,
   FileText,
@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 import { useDocumentTextStore } from "../../store/documentTextStore";
 import { useAppliedRecommendationsStore } from "../../store/appliedRecommendationsStore";
+import { AddToContrathequeButton } from "./AddToContrathequeButton";
+import { ContractAnalysis } from "../../types";
+import { AnalysisContext } from "../../types/contextualAnalysis";
+import { AlertBanner } from "../common/AlertBanner";
 
 interface ActionButtonsProps {
   onShareReport: () => void;
@@ -21,6 +25,10 @@ interface ActionButtonsProps {
   isLoadingSuggested?: boolean;
   /** Actions supplémentaires (ex. « Ajouter à la contrathèque »). */
   extraActions?: React.ReactNode;
+
+
+  contract:ContractAnalysis;
+  context:AnalysisContext | undefined
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -34,6 +42,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   onSuggestedClauses,
   isLoadingSuggested = false,
   extraActions,
+
+  contract,
+  context
+
 }) => {
   const patches = useDocumentTextStore((state) => state.patches);
   const activePatchCount = patches.filter((p) => p.active).length;
@@ -47,10 +59,44 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   const btnExport = `${btnBase} bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 shadow-sm`;
   const btnExportDisabled = `${btnBase} bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed`;
 
+  const [suggestedClausesError, setSuggestedClausesError] = useState(false);
+
+  const handleSuggestedClausesClick = async () => {
+    if (!onSuggestedClauses) return;
+    setSuggestedClausesError(false);
+
+    try {
+      // throw new Error("Erreur de test");
+      await onSuggestedClauses();
+    } catch (error) {
+      console.error("Erreur clauses suggérées :", error);
+      setSuggestedClausesError(true);
+    }
+  }
+ 
+
   return (
     <div className=" px-6 py-6">
+      {suggestedClausesError && (
+        <div className="mb-4">
+          <AlertBanner
+            title="Erreur de chargement !"
+            variant="error"
+            detail="Impossible de récupérer les clauses suggérées. Veuillez réessayer."
+            duration={8000}
+            onClose={() => setSuggestedClausesError(false)}
+          />
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
+
+        <AddToContrathequeButton 
+          contract={contract}
+          context={context}
+        />
+
+
           <button onClick={onShareReport} className={btnGhost}>
             <Share2 className="w-4 h-4" />
             Partager
@@ -92,7 +138,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 
           {onSuggestedClauses && (
             <button
-              onClick={onSuggestedClauses}
+              onClick={handleSuggestedClausesClick}
               disabled={isLoadingSuggested}
               className={btnGhost}
               title="Voir les clauses suggérées"

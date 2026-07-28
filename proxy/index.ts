@@ -251,8 +251,7 @@ async function logOpenAiTokens(
   }
 }
 
-// ─── Feature usage tracking ────────────────────────────────────────────────────
-
+// Trancking des fonctionalités pour analyse et monitoring
 async function trackFeature(feature: string, userId?: number): Promise<void> {
   if (!userId) return;
   try {
@@ -280,7 +279,7 @@ function withTracking(
   };
 }
 
-// ─────────────���────────────────────────────────────���────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────
 
 function handleExtractDocumentText(req: Request, res: Response): void {
   relayStreamToPython(req, res, "/extract-document-text");
@@ -374,6 +373,10 @@ function handleNodeLogin(req: Request, res: Response): void {
   relayToNode(req, res, "/user/auth/login");
 }
 
+function handleNodeVerifyAccount(req: Request, res: Response): void {
+  relayToNode(req, res, "/user/resend-verify");
+}
+
 function handleNodeLogout(req: Request, res: Response): void {
   relayToNode(req, res, "/user/auth/logout");
 }
@@ -444,7 +447,9 @@ function handleNodeUserResetPassword(req: Request, res: Response): void {
   relayToNode(req, res, "/user/updatepassword");
 }
 
-function handleNodeGoogle(_req: Request, res: Response): void {
+function handleNodeGoogle(req: Request, res: Response): void {
+  console.log("[proxy/google] redirect vers :", `${BACKNODE_URL}/auth/google`);
+  console.log("[proxy/google] cookies entrants :", req.headers.cookie);
   res.redirect(`${BACKNODE_URL}/auth/google`);
 }
 
@@ -462,6 +467,10 @@ function handleBillingPlans(req: Request, res: Response): void {
 
 function handleBillingSubscription(req: Request, res: Response): void {
   relayToNode(req, res, "/billing/subscription");
+}
+
+function handleBillingPaymentFailed(req: Request, res: Response): void {
+  relayToNode(req, res, "/billing/payment-failed");
 }
 
 function handleBillingAddCredits(req: Request, res: Response): void {
@@ -746,6 +755,16 @@ function handleSignatureCreate(req: Request, res: Response): void {
 function handleSignatureDelete(req: Request, res: Response): void {
   const id = encodeURIComponent(req.params.externalId as string);
   relayToNode(req, res, `/signature-envelope/${id}`);
+}
+
+function handleSignatureDownload(req: Request, res: Response): void {
+  const id = encodeURIComponent(req.params.externalId as string);
+  // Réponse binaire (PDF) → passthrough raw, pas d'enveloppe JSON.
+  relayToNodeRaw(req, res, `/signature-envelope/download/${id}`);
+}
+
+function handleSignatureResend(req: Request, res: Response): void {
+  relayToNode(req, res, `/signature-envelope/resend`);
 }
 
 // ─── Génération d'un contrat à partir d'un modèle ──────────────────────────────
@@ -1109,8 +1128,22 @@ async function handleUserUploadsAsset(
   res: Response,
 ): Promise<void> {
   try {
+    if (!res.locals.userId) {
+      res.status(401).json({success: false, message: "Non autorisé"});
+      return;
+    }
     const filename = encodeURIComponent(req.params.filename as string);
-    const r = await fetch(`${BACKNODE_URL}/userassets/${filename}`);
+    const r = await fetch(`${BACKNODE_URL}/userassets/${filename}`, {
+      headers: {
+        "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
+      ...(res.locals.userId !== undefined
+        ? {
+            "x-user-id": String(res.locals.userId),
+            "x-user-role": String(res.locals.role ?? "USER"),
+          }
+        : {}),
+      }
+    });
     if (!r.ok || !r.body) {
       res.status(r.status).end();
       return;
@@ -1129,23 +1162,25 @@ async function handleUserUploadsAsset(
 // Multipart (upload PDF) — stream direct, body non consommé par express.json
 app.post(
   ["/extract-document-text", "/api/extract-document-text"],
+  proxyAuthMiddleware,
   handleExtractDocumentText,
 );
 
 // JSON routes — body déjà parsé par express.json
 app.post(
   ["/legifrance-search", "/api/legifrance-search"],
+  proxyAuthMiddleware,
   handleLegifranceSearch,
 );
-app.post(["/jurisprudence", "/api/jurisprudence"], handleJurisprudence);
-app.post(["/classify-veille", "/api/classify-veille"], handleClassifyVeille);
-app.post(["/analyze-clause", "/api/analyze-clause"], handleAnalyzeClause);
-app.post(["/api/chat", "/chat"], handleChat);
-app.post(["/api/openai-chat", "/openai-chat"], handleOpenAiChat);
-app.post(["/api/openai-chat-5", "/openai-chat-5"], handleOpenAiChat5);
+app.post(["/jurisprudence", "/api/jurisprudence"], proxyAuthMiddleware, handleJurisprudence,);
+app.post(["/classify-veille", "/api/classify-veille"],proxyAuthMiddleware, handleClassifyVeille,);
+app.post(["/analyze-clause", "/api/analyze-clause"],proxyAuthMiddleware, handleAnalyzeClause,);
+app.post(["/api/chat", "/chat"],proxyAuthMiddleware, handleChat,);
+app.post(["/api/openai-chat", "/openai-chat"],proxyAuthMiddleware, handleOpenAiChat,);
+app.post(["/api/openai-chat-5", "/openai-chat-5"],proxyAuthMiddleware, handleOpenAiChat5,);
 app.post(
   ["/api/huggingface-generate", "/huggingface-generate"],
-  handleHuggingFaceGenerate,
+  proxyAuthMiddleware, handleHuggingFaceGenerate, 
 );
 
 // Node - Requêtes Backend
@@ -1154,7 +1189,7 @@ const auth = proxyAuthMiddleware;
 // Routes publiques (pas d'auth requise)
 app.post("/api/signup", handleSignUpUser);
 app.post("/api/user/auth/login", handleNodeLogin);
-
+app.post("/user/resend-verify", handleNodeVerifyAccount);
 /**
  * Login du complément Word : mêmes identifiants que la plateforme, mais le
  * JWT est renvoyé dans le corps (l'iframe Word ne peut pas recevoir le cookie
@@ -1174,7 +1209,10 @@ app.post("/api/addin/login", async (req: Request, res: Response) => {
     }
     const r = await fetch(`${BACKNODE_URL}/user/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "x-internal-api-key": process.env.INTERNAL_API_KEY ?? "",
+       },
       body: JSON.stringify({ email, password }),
     });
     const data = (await r.json().catch(() => ({}))) as {
@@ -1222,11 +1260,11 @@ app.post("/api/addin/login", async (req: Request, res: Response) => {
 
 app.post("/api/auth/forgotpassword", handleNodeUserForgotPassword);
 app.post("/api/user/resetpassword", handleNodeUserResetPassword);
-app.get("/api/google", handleNodeGoogle);
+app.get("/auth/google", handleNodeGoogle);
 app.post("/api/billing/customer", auth, handleBillingCustomer);
 app.post("/api/billing/payment-intent", auth, handleBillingPaymentIntent);
-app.get("/api/veille", handleNodeVeille);
-app.get("/api/veille/debug", handleNodeVeilleDebug);
+app.get("/api/veille", auth, handleNodeVeille);
+app.get("/api/veille/debug", auth, handleNodeVeilleDebug);
 app.get("/api/user-uploads", auth, handleUserUploadsGet);
 app.post("/api/user-uploads/upload", auth, handleUserUploadsPost);
 app.put("/api/user-uploads/:filename", auth, handleUserUploadsRename);
@@ -1277,6 +1315,9 @@ app.post("/api/billing/payment-intent", auth, handleBillingPaymentIntent);
 app.get("/api/billing/plans", auth, handleBillingPlans);
 app.post("/api/billing/subscription", auth, handleBillingSubscription);
 app.get("/api/billing/subscription", auth, handleBillingSubscription);
+app.get("/api/billing/invoices", auth, (req, res) => relayToNode(req, res, "/billing/invoices"));
+app.get("/api/billing/invoices/:idFacture/pdf", auth, (req, res) => relayToNodeRaw(req, res, `/billing/invoices/${encodeURIComponent(req.params.idFacture as string)}/pdf`));
+app.post("/api/billing/payment-failed", auth, handleBillingPaymentFailed);
 app.put("/api/billing/add-credits", auth, handleBillingAddCredits);
 app.put("/api/billing/remove-credits", auth, handleBillingRemoveCredits);
 app.get("/api/billing/credits", auth, handleBillingCredits);
@@ -1313,7 +1354,12 @@ app.post("/api/template/:externalId/generate", auth, handleTemplateGenerate);
 // Signature électronique (routes authentifiées)
 app.get("/api/signature-envelope/stats", auth, handleSignatureStats);
 app.get("/api/signature-envelope", auth, handleSignatureList);
-app.post("/api/signature-envelope", auth, handleSignatureCreate);
+app.post("/api/signature-envelope", auth, (req, res) => {
+  void trackFeature("esignature", res.locals.userId as number | undefined);
+  handleSignatureCreate(req, res);
+});
+app.post("/api/signature-envelope/resend", auth, handleSignatureResend);
+app.get("/api/signature-envelope/download/:externalId", auth, handleSignatureDownload);
 app.delete("/api/signature-envelope/:externalId", auth, handleSignatureDelete);
 
 // Signature électronique (routes PUBLIQUES — pas d'auth, token dans l'URL)
@@ -1380,12 +1426,11 @@ app.delete("/api/contract/folders/:externalId", auth, (req, res) =>
 );
 
 // Liste + création
-app.get("/api/contract", auth, (req, res) =>
-  relayToNode(req, res, withQuery("/contract", req)),
-);
-app.post("/api/contract", auth, (req, res) =>
-  relayToNode(req, res, "/contract"),
-);
+app.get("/api/contract", auth, (req, res) => relayToNode(req, res, withQuery("/contract", req)));
+app.post("/api/contract", auth, (req, res) => {
+  void trackFeature("contract_library", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/contract");
+});
 
 // Sous-ressources d'un contrat
 app.get("/api/contract/:externalId/document", auth, (req, res) =>
@@ -1489,132 +1534,52 @@ app.delete("/api/contract/:externalId", auth, (req, res) =>
 );
 
 // ─── Bibliothèque de clauses ───
-app.get("/api/clause/stats", auth, (req, res) =>
-  relayToNode(req, res, "/clause/stats"),
-);
-app.get("/api/clause", auth, (req, res) =>
-  relayToNode(req, res, withQuery("/clause", req)),
-);
-app.post("/api/clause", auth, (req, res) => relayToNode(req, res, "/clause"));
-app.post("/api/clause/:externalId/use", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/clause/${encodeURIComponent(req.params.externalId as string)}/use`,
-  ),
-);
-app.get("/api/clause/:externalId", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/clause/${encodeURIComponent(req.params.externalId as string)}`,
-  ),
-);
-app.patch("/api/clause/:externalId", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/clause/${encodeURIComponent(req.params.externalId as string)}`,
-  ),
-);
-app.delete("/api/clause/:externalId", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/clause/${encodeURIComponent(req.params.externalId as string)}`,
-  ),
-);
+app.get("/api/clause/stats", auth, (req, res) => relayToNode(req, res, "/clause/stats"));
+app.get("/api/clause", auth, (req, res) => relayToNode(req, res, withQuery("/clause", req)));
+app.post("/api/clause", auth, (req, res) => {
+  void trackFeature("clause_library", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/clause");
+});
+app.post("/api/clause/:externalId/use", auth, (req, res) => relayToNode(req, res, `/clause/${encodeURIComponent(req.params.externalId as string)}/use`));
+app.get("/api/clause/:externalId", auth, (req, res) => relayToNode(req, res, `/clause/${encodeURIComponent(req.params.externalId as string)}`));
+app.patch("/api/clause/:externalId", auth, (req, res) => relayToNode(req, res, `/clause/${encodeURIComponent(req.params.externalId as string)}`));
+app.delete("/api/clause/:externalId", auth, (req, res) => relayToNode(req, res, `/clause/${encodeURIComponent(req.params.externalId as string)}`));
 
 // ─── Veille juridique (alertes + digest jurisprudence) ───
-// Jobs du pipeline (rôle vérifié côté backNode)
-app.post("/api/legal-watch/ingest", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/ingest"),
-);
-app.post("/api/legal-watch/enrich", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/enrich"),
-);
-app.post("/api/legal-watch/publish", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/publish"),
-);
-app.post("/api/legal-watch/run", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/run"),
-);
-// Consultation
-app.get("/api/legal-watch/alerts", auth, (req, res) =>
-  relayToNode(req, res, withQuery("/legal-watch/alerts", req)),
-);
-app.patch("/api/legal-watch/alerts/:externalId", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/legal-watch/alerts/${encodeURIComponent(req.params.externalId as string)}`,
-  ),
-);
-app.get("/api/legal-watch/digest", auth, (req, res) =>
-  relayToNode(req, res, withQuery("/legal-watch/digest", req)),
-);
-app.get("/api/legal-watch/unread-count", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/unread-count"),
-);
-app.get("/api/legal-watch/status", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/status"),
-);
-app.get("/api/legal-watch/config", auth, (req, res) =>
-  relayToNode(req, res, "/legal-watch/config"),
-);
-app.patch("/api/legal-watch/sources/:name", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/legal-watch/sources/${encodeURIComponent(req.params.name as string)}`,
-  ),
-);
-app.patch("/api/legal-watch/concepts/:concept", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/legal-watch/concepts/${encodeURIComponent(req.params.concept as string)}`,
-  ),
-);
+// Jobs du pipeline (rôle vérifié côté backNode) — l'enrichissement consomme du LLM, on le track
+app.post("/api/legal-watch/ingest", auth, (req, res) => relayToNode(req, res, "/legal-watch/ingest"));
+app.post("/api/legal-watch/enrich", auth, (req, res) => {
+  void trackFeature("legal_watch_run", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/legal-watch/enrich");
+});
+app.post("/api/legal-watch/publish", auth, (req, res) => relayToNode(req, res, "/legal-watch/publish"));
+app.post("/api/legal-watch/run", auth, (req, res) => {
+  void trackFeature("legal_watch_run", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/legal-watch/run");
+});
+// Consultation — la lecture du digest est l'usage utilisateur de la veille
+// (unread-count est appelé automatiquement par le header : non tracké pour ne pas fausser les stats)
+app.get("/api/legal-watch/alerts", auth, (req, res) => relayToNode(req, res, withQuery("/legal-watch/alerts", req)));
+app.patch("/api/legal-watch/alerts/:externalId", auth, (req, res) => relayToNode(req, res, `/legal-watch/alerts/${encodeURIComponent(req.params.externalId as string)}`));
+app.get("/api/legal-watch/digest", auth, (req, res) => {
+  void trackFeature("legal_watch", res.locals.userId as number | undefined);
+  relayToNode(req, res, withQuery("/legal-watch/digest", req));
+});
+app.get("/api/legal-watch/unread-count", auth, (req, res) => relayToNode(req, res, "/legal-watch/unread-count"));
+app.get("/api/legal-watch/status", auth, (req, res) => relayToNode(req, res, "/legal-watch/status"));
+app.get("/api/legal-watch/config", auth, (req, res) => relayToNode(req, res, "/legal-watch/config"));
+app.patch("/api/legal-watch/sources/:name", auth, (req, res) => relayToNode(req, res, `/legal-watch/sources/${encodeURIComponent(req.params.name as string)}`));
+app.patch("/api/legal-watch/concepts/:concept", auth, (req, res) => relayToNode(req, res, `/legal-watch/concepts/${encodeURIComponent(req.params.concept as string)}`));
 
 // ─── Administration (gestion des utilisateurs & rôles) ───
-app.get("/api/admin/users", auth, (req, res) =>
-  relayToNode(req, res, "/admin/users"),
-);
-app.patch("/api/admin/users/:idUser/role", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/admin/users/${encodeURIComponent(req.params.idUser as string)}/role`,
-  ),
-);
-app.get("/api/admin/revenue", auth, (req, res) =>
-  relayToNode(req, res, "/admin/revenue"),
-);
-app.get("/api/admin/users/:idUser/details", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/admin/users/${encodeURIComponent(req.params.idUser as string)}/details`,
-  ),
-);
-app.patch("/api/admin/users/:idUser/ban", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/admin/users/${encodeURIComponent(req.params.idUser as string)}/ban`,
-  ),
-);
-app.get("/api/admin/feature-usage", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/admin/feature-usage${req.query.days ? `?days=${encodeURIComponent(req.query.days as string)}` : ""}`,
-  ),
-);
-app.get("/api/admin/overview", auth, (req, res) =>
-  relayToNode(req, res, "/admin/overview"),
-);
+app.get("/api/admin/users", auth, (req, res) => relayToNode(req, res, "/admin/users"));
+app.patch("/api/admin/users/:idUser/role", auth, (req, res) => relayToNode(req, res, `/admin/users/${encodeURIComponent(req.params.idUser as string)}/role`));
+app.get("/api/admin/revenue", auth, (req, res) => relayToNode(req, res, "/admin/revenue"));
+app.get("/api/admin/users/:idUser/details", auth, (req, res) => relayToNode(req, res, `/admin/users/${encodeURIComponent(req.params.idUser as string)}/details`));
+app.patch("/api/admin/users/:idUser/ban", auth, (req, res) => relayToNode(req, res, `/admin/users/${encodeURIComponent(req.params.idUser as string)}/ban`));
+app.get("/api/admin/feature-usage", auth, (req, res) => relayToNode(req, res, `/admin/feature-usage${req.query.days ? `?days=${encodeURIComponent(req.query.days as string)}` : ""}`));
+app.get("/api/admin/feature-usage/users/:idUser", auth, (req, res) => relayToNode(req, res, `/admin/feature-usage/users/${encodeURIComponent(req.params.idUser as string)}${req.query.days ? `?days=${encodeURIComponent(req.query.days as string)}` : ""}`));
+app.get("/api/admin/overview", auth, (req, res) => relayToNode(req, res, "/admin/overview"));
 
 // ─── Négociation (module isolé) ───
 // Publiques invité (sans auth — token = secret) ; placées AVANT /:externalId.
@@ -1633,16 +1598,11 @@ app.post("/api/negotiation/public/:token/comments", (req, res) =>
   ),
 );
 // Entrée & liste
-app.post("/api/negotiation/enter", auth, (req, res) =>
-  relayToNode(req, res, "/negotiation/enter"),
-);
-app.get("/api/negotiation/contract/:contractExternalId", auth, (req, res) =>
-  relayToNode(
-    req,
-    res,
-    `/negotiation/contract/${encodeURIComponent(req.params.contractExternalId as string)}`,
-  ),
-);
+app.post("/api/negotiation/enter", auth, (req, res) => {
+  void trackFeature("negotiation", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/negotiation/enter");
+});
+app.get("/api/negotiation/contract/:contractExternalId", auth, (req, res) => relayToNode(req, res, `/negotiation/contract/${encodeURIComponent(req.params.contractExternalId as string)}`));
 // Sous-ressources (avant /:externalId nu)
 app.post("/api/negotiation/:externalId/abort", auth, (req, res) =>
   relayToNode(
