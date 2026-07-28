@@ -78,7 +78,7 @@ export function EnterpriseSettingsPanel({
       )}
       {enterpriseUpdateError && (
         <AlertBanner
-          title="Echec de la mise à jour !"
+          title="Échec de la mise à jour !"
           variant="error"
           detail="Les informations de l'entreprise n'ont pu être mises à jour. Veuillez réessayer."
           duration={6000}

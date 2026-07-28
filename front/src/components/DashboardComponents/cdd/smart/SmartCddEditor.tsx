@@ -1,9 +1,11 @@
 // Éditeur de contrat « document d'abord » — générique (piloté par un ContractModel).
-// Mode plein écran focalisé : barre d'app (logo + fil d'ariane + « Générer le contrat »),
-// panneau latéral « Champs à compléter » (avancement par section), document éditable
-// avec variables surlignées remplies d'un clic.
+// Intégré dans la mise en page de l'app (menu latéral + header conservés). Le fil
+// d'ariane est déposé dans le header partagé via un portail (#page-header-slot) ;
+// un bandeau (barre d'outils + « Générer le contrat ») surplombe la zone de contenu,
+// puis les deux blocs (« Champs à compléter » + document éditable) côte à côte.
 // Utilisé pour tous les types de contrat (CDD, CDI, avenant, disciplinaire, rupture).
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -18,7 +20,6 @@ import { createInitialState } from "../../../../contractEngine/state";
 import { splitSegments } from "../../../../contractEngine/segments";
 import { Variable } from "./VariableNode";
 import { CompanySearchField } from "../../../common/CompanySearchField";
-import { LumenJurisLogo } from "../../../common/LumenJurisLogo";
 import { mapCompanyToContractParty, formatConventionFromCompany } from "../../../../utils/companyLookup";
 import type { CompanyResult } from "../../../../types/companySearch";
 import ReactMarkdown from "react-markdown";
@@ -80,6 +81,12 @@ function buildInitialHtml(model: ContractModel, varLabel: Map<string, string>): 
   return html;
 }
 
+/** Retire un préfixe « Article N – / Article N. » d'un intitulé de section (numérotation superflue). */
+function stripArticlePrefix(heading: string): string {
+  const cleaned = heading.replace(/^article\s+\d+\s*(?:[–\-—.:)]\s*)?/i, "").trim();
+  return cleaned || heading.trim();
+}
+
 /** Regroupe les variables par section (heading du bloc) pour le panneau « Champs à compléter ». */
 interface FieldGroup { id: string; label: string; varIds: string[] }
 function buildFieldGroups(model: ContractModel): FieldGroup[] {
@@ -89,7 +96,9 @@ function buildFieldGroups(model: ContractModel): FieldGroup[] {
     if (block.kind === "title") continue;
     const content = resolveBlockContent(model, block);
     if (isEmptyClause(content)) continue;
-    const label = block.heading?.trim() || (block.kind === "preamble" ? "Parties" : "Préambule");
+    const label = block.heading?.trim()
+      ? stripArticlePrefix(block.heading)
+      : (block.kind === "preamble" ? "Parties" : "Préambule");
     const fresh: string[] = [];
     for (const seg of splitSegments(content)) {
       if (seg.type === "var" && !seen.has(seg.name)) {
@@ -140,6 +149,13 @@ interface Props {
 
 export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase = "CDD-accroissement" }: Props) {
   const navigate = useNavigate();
+
+  // Emplacement réservé dans le header de l'app (MainLayout) pour y déposer le fil d'ariane.
+  const [headerSlot, setHeaderSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderSlot(document.getElementById("page-header-slot"));
+  }, []);
+
   const varLabel = useMemo(() => new Map(model.variables.map((v) => [v.id, v.label])), [model]);
   const initialHtml = useMemo(() => buildInitialHtml(model, varLabel), [model, varLabel]);
   const fieldGroups = useMemo(() => buildFieldGroups(model), [model]);
@@ -177,10 +193,6 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
   }, [editor, tick]);
 
   const isFilled = (name: string) => (values[name] ?? "").trim().length > 0;
-  const allVarIds = useMemo(() => fieldGroups.flatMap((g) => g.varIds), [fieldGroups]);
-  const filledCount = allVarIds.filter(isFilled).length;
-  const totalCount = allVarIds.length;
-  const progress = totalCount ? Math.round((filledCount / totalCount) * 100) : 0;
 
   /** Focus + défilement vers le premier champ non rempli d'une section (ou le premier). */
   const scrollToGroup = (group: FieldGroup) => {
@@ -523,243 +535,229 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-surface-subtle">
-      {/* ── Barre d'application ─────────────────────────────────────────── */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-white px-5">
-        <div className="flex items-center gap-3">
-          <LumenJurisLogo variant="light" height={26} />
-          <span className="text-ink-placeholder">/</span>
-          <span className="text-sm text-ink-muted">Modèles</span>
-          <span className="text-ink-placeholder">/</span>
-          <span className="text-sm font-medium text-ink-secondary">{model.label}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-muted sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Brouillon enregistré
-          </span>
-          <div className="relative">
-            <button
-              onClick={() => setGenOpen((o) => !o)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-hover"
-            >
-              Générer le contrat <ChevronDown className={`h-3.5 w-3.5 transition-transform ${genOpen ? "rotate-180" : ""}`} />
-            </button>
-            {genOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setGenOpen(false)} />
-                <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-card-md">
-                  <MenuItem icon={FileSignature} label="Envoyer en signature" onClick={goSignature} tone="brand" />
-                  <MenuItem icon={MessagesSquare} label="Ouvrir la négociation" onClick={() => void goNegotiation()} />
-                  <MenuItem icon={ShieldAlert} label="Réviser (risques)" onClick={goReview} />
-                  {hasConvention && (
-                    <MenuItem icon={ShieldCheck} label="Convention collective" onClick={() => setCcPanel(true)} />
-                  )}
-                  <div className="my-1 border-t border-line-subtle" />
-                  <MenuItem icon={Download} label="Télécharger en PDF" onClick={exportPdf} />
-                  <MenuItem icon={FileText} label="Télécharger en Word" onClick={() => void exportDocx()} />
-                </div>
-              </>
-            )}
+    <div className="mx-auto max-w-6xl">
+      {/* Fil d'ariane cliquable (sans flèche) déposé dans le header de l'app. */}
+      {headerSlot && createPortal(
+        <nav className="flex min-w-0 items-center gap-1.5 text-sm">
+          <button onClick={onBack} className="shrink-0 text-ink-muted transition-colors hover:text-brand hover:underline">
+            Modèles
+          </button>
+          <span className="shrink-0 text-ink-placeholder">/</span>
+          <span className="truncate font-medium text-ink-secondary">{model.label}</span>
+        </nav>,
+        headerSlot,
+      )}
+
+      {/* Corps : panneau latéral + éditeur */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        {/* Colonne gauche — alignée en haut (self-start) et fixée au scroll (sticky).
+            top-[4.5rem] : sous le header de l'app (h-14 = 56px) avec un petit écart
+            de 16px, à la même hauteur que la barre de fonctions sticky de l'éditeur. */}
+        <aside className="space-y-4 self-start lg:sticky lg:top-[4.5rem]">
+          <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-ink-subtle">
+              Champs à compléter
+            </p>
+            <ul className="space-y-1">
+              {fieldGroups.map((g) => {
+                const complete = g.varIds.every(isFilled);
+                return (
+                  <li key={g.id}>
+                    <button
+                      onClick={() => scrollToGroup(g)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors ${
+                        complete ? "bg-brand-light" : "hover:bg-surface-subtle"
+                      }`}
+                    >
+                      <span className={`min-w-0 flex-1 truncate text-sm ${complete ? "font-medium text-ink" : "text-ink-secondary"}`}>
+                        {g.label}
+                      </span>
+                      {complete && <Check className="h-4 w-4 shrink-0 text-brand" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-        </div>
-      </header>
 
-      {/* ── Corps : panneau latéral + éditeur ───────────────────────────── */}
-      <div className="flex-1 overflow-auto">
-        <div className="mx-auto flex max-w-6xl gap-8 px-6 py-6">
-          {/* Colonne gauche */}
-          <aside className="hidden w-64 shrink-0 space-y-4 lg:block">
-            <button onClick={onBack} className="text-sm text-ink-muted transition-colors hover:text-brand">
-              ← Retour aux modèles
-            </button>
-
+          {/* Pré-remplissage employeur (SIRET / nom) — seulement si le modèle a un employeur */}
+          {hasEmployer && (
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-ink-subtle">
-                Champs à compléter
-              </p>
-              <ul className="space-y-1">
-                {fieldGroups.map((g) => {
-                  const complete = g.varIds.every(isFilled);
-                  return (
-                    <li key={g.id}>
-                      <button
-                        onClick={() => scrollToGroup(g)}
-                        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                          complete ? "bg-brand-light ring-1 ring-brand/15" : "hover:bg-surface-subtle"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-colors ${
-                            complete ? "border-brand bg-brand text-white" : "border-line-emphasis bg-white"
-                          }`}
-                        >
-                          {complete && <Check className="h-3 w-3 stroke-[3]" />}
-                        </span>
-                        <span className={`min-w-0 flex-1 truncate text-sm ${complete ? "font-medium text-ink" : "text-ink-secondary"}`}>
-                          {g.label}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <CompanySearchField onSelect={applyCompany} label="Pré-remplir l'employeur" hint="" />
             </div>
+          )}
+        </aside>
 
-            {/* Carte de progression */}
-            <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                <div className="h-full rounded-full bg-brand transition-all duration-500" style={{ width: `${progress}%` }} />
-              </div>
-              <p className="mt-2.5 text-xs text-ink-muted">
-                <span className="font-semibold text-ink-secondary">{filledCount}</span> champs sur {totalCount} complétés
-              </p>
-            </div>
-
-            {/* Pré-remplissage employeur (SIRET / nom) — seulement si le modèle a un employeur */}
-            {hasEmployer && (
-              <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-                <CompanySearchField onSelect={applyCompany} label="Pré-remplir l'employeur" hint="" />
-              </div>
-            )}
-          </aside>
-
-          {/* Colonne éditeur */}
-          <div className="min-w-0 flex-1 space-y-3">
-            {/* Barre d'outils + synchronisation */}
-            <div className="flex items-center justify-between px-1">
+        {/* Colonne éditeur */}
+        <div className="min-w-0 space-y-3">
+          {/* Le contrat — entièrement éditable, avec sa barre de fonctions en en-tête */}
+          <div className="rounded-2xl border border-line bg-white shadow-card">
+            {/* Barre de fonctions en haut du bloc éditeur — sticky : reste visible
+                sous le header de l'app (h-16 + écart de 16px) pendant le défilement,
+                pour ne pas remonter à chaque mise en forme. Le pseudo-élément before
+                couvre l'écart au-dessus de la barre (fond page) afin que le texte du
+                contrat ne transparaisse pas entre le header et la barre. */}
+            <div className="sticky top-[4.5rem] z-20 -mx-px -mt-px flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border border-line border-b-line-subtle bg-white px-4 py-2.5 before:absolute before:inset-x-0 before:-top-4 before:h-4 before:bg-white before:content-['']">
               {editor && (
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   <button type="button" className={tbtn(editor.isActive("bold"))} onClick={() => editor.chain().focus().toggleBold().run()}><Bold className="h-4 w-4" /></button>
                   <button type="button" className={tbtn(editor.isActive("italic"))} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic className="h-4 w-4" /></button>
                   <button type="button" className={tbtn(editor.isActive("bulletList"))} onClick={() => editor.chain().focus().toggleBulletList().run()}><List className="h-4 w-4" /></button>
                   <button type="button" className={tbtn(editor.isActive("blockquote"))} onClick={() => editor.chain().focus().toggleBlockquote().run()}><Quote className="h-4 w-4" /></button>
                 </div>
               )}
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" /> Synchronisé avec Word
-              </span>
+
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="hidden items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-muted sm:inline-flex">
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Brouillon enregistré
+                </span>
+                <div className="relative">
+                  <button
+                    onClick={() => setGenOpen((o) => !o)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-card transition hover:bg-brand-hover"
+                  >
+                    Générer le contrat <ChevronDown className={`h-3.5 w-3.5 transition-transform ${genOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {genOpen && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setGenOpen(false)} />
+                      <div className="absolute right-0 top-full z-40 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-card-md">
+                        <MenuItem icon={FileSignature} label="Envoyer en signature" onClick={goSignature} tone="brand" />
+                        <MenuItem icon={MessagesSquare} label="Ouvrir la négociation" onClick={() => void goNegotiation()} />
+                        <MenuItem icon={ShieldAlert} label="Réviser (risques)" onClick={goReview} />
+                        {hasConvention && (
+                          <MenuItem icon={ShieldCheck} label="Convention collective" onClick={() => setCcPanel(true)} />
+                        )}
+                        <div className="my-1 border-t border-line-subtle" />
+                        <MenuItem icon={Download} label="Télécharger en PDF" onClick={exportPdf} />
+                        <MenuItem icon={FileText} label="Télécharger en Word" onClick={() => void exportDocx()} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Le contrat — entièrement éditable */}
+            {/* Document */}
             <div
               ref={wrapRef}
               onMouseMove={onMouseMove}
               onMouseLeave={() => setHover(null)}
-              className="relative min-h-[70vh] rounded-2xl border border-line bg-white px-12 py-10 shadow-card"
+              className="relative min-h-[60vh] px-10 pb-10 pt-6"
             >
-              <EditorContent
-                editor={editor}
-                className="prose prose-sm max-w-none leading-relaxed text-ink-secondary focus:outline-none [&_:focus]:outline-none
-                  [&_h2]:mb-4 [&_h2]:text-[26px] [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-ink
-                  [&_h3]:mb-2 [&_h3]:mt-7 [&_h3]:flex [&_h3]:items-center [&_h3]:gap-2.5 [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-[0.18em] [&_h3]:text-brand
-                  [&_h3]:before:h-[2px] [&_h3]:before:w-6 [&_h3]:before:rounded-full [&_h3]:before:bg-brand [&_h3]:before:content-['']"
-              />
+            <EditorContent
+              editor={editor}
+              className="prose prose-sm max-w-none leading-relaxed text-ink-secondary focus:outline-none [&_:focus]:outline-none
+                [&_h2]:mb-4 [&_h2]:mt-0 [&_h2]:text-[26px] [&_h2]:font-bold [&_h2]:tracking-tight [&_h2]:text-ink
+                [&_h3]:mb-2 [&_h3]:mt-7 [&_h3]:flex [&_h3]:items-center [&_h3]:gap-2.5 [&_h3]:text-[11px] [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-[0.18em] [&_h3]:text-brand
+                [&_h3]:before:h-[2px] [&_h3]:before:w-6 [&_h3]:before:rounded-full [&_h3]:before:bg-brand [&_h3]:before:content-['']"
+            />
 
-              {/* Bouton IA au survol d'une clause */}
-              {hover && !ai && (
+            {/* Bouton IA au survol d'une clause */}
+            {hover && !ai && (
+              <button
+                type="button"
+                onClick={openAi}
+                style={{ top: hover.top }}
+                title="Préciser cette clause avec l'IA"
+                className="absolute right-3 z-10 inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-white px-2 py-1 text-[11px] font-medium text-brand shadow-sm transition hover:bg-brand-light"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> IA
+              </button>
+            )}
+
+            {/* Panneau IA de la clause */}
+            {ai && (
+              <div
+                style={{ top: Math.max(0, ai.top) }}
+                className="absolute right-3 z-20 w-80 rounded-card border border-line bg-white p-3 shadow-card-md"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink">
+                    <Sparkles className="h-3.5 w-3.5 text-brand" /> Préciser la clause
+                  </span>
+                  <button onClick={() => setAi(null)} className="rounded p-0.5 text-ink-subtle hover:bg-surface-muted"><X className="h-3.5 w-3.5" /></button>
+                </div>
+
+                <textarea
+                  value={ai.instruction}
+                  onChange={(e) => setAi((a) => (a ? { ...a, instruction: e.target.value } : a))}
+                  rows={2}
+                  placeholder="Que souhaitez-vous préciser ? (ex. « ajoute un préavis de 8 jours »)"
+                  className="mt-2 w-full resize-none rounded-lg border border-line px-2 py-1.5 text-[12px] outline-none focus:border-brand/40 focus:shadow-ring-brand"
+                />
                 <button
-                  type="button"
-                  onClick={openAi}
-                  style={{ top: hover.top }}
-                  title="Préciser cette clause avec l'IA"
-                  className="absolute right-3 z-10 inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-white px-2 py-1 text-[11px] font-medium text-brand shadow-sm transition hover:bg-brand-light"
+                  disabled={ai.loading || !ai.instruction.trim()}
+                  onClick={runInstruction}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-hover disabled:opacity-50"
                 >
-                  <Sparkles className="h-3.5 w-3.5" /> IA
+                  <Sparkles className="h-3.5 w-3.5" /> Valider
                 </button>
-              )}
 
-              {/* Panneau IA de la clause */}
-              {ai && (
-                <div
-                  style={{ top: Math.max(0, ai.top) }}
-                  className="absolute right-3 z-20 w-80 rounded-card border border-line bg-white p-3 shadow-card-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink">
-                      <Sparkles className="h-3.5 w-3.5 text-brand" /> Préciser la clause
-                    </span>
-                    <button onClick={() => setAi(null)} className="rounded p-0.5 text-ink-subtle hover:bg-surface-muted"><X className="h-3.5 w-3.5" /></button>
-                  </div>
-
-                  <textarea
-                    value={ai.instruction}
-                    onChange={(e) => setAi((a) => (a ? { ...a, instruction: e.target.value } : a))}
-                    rows={2}
-                    placeholder="Que souhaitez-vous préciser ? (ex. « ajoute un préavis de 8 jours »)"
-                    className="mt-2 w-full resize-none rounded-lg border border-line px-2 py-1.5 text-[12px] outline-none focus:border-brand/40 focus:shadow-ring-brand"
-                  />
-                  <button
-                    disabled={ai.loading || !ai.instruction.trim()}
-                    onClick={runInstruction}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-hover disabled:opacity-50"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" /> Valider
-                  </button>
-
-                  {ai.loading && (
-                    <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-ink-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération…</p>
-                  )}
-                  {ai.error && <p className="mt-2 text-[11px] text-danger">{ai.error}</p>}
-                  {ai.result && (
-                    <div className="mt-2">
-                      <p className="max-h-40 overflow-auto whitespace-pre-line rounded-lg bg-surface-subtle p-2 text-[12px] leading-snug text-ink-secondary">{ai.result}</p>
-                      <div className="mt-2 flex gap-1.5">
-                        <button onClick={acceptAi} className="rounded-lg bg-brand px-2.5 py-1 text-[11px] font-medium text-white hover:bg-brand-hover">Remplacer la clause</button>
-                        <button onClick={() => setAi((a) => (a ? { ...a, result: null } : a))} className="rounded-lg px-2.5 py-1 text-[11px] text-ink-muted hover:bg-surface-muted">Réessayer</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Barre sticky « Modifier avec l'IA » */}
-            <div className="sticky bottom-3 z-30">
-              <div className="rounded-2xl border border-line bg-white/95 p-2 shadow-card-md backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="ml-2 h-4 w-4 shrink-0 text-brand" />
-                  <input
-                    value={globalAi.instruction}
-                    onChange={(e) => setGlobalAi((g) => ({ ...g, instruction: e.target.value, applied: false }))}
-                    onKeyDown={(e) => { if (e.key === "Enter") void runGlobalAi(); }}
-                    disabled={globalAi.loading}
-                    placeholder="Modifier avec l'IA — ex. « passe le préavis à 2 mois », « ajoute une clause de confidentialité »…"
-                    className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-ink outline-none placeholder:text-ink-subtle disabled:opacity-60"
-                  />
-                  <button
-                    onClick={() => void runGlobalAi()}
-                    disabled={globalAi.loading || !globalAi.instruction.trim()}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:opacity-40"
-                  >
-                    {globalAi.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                    {globalAi.loading ? "Modification…" : "Modifier"}
-                  </button>
-                </div>
-                {globalAi.error && (
-                  <p className="px-2 pb-1 pt-1.5 text-xs text-danger">{globalAi.error}</p>
+                {ai.loading && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-ink-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération…</p>
                 )}
-                {globalAi.applied && (
-                  <p className="flex items-center gap-2 px-2 pb-1 pt-1.5 text-xs text-success-dark">
-                    Contrat modifié.
-                    <button
-                      onClick={() => { editor?.chain().focus().undo().run(); setGlobalAi((g) => ({ ...g, applied: false })); }}
-                      className="font-semibold underline underline-offset-2 hover:text-success"
-                    >
-                      Annuler
-                    </button>
-                  </p>
+                {ai.error && <p className="mt-2 text-[11px] text-danger">{ai.error}</p>}
+                {ai.result && (
+                  <div className="mt-2">
+                    <p className="max-h-40 overflow-auto whitespace-pre-line rounded-lg bg-surface-subtle p-2 text-[12px] leading-snug text-ink-secondary">{ai.result}</p>
+                    <div className="mt-2 flex gap-1.5">
+                      <button onClick={acceptAi} className="rounded-lg bg-brand px-2.5 py-1 text-[11px] font-medium text-white hover:bg-brand-hover">Remplacer la clause</button>
+                      <button onClick={() => setAi((a) => (a ? { ...a, result: null } : a))} className="rounded-lg px-2.5 py-1 text-[11px] text-ink-muted hover:bg-surface-muted">Réessayer</button>
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
             </div>
-
-            {actionError && <p className="text-right text-xs text-danger">{actionError}</p>}
           </div>
+
+          {/* Barre sticky « Modifier avec l'IA » */}
+          <div className="sticky bottom-3 z-20">
+            <div className="rounded-2xl border border-line bg-white/95 p-2 shadow-card-md backdrop-blur">
+              <div className="flex items-center gap-2">
+                <Sparkles className="ml-2 h-4 w-4 shrink-0 text-brand" />
+                <input
+                  value={globalAi.instruction}
+                  onChange={(e) => setGlobalAi((g) => ({ ...g, instruction: e.target.value, applied: false }))}
+                  onKeyDown={(e) => { if (e.key === "Enter") void runGlobalAi(); }}
+                  disabled={globalAi.loading}
+                  placeholder="Modifier avec l'IA — ex. « passe le préavis à 2 mois », « ajoute une clause de confidentialité »…"
+                  className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-ink outline-none placeholder:text-ink-subtle disabled:opacity-60"
+                />
+                <button
+                  onClick={() => void runGlobalAi()}
+                  disabled={globalAi.loading || !globalAi.instruction.trim()}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover disabled:opacity-40"
+                >
+                  {globalAi.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {globalAi.loading ? "Modification…" : "Modifier"}
+                </button>
+              </div>
+              {globalAi.error && (
+                <p className="px-2 pb-1 pt-1.5 text-xs text-danger">{globalAi.error}</p>
+              )}
+              {globalAi.applied && (
+                <p className="flex items-center gap-2 px-2 pb-1 pt-1.5 text-xs text-success-dark">
+                  Contrat modifié.
+                  <button
+                    onClick={() => { editor?.chain().focus().undo().run(); setGlobalAi((g) => ({ ...g, applied: false })); }}
+                    className="font-semibold underline underline-offset-2 hover:text-success"
+                  >
+                    Annuler
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {actionError && <p className="text-right text-xs text-danger">{actionError}</p>}
         </div>
       </div>
 
       {/* ── Modale Convention collective ────────────────────────────────── */}
       {hasConvention && ccPanel && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/20 p-4" onClick={() => setCcPanel(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4" onClick={() => setCcPanel(false)}>
           <div
             className="w-full max-w-lg space-y-3 rounded-card border border-line bg-white p-5 shadow-card-md"
             onClick={(e) => e.stopPropagation()}

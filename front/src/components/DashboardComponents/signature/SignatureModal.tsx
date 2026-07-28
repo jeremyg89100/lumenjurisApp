@@ -178,7 +178,7 @@ export function SignatureModal({ open, signerName, signerHex, initialSignature, 
               <Pencil className="w-4 h-4" style={{ color: signerHex }} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-gray-900">Créer votre signature</h3>
+              <h3 className="text-sm font-bold text-gray-900">Créez votre signature</h3>
               <p className="text-[11px] text-gray-400 mt-0.5">{signerName}</p>
             </div>
           </div>
