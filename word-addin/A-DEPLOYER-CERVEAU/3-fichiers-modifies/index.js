@@ -65,16 +65,16 @@ function relayJsonToPython(req, res, targetPath, handleData) {
         body: JSON.stringify(req.body),
     })
         .then(async (r) => {
-        const data = await r.json().catch(() => ({}));
-        if (handleData)
-            await handleData(data, res.locals.userId);
-        res.status(r.status).json(data);
-    })
+            const data = await r.json().catch(() => ({}));
+            if (handleData)
+                await handleData(data, res.locals.userId);
+            res.status(r.status).json(data);
+        })
         .catch((e) => {
-        console.error("relay Python error:", e.message);
-        if (!res.headersSent)
-            res.status(502).json({ error: "python_unreachable" });
-    });
+            console.error("relay Python error:", e.message);
+            if (!res.headersSent)
+                res.status(502).json({ error: "python_unreachable" });
+        });
 }
 // Relay requêtes vers le serveur Node
 function relayToNode(req, res, targetPath) {
@@ -94,37 +94,37 @@ function relayToNode(req, res, targetPath) {
         body: req.method === "GET" ? undefined : JSON.stringify(req.body),
     })
         .then(async (r) => {
-        const setCookieHeader = typeof r.headers.getSetCookie === "function"
-            ? r.headers.getSetCookie()
-            : r.headers.get("set-cookie");
-        if (setCookieHeader &&
-            ((Array.isArray(setCookieHeader) && setCookieHeader.length > 0) ||
-                !Array.isArray(setCookieHeader))) {
-            res.setHeader("set-cookie", setCookieHeader);
-        }
-        // 304 n'a pas de body — on le remonte en 200 vide pour ne pas bloquer le front
-        if (r.status === 304) {
-            res.status(200).json({ success: false, status: 304, raw: "" });
-            return;
-        }
-        const contentType = r.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-            const data = await r.json().catch(() => ({}));
-            res.status(r.status).json(data);
-            return;
-        }
-        const text = await r.text().catch(() => "");
-        res.status(r.status).json({
-            success: r.ok,
-            status: r.status,
-            raw: text,
-        });
-    })
+            const setCookieHeader = typeof r.headers.getSetCookie === "function"
+                ? r.headers.getSetCookie()
+                : r.headers.get("set-cookie");
+            if (setCookieHeader &&
+                ((Array.isArray(setCookieHeader) && setCookieHeader.length > 0) ||
+                    !Array.isArray(setCookieHeader))) {
+                res.setHeader("set-cookie", setCookieHeader);
+            }
+            // 304 n'a pas de body — on le remonte en 200 vide pour ne pas bloquer le front
+            if (r.status === 304) {
+                res.status(200).json({ success: false, status: 304, raw: "" });
+                return;
+            }
+            const contentType = r.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+                const data = await r.json().catch(() => ({}));
+                res.status(r.status).json(data);
+                return;
+            }
+            const text = await r.text().catch(() => "");
+            res.status(r.status).json({
+                success: r.ok,
+                status: r.status,
+                raw: text,
+            });
+        })
         .catch((e) => {
-        console.error("relay Node error:", e.message);
-        if (!res.headersSent)
-            res.status(502).json({ error: "backnode_unreachable" });
-    });
+            console.error("relay Node error:", e.message);
+            if (!res.headersSent)
+                res.status(502).json({ error: "backnode_unreachable" });
+        });
 }
 /**
  * Relais vers backNode en passthrough binaire : préserve le content-type et
@@ -143,20 +143,20 @@ function relayToNodeRaw(req, res, targetPath) {
         },
     })
         .then(async (r) => {
-        const ct = r.headers.get("content-type") || "application/octet-stream";
-        const cd = r.headers.get("content-disposition");
-        const buf = Buffer.from(await r.arrayBuffer());
-        res.status(r.status);
-        res.setHeader("content-type", ct);
-        if (cd)
-            res.setHeader("content-disposition", cd);
-        res.send(buf);
-    })
+            const ct = r.headers.get("content-type") || "application/octet-stream";
+            const cd = r.headers.get("content-disposition");
+            const buf = Buffer.from(await r.arrayBuffer());
+            res.status(r.status);
+            res.setHeader("content-type", ct);
+            if (cd)
+                res.setHeader("content-disposition", cd);
+            res.send(buf);
+        })
         .catch((e) => {
-        console.error("relay Node raw error:", e.message);
-        if (!res.headersSent)
-            res.status(502).json({ error: "backnode_unreachable" });
-    });
+            console.error("relay Node raw error:", e.message);
+            if (!res.headersSent)
+                res.status(502).json({ error: "backnode_unreachable" });
+        });
 }
 /** Construit un chemin backNode en propageant la query string entrante. */
 function withQuery(base, req) {
@@ -203,7 +203,7 @@ function handleLegifranceSearch(req, res) {
     relayJsonToPython(req, res, "/legifrance-search");
 }
 function handleClassifyVeille(req, res) {
-    relayJsonToPython(req, res, "/classify-veille");
+    relayJsonToPython(req, res, "/veille");
 }
 function handleJurisprudence(req, res) {
     relayJsonToPython(req, res, "/jurisprudence");
@@ -307,7 +307,7 @@ function handleNodeUserResetPassword(req, res) {
     relayToNode(req, res, "/user/updatepassword");
 }
 function handleNodeGoogle(_req, res) {
-    res.redirect(`${BACKNODE_URL}/auth/google`);
+    res.redirect(`${BACKNODE_URL}/api/user/auth/google`);
 }
 function handleBillingCustomer(req, res) {
     relayToNode(req, res, "/billing/customer");
@@ -759,7 +759,7 @@ app.post(["/extract-document-text", "/api/extract-document-text"], handleExtract
 // JSON routes — body déjà parsé par express.json
 app.post(["/legifrance-search", "/api/legifrance-search"], handleLegifranceSearch);
 app.post(["/jurisprudence", "/api/jurisprudence"], handleJurisprudence);
-app.post(["/classify-veille", "/api/classify-veille"], handleClassifyVeille);
+app.post(["/api/veille/classify-veille", "/api/veille/classify-veille"], handleClassifyVeille);
 app.post(["/analyze-clause", "/api/analyze-clause"], handleAnalyzeClause);
 app.post(["/api/chat", "/chat"], handleChat);
 app.post(["/api/openai-chat", "/openai-chat"], handleOpenAiChat);
@@ -768,7 +768,7 @@ app.post(["/api/huggingface-generate", "/huggingface-generate"], handleHuggingFa
 // Node - Requêtes Backend
 const auth = proxyAuthMiddleware;
 // Routes publiques (pas d'auth requise)
-app.post("/api/signup", handleSignUpUser);
+app.post("/api/user/signup", handleSignUpUser);
 app.post("/api/user/auth/login", handleNodeLogin);
 /**
  * Login du complément Word : mêmes identifiants que la plateforme, mais le
@@ -810,9 +810,9 @@ app.post("/api/addin/login", async (req, res) => {
         res.status(500).json({ success: false, message: "Erreur interne lors de la connexion." });
     }
 });
-app.post("/api/auth/forgotpassword", handleNodeUserForgotPassword);
+app.post("/api/user/auth/forgotpassword", handleNodeUserForgotPassword);
 app.post("/api/user/resetpassword", handleNodeUserResetPassword);
-app.get("/auth/google", handleNodeGoogle);
+app.get("/api/user/auth/google", handleNodeGoogle);
 app.post("/api/billing/customer", handleBillingCustomer);
 app.post("/api/billing/payment-intent", handleBillingPaymentIntent);
 app.get("/api/veille", handleNodeVeille);
@@ -824,7 +824,7 @@ app.delete("/api/user-uploads/:filename", auth, handleUserUploadsDelete);
 app.get("/api/user-uploads/assets/:filename", auth, handleUserUploadsAsset);
 // Routes protégées (JWT vérifié par le proxy)
 app.post("/api/user/auth/logout", auth, handleNodeLogout);
-app.get("/api/insee/:siren", auth, handleInseeRequest);
+app.get("/api/enterprise/insee/:siren", auth, handleInseeRequest);
 app.get("/api/llm/usage", auth, handleLlmCurrentUsage);
 app.get("/api/llm/usage/history", auth, handleLlmUsageHistory);
 app.get("/api/llm/usage/me", auth, handleLlmUserUsage);
@@ -856,10 +856,10 @@ app.get("/api/billing/subscription", auth, handleBillingSubscription);
 app.put("/api/billing/add-credits", auth, handleBillingAddCredits);
 app.put("/api/billing/remove-credits", auth, handleBillingRemoveCredits);
 app.get("/api/billing/credits", auth, handleBillingCredits);
-app.post("/api/analyze-contract", auth, handleAnalyzeContract);
-app.post("/api/detect-contract", auth, handleDetectContract);
-app.post("/api/market-analysis", auth, handleMarketAnalysis);
-app.post("/api/recommend-clause", auth, handleRecommendClause);
+app.post("/api/analyzer/analyze-contract", auth, handleAnalyzeContract);
+app.post("/api/analyzer/detect-contract", auth, handleDetectContract);
+app.post("/api/analyzer/market-analysis", auth, handleMarketAnalysis);
+app.post("/api/analyzer/recommend-clause", auth, handleRecommendClause);
 app.post("/api/detect-legal-references", auth, handleDetectLegalReferences);
 app.post("/api/fetch-legal-texts", auth, handleFetchLegalTexts);
 app.post("/api/summarize-case", auth, handleSummarizeCase);
@@ -966,7 +966,7 @@ app.post("/api/negotiation/:externalId/guests/:guestExternalId/revoke", auth, (r
 app.post("/api/negotiation/:externalId/guests", auth, (req, res) => relayToNode(req, res, `/negotiation/${encodeURIComponent(req.params.externalId)}/guests`));
 app.get("/api/negotiation/:externalId", auth, (req, res) => relayToNode(req, res, `/negotiation/${encodeURIComponent(req.params.externalId)}`));
 // Diff structuré délégué au microservice Python.
-app.post("/api/negotiation-diff", auth, (req, res) => relayJsonToPython(req, res, "/negotiation-diff"));
+app.post("/api/negociation/negotiation-diff", auth, (req, res) => relayJsonToPython(req, res, "/negotiation-diff"));
 // Health pour tester le serveur
 app.get("/health", (req, res) => {
     return res.send({

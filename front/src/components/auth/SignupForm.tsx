@@ -42,10 +42,10 @@ const PROXY_URL: string =
  * Formulaire d'inscription gérant deux flux de création de compte :
  *
  * 1. **Email / mot de passe** — pipeline en deux étapes :
- *    - (Optionnel) Lookup INSEE via `GET /api/insee/:siren` pour pré-remplir
+ *    - (Optionnel) Lookup INSEE via `GET /api/enterprise/insee/:siren` pour pré-remplir
  *      les données entreprise. L'appel est best-effort : un échec ne bloque pas
  *      l'inscription, le compte est créé sans données entreprise.
- *    - `POST /api/signup` avec nom, prénom, email, mot de passe, CGU et,
+ *    - `POST /api/user/signup` avec nom, prénom, email, mot de passe, CGU et,
  *      si disponible, les données entreprise issues de l'INSEE.
  *    - En cas de succès, affiche une alerte de confirmation avec l'adresse email
  *      utilisée, puis remet tous les champs à zéro.
@@ -152,7 +152,7 @@ const SignupForm = ({
     }
 
     try {
-      const signupResponse = await fetchProxy("/api/signup", {
+      const signupResponse = await fetchProxy("/api/user/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -192,7 +192,7 @@ const SignupForm = ({
 
   // Inscription via Google
   const handleSubmitGoogle = () => {
-    window.location.href = `${PROXY_URL}/auth/google`;
+    window.location.href = `${PROXY_URL}/api/user/auth/google`;
   };
 
   const handleChangeLastname = (event: React.ChangeEvent<HTMLInputElement>) => {

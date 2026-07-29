@@ -19,7 +19,7 @@ export async function callOpenAI(
   messages: { role: string; content: string }[],
   options: OpenAIOptions = {},
 ) {
-  const res = await fetchProxy("/api/openai-chat", {
+  const res = await fetchProxy("/api/openai/openai-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, ...options }),
@@ -44,7 +44,7 @@ export async function callOpenAi52(
   verbosity: Verbosity,
   model: Extract<OpenAIModelId, "gpt-5.2" | "gpt-5.4-nano"> = "gpt-5.2",
 ) {
-  const r = await fetchProxy(`/api/openai-chat-5`, {
+  const r = await fetchProxy(`/api/openai/openai-chat-5`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -69,7 +69,7 @@ export async function callHuggingFace(
   inputs: string,
   parameters: any = {},
 ) {
-  const res = await fetchProxy("/api/huggingface-generate", {
+  const res = await fetchProxy("/api/ai/huggingface-generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model, inputs, parameters }),

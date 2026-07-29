@@ -9,9 +9,9 @@ Complément Office (task pane) pour Word permettant aux juristes de générer et
 Réplique de l'outil **« Analyse des risques »** du dashboard LumenJuris, connectée au document Word (le document ouvert remplace le glisser-déposer de PDF) et branchée sur le **vrai backend** de la plateforme :
 
 1. **Connexion** avec les identifiants LumenJuris (JWT renvoyé par la nouvelle route proxy `POST /api/addin/login`, passé ensuite en `Authorization: Bearer`).
-2. **Analyser le document** : le texte du document Word est envoyé à `POST /api/analyze-contract` (même analyse IA que la plateforme) → liste de clauses à risque (`ClauseRisk[]`).
+2. **Analyser le document** : le texte du document Word est envoyé à `POST /api/analyzer/analyze-contract` (même analyse IA que la plateforme) → liste de clauses à risque (`ClauseRisk[]`).
 3. **Surlignage dans Word** : chaque clause localisée est surlignée (jaune/orange/rouge selon le score) et ancrée dans un content control `lumen-risk-<id>` ; « 📍 Voir dans le document » sélectionne la clause.
-4. **Fiche détail** (reprise de la fenêtre modale `EnhancedClauseDetail`) : onglets **Aperçu** (texte, ⚠️ problèmes via `/api/openai-chat-5`, 💡 recommandations via `/api/recommend-clause`), **Jurisprudence** (`/api/jurisprudence`, recherche hybride Judilibre) et **Question** (question libre sur la clause).
+4. **Fiche détail** (reprise de la fenêtre modale `EnhancedClauseDetail`) : onglets **Aperçu** (texte, ⚠️ problèmes via `/api/openai-chat-5`, 💡 recommandations via `/api/analyzer/recommend-clause`), **Jurisprudence** (`/api/legal-text/jurisprudence`, recherche hybride Judilibre) et **Question** (question libre sur la clause).
 5. **Suivi des modifications** : « Appliquer dans le document (révision) » remplace la clause d'origine par la clause recommandée en *tracked change* — le juriste accepte ou rejette dans l'onglet Révision de Word. Le mode de suivi initial de l'utilisateur est restauré.
 
 ### Modifications apportées au proxy LumenJuris (rétrocompatibles)

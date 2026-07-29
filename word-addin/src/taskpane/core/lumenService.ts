@@ -6,8 +6,8 @@ import { AnalysisContext, ClauseAI, ClauseRisk, JurisprudenceCase, Recommendatio
  * Client des endpoints LumenJuris — les MÊMES routes que la page « Analyse
  * des risques » de la plateforme :
  *  - POST /api/addin/login       → JWT (Bearer) pour le complément
- *  - POST /api/analyze-contract  → ClauseRisk[] (analyse IA du proxy)
- *  - POST /api/recommend-clause  → recommandations alternatives
+ *  - POST /api/analyzer/analyze-contract  → ClauseRisk[] (analyse IA du proxy)
+ *  - POST /api/analyzer/recommend-clause  → recommandations alternatives
  *  - POST /api/jurisprudence     → recherche hybride (backend Python)
  *  - POST /api/openai-chat-5     → détail clause (issues/advice) et questions
  *
@@ -96,12 +96,12 @@ export const DEFAULT_CONTEXT: AnalysisContext = {
  * même route que la plateforme (`detectContractWithAI`).
  */
 export async function detectContract(text: string): Promise<Partial<AnalysisContext>> {
-  return post<Partial<AnalysisContext>>("/api/detect-contract", { text });
+  return post<Partial<AnalysisContext>>("/api/analyzer/detect-contract", { text });
 }
 
 /** Analyse du document — même payload que ContractAnalysis.tsx. */
 export async function analyzeContract(content: string, context: AnalysisContext): Promise<ClauseRisk[]> {
-  const data = await post<{ success: boolean; clauses: ClauseRisk[] }>("/api/analyze-contract", {
+  const data = await post<{ success: boolean; clauses: ClauseRisk[] }>("/api/analyzer/analyze-contract", {
     content,
     context,
   });
@@ -119,7 +119,7 @@ export async function fetchRecommendations(
   const data = await post<
     | { title?: string; clauseText: string; benefits?: string; riskReduction?: string }[]
     | { recommendations?: { title?: string; clauseText: string; benefits?: string; riskReduction?: string }[] }
-  >("/api/recommend-clause", { clause, context });
+  >("/api/analyzer/recommend-clause", { clause, context });
   const items = Array.isArray(data) ? data : (data.recommendations ?? []);
   return items
     .filter((r) => r && r.clauseText)

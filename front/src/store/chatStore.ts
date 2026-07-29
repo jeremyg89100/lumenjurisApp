@@ -60,7 +60,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages: [...get().messages, userMessage], isSending: true });
 
     try {
-      const response = await fetchProxy("/api/chat", {
+      const response = await fetchProxy("/api/openai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
