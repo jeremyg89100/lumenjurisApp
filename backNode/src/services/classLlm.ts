@@ -255,15 +255,20 @@ export class Llm {
 
   async getAllUsersUsage() {
     try {
+      // Fenêtre glissante des 30 derniers jours (aujourd'hui inclus).
+      // On ne se limite pas à la seule journée courante, sinon le classement
+      // est vide dès qu'aucun utilisateur n'a consommé de LLM aujourd'hui.
       const today = new Date();
-      const startAt = new Date(
+      const todayStart = new Date(
         today.getFullYear(),
         today.getMonth(),
         today.getDate(),
       );
+      const from = new Date(todayStart);
+      from.setDate(from.getDate() - 29);
 
       const records = await prisma.userLlmUsage.findMany({
-        where: { startAt },
+        where: { startAt: { gte: from } },
         include: {
           llm: { select: { name: true } },
           user: {

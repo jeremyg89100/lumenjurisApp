@@ -2,32 +2,11 @@ import express from "express"
 import type { Request, Response, Router, NextFunction } from "express"
 import { prisma } from "../../prisma/singletonPrisma.js"
 import { authMiddleware } from "../middleware/authMiddleware.js"
+import { requireAdmin } from "../middleware/requireAdmin.js"
 
 const router: Router = express.Router()
 
 const VALID_ROLES = new Set(["ADMIN", "JURISTE", "USER", "LECTEUR"])
-
-/**
- * Réserve l'accès aux administrateurs.
- * Le rôle est vérifié EN BASE (et non depuis le token JWT) : un changement de
- * rôle prend effet immédiatement, sans attendre une reconnexion, et un token
- * périmé ne peut pas être utilisé pour une élévation de privilèges.
- */
-async function requireAdmin(req: Request, res: Response, next: NextFunction) {
-    try {
-        const user = await prisma.user.findUnique({
-            where: { idUser: Number(req.idUser) },
-            select: { role: true },
-        })
-        if (!user || user.role !== "ADMIN") {
-            return res.status(403).json({ success: false, message: "Action réservée aux administrateurs." })
-        }
-        next()
-    } catch (err) {
-        console.error("[admin] requireAdmin error:", err)
-        return res.status(500).json({ success: false, message: "Erreur serveur." })
-    }
-}
 
 /** GET /admin/users — liste tous les utilisateurs (mono-entreprise). */
 router.get("/users", authMiddleware, requireAdmin, async (_req: Request, res: Response) => {

@@ -2,6 +2,7 @@ import type { Request, Response, Router } from "express";
 import express from "express";
 import { Llm } from "./../services/classLlm.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { requireAdmin } from "../middleware/requireAdmin.js";
 
 const routerLlm: Router = express.Router();
 
@@ -57,16 +58,9 @@ routerLlm.get(
 routerLlm.get(
   "/usage/users",
   authMiddleware,
-  async (req: Request, res: Response) => {
+  requireAdmin,
+  async (_req: Request, res: Response) => {
     try {
-      if (req.role !== "ADMIN") {
-        return res
-          .status(403)
-          .json({
-            success: false,
-            message: "Accès réservé aux administrateurs.",
-          });
-      }
       const llm = new Llm();
       const result = await llm.getAllUsersUsage();
       return res.status(result.success ? 200 : 500).json(result);

@@ -163,10 +163,10 @@ export function OverviewSection() {
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
             <Zap className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-sm font-semibold text-gray-700">Top consommateurs LLM (aujourd'hui)</h3>
+            <h3 className="text-sm font-semibold text-gray-700">Top consommateurs LLM (30 derniers jours)</h3>
           </div>
           {topLlmUsers.length === 0 ? (
-            <p className="px-4 py-6 text-center text-xs text-gray-400">Aucune consommation aujourd'hui.</p>
+            <p className="px-4 py-6 text-center text-xs text-gray-400">Aucune consommation sur les 30 derniers jours.</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs text-gray-400 uppercase font-semibold">

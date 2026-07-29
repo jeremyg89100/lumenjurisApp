@@ -666,12 +666,11 @@ async function handleAnalyzeContract(
       res.locals.userId as number | undefined,
     );
     const contractStructure = await detectContractWithAI(content);
-    res.json({ success: true, clauses, contractStructure });
     void trackFeature(
       "analyze_contract",
       res.locals.userId as number | undefined,
     );
-    res.json({ success: true, clauses });
+    res.json({ success: true, clauses, contractStructure });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erreur interne";
     console.error("analyze-contract error:", message);
