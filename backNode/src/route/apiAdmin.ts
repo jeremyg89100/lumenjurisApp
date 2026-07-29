@@ -3,6 +3,7 @@ import type { Request, Response, Router, NextFunction } from "express"
 import { prisma } from "../../prisma/singletonPrisma.js"
 import { authMiddleware } from "../middleware/authMiddleware.js"
 import { requireAdmin } from "../middleware/requireAdmin.js"
+import { buildDayWindow, localDayKey } from "../utils/dayWindow.js"
 
 const router: Router = express.Router()
 
@@ -163,37 +164,38 @@ router.patch("/users/:idUser/ban", authMiddleware, requireAdmin, async (req: Req
 router.get("/feature-usage", authMiddleware, requireAdmin, async (req: Request, res: Response) => {
     try {
         const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 1825)
-        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        // Fenêtre commune à tous les graphes journaliers (voir dayWindow.ts) :
+        // début à minuit local, jours en heure locale, zéro-remplie.
+        const { from, keys } = buildDayWindow(days)
 
         // 1. Résumé par feature
         const featureCounts = await prisma.featureUsage.groupBy({
             by: ["feature"],
-            where: { createdAt: { gte: since } },
+            where: { createdAt: { gte: from } },
             _count: { id: true },
             orderBy: { _count: { id: "desc" } },
         })
         const summary = featureCounts.map((f) => ({ feature: f.feature, count: f._count.id }))
 
-        // 2. Timeline brute (agrégation JS par jour)
+        // 2. Timeline par jour, zéro-remplie et découpée en heure locale
         const events = await prisma.featureUsage.findMany({
-            where: { createdAt: { gte: since } },
+            where: { createdAt: { gte: from } },
             select: { feature: true, createdAt: true },
             orderBy: { createdAt: "asc" },
         })
         const byDay: Record<string, Record<string, number>> = {}
+        for (const key of keys) byDay[key] = {}
         for (const e of events) {
-            const day = e.createdAt.toISOString().slice(0, 10)
-            if (!byDay[day]) byDay[day] = {}
+            const day = localDayKey(e.createdAt)
+            if (!byDay[day]) continue // hors fenêtre (sécurité)
             byDay[day][e.feature] = (byDay[day][e.feature] ?? 0) + 1
         }
-        const timeline = Object.entries(byDay)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, counts]) => ({ date, ...counts }))
+        const timeline = keys.map((date) => ({ date, ...byDay[date] }))
 
         // 3. Tous les utilisateurs actifs sur la période (triés par volume)
         const userGroups = await prisma.featureUsage.groupBy({
             by: ["userId"],
-            where: { createdAt: { gte: since }, userId: { not: null } },
+            where: { createdAt: { gte: from }, userId: { not: null } },
             _count: { id: true },
             orderBy: { _count: { id: "desc" } },
         })
@@ -206,7 +208,7 @@ router.get("/feature-usage", authMiddleware, requireAdmin, async (req: Request, 
             userIds.length > 0
                 ? prisma.featureUsage.groupBy({
                     by: ["userId", "feature"],
-                    where: { createdAt: { gte: since }, userId: { in: userIds } },
+                    where: { createdAt: { gte: from }, userId: { in: userIds } },
                     _count: { id: true },
                 })
                 : Promise.resolve([]),
@@ -241,7 +243,8 @@ router.get("/feature-usage/users/:idUser", authMiddleware, requireAdmin, async (
             return res.status(400).json({ success: false, message: "ID invalide." })
         }
         const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 1825)
-        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        // Mêmes conventions que le graphe global (voir dayWindow.ts).
+        const { from, keys } = buildDayWindow(days)
 
         const user = await prisma.user.findUnique({
             where: { idUser: targetId },
@@ -250,26 +253,25 @@ router.get("/feature-usage/users/:idUser", authMiddleware, requireAdmin, async (
         if (!user) return res.status(404).json({ success: false, message: "Utilisateur introuvable." })
 
         const events = await prisma.featureUsage.findMany({
-            where: { userId: targetId, createdAt: { gte: since } },
+            where: { userId: targetId, createdAt: { gte: from } },
             select: { feature: true, createdAt: true },
             orderBy: { createdAt: "asc" },
         })
 
-        // Résumé par feature + agrégation timeline par jour
+        // Résumé par feature + timeline par jour (locale, zéro-remplie)
         const byFeature: Record<string, number> = {}
         const byDay: Record<string, Record<string, number>> = {}
+        for (const key of keys) byDay[key] = {}
         for (const e of events) {
             byFeature[e.feature] = (byFeature[e.feature] ?? 0) + 1
-            const day = e.createdAt.toISOString().slice(0, 10)
-            if (!byDay[day]) byDay[day] = {}
+            const day = localDayKey(e.createdAt)
+            if (!byDay[day]) continue // hors fenêtre (sécurité)
             byDay[day][e.feature] = (byDay[day][e.feature] ?? 0) + 1
         }
         const summary = Object.entries(byFeature)
             .map(([feature, count]) => ({ feature, count }))
             .sort((a, b) => b.count - a.count)
-        const timeline = Object.entries(byDay)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, counts]) => ({ date, ...counts }))
+        const timeline = keys.map((date) => ({ date, ...byDay[date] }))
 
         // 50 derniers événements (les plus récents en premier)
         const recentEvents = events
