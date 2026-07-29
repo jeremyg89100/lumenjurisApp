@@ -938,39 +938,57 @@ export function Generateur() {
   const [section, setSection]     = useState<Section>(null);
   const [formDocId, setFormDocId] = useState<DocId>("cdi");
   const [useTemplateId, setUseTemplateId] = useState<string | null>(null);
-  const [wizardTitle, setWizardTitle] = useState<string | null>(null);
   const [blankEditor, setBlankEditor] = useState<{ model: ContractModel; fileBase: string } | null>(null);
   const [libraryRefreshKey, setLibraryRefreshKey] = useState(0);
   const notifyAdded = useTemplateNotificationStore((s) => s.notifyAdded);
 
-  // Synchronise la section avec l'URL (?section=library|import|scratch)
+  // Titre du questionnaire « de zéro » — porté par l'URL pour survivre au
+  // bouton Précédent du navigateur.
+  const wizardTitle = searchParams.get("titre");
+
+  // Synchronise la section avec l'URL. TOUTES les sous-étapes (modèle ouvert,
+  // éditeur, questionnaire) vivent dans l'historique : le bouton Précédent du
+  // navigateur revient à l'étape précédente au lieu de tout réinitialiser.
   useEffect(() => {
     const s = searchParams.get("section");
-    if (s === "library" || s === "import" || s === "scratch") setSection(s);
-    else setSection(null);
-  }, [searchParams]);
+    if (s === "library" || s === "import" || s === "scratch") { setSection(s); return; }
+    if (s === "form") {
+      const d = searchParams.get("doc") as DocId | null;
+      if (d && DOC_TYPES.some((t) => t.id === d)) { setFormDocId(d); setSection("form"); return; }
+    }
+    if (s === "useCustom") {
+      const t = searchParams.get("tpl");
+      if (t) { setUseTemplateId(t); setSection("useCustom"); return; }
+    }
+    if (s === "blank") {
+      // Le modèle vit en mémoire : au retour (back) il est là ; après un
+      // rechargement il ne l'est plus — on retombe alors sur la bibliothèque.
+      if (blankEditor) { setSection("blank"); return; }
+      setSearchParams({ section: "library" }, { replace: true });
+      return;
+    }
+    setSection(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, blankEditor]);
 
   function handleUseModel(id: DocId) {
-    setFormDocId(id);
-    setSection("form");
+    setSearchParams({ section: "form", doc: id });
   }
 
   function handleUseCustomTemplate(externalId: string) {
-    setUseTemplateId(externalId);
-    setSection("useCustom");
+    setSearchParams({ section: "useCustom", tpl: externalId });
   }
 
   // Rien trouvé : on lance le questionnaire (en ligne) pour créer le contrat de zéro.
   function handleCreate(title: string) {
-    setWizardTitle(title);
-    setSection("scratch");
+    setSearchParams({ section: "scratch", titre: title, de: "library" });
   }
 
-  // Retour depuis le questionnaire : si on est arrivé par « Créer de zéro »
-  // (?section=scratch), on revient à l'écran d'entrée ; sinon à la bibliothèque.
+  // Retour depuis le questionnaire : vers la bibliothèque si on en vient,
+  // sinon vers l'écran d'entrée « Créer de zéro ».
   function handleScratchBack() {
-    setWizardTitle(null);
-    if (searchParams.get("section") !== "scratch") goLibrary();
+    if (searchParams.get("de") === "library") goLibrary();
+    else setSearchParams({ section: "scratch" });
   }
 
   // Contrat créé par le questionnaire : on l'archive, on le préenregistre en
@@ -979,9 +997,8 @@ export function Generateur() {
     const title = wizardTitle ?? r.model.label;
     addCreatedContract({ title, model: r.model, fileBase: r.fileBase });
     void saveModelAsTemplate(title, r.model);
-    setWizardTitle(null);
     setBlankEditor(r);
-    setSection("blank");
+    setSearchParams({ section: "blank" });
   }
 
   /** Préenregistre le contrat généré comme modèle réutilisable (best-effort :
@@ -1020,7 +1037,7 @@ export function Generateur() {
   // Rouvre un contrat déjà créé depuis l'historique.
   function handleOpenCreated(c: CreatedContract) {
     setBlankEditor({ model: c.model, fileBase: c.fileBase });
-    setSection("blank");
+    setSearchParams({ section: "blank" });
   }
 
   function handleTemplateSaved(templateId: string, andContinue: boolean) {
@@ -1030,8 +1047,7 @@ export function Generateur() {
     if (andContinue) {
       // Tunnel continu : on enchaîne directement sur la génération du contrat,
       // sans repasser par la bibliothèque.
-      setUseTemplateId(templateId);
-      setSection("useCustom");
+      setSearchParams({ section: "useCustom", tpl: templateId });
     } else {
       // Enregistrer seulement : on montre le modèle ajouté dans la bibliothèque.
       setSearchParams({ section: "library" });
@@ -1067,7 +1083,6 @@ export function Generateur() {
   function goLibrary() {
     setUseTemplateId(null);
     setBlankEditor(null);
-    setWizardTitle(null);
     setSection("library");
     setSearchParams({ section: "library" });
   }
@@ -1183,7 +1198,7 @@ export function Generateur() {
 
       {section === "scratch"   && !wizardTitle && (
         <ScratchEntry
-          onStart={(title) => setWizardTitle(title)}
+          onStart={(title) => setSearchParams({ section: "scratch", titre: title })}
           onBack={goHub}
         />
       )}

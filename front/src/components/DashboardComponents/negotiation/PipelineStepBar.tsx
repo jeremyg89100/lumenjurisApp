@@ -30,25 +30,20 @@ export function PipelineStepBar({ state, onShare, onSign, onFollow }: Props) {
   const steps = [
     {
       icon: ClipboardList,
-      label: "Compléter les champs",
+      label: completeDone ? "Complété" : "Compléter",
       done: completeDone,
-      hint: state.total === 0 ? "Aucun champ à remplir" : `${state.filled}/${state.total} champs remplis`,
       onClick: undefined as (() => void) | undefined,
     },
     {
       icon: Share2,
-      label: state.shared
-        ? state.sharedMode === "COMPLETION" ? "Partagé pour complétion" : "En négociation"
-        : "Partager à l’autre partie",
+      label: state.shared ? "Partagé" : "Partager",
       done: state.shared,
-      hint: state.shared ? "Suivre l’avancement" : "Faire compléter ou négocier",
       onClick: state.shared ? onFollow : onShare,
     },
     {
       icon: FileSignature,
       label: "Signer",
       done: false,
-      hint: "Signature électronique",
       onClick: onSign,
     },
   ];
@@ -69,8 +64,6 @@ export function PipelineStepBar({ state, onShare, onSign, onFollow }: Props) {
             } ${clickable ? "hover:bg-brand-light/40 cursor-pointer" : ""} ${i > 0 ? "border-l border-line-subtle" : ""}`}
             {...(clickable ? { type: "button" as const } : {})}
           >
-            {/* Liseré : signature discrète de l'étape courante */}
-            {isCurrent && <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-brand" />}
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
                 s.done
@@ -82,13 +75,8 @@ export function PipelineStepBar({ state, onShare, onSign, onFollow }: Props) {
             >
               {s.done ? <Check className="h-3.5 w-3.5" /> : i + 1}
             </span>
-            <span className="min-w-0 hidden sm:block">
-              <span className={`block truncate text-xs ${isCurrent ? "font-bold text-ink" : s.done ? "font-semibold text-ink" : "font-semibold text-ink-muted"}`}>
-                {s.label}
-              </span>
-              <span className={`block truncate text-[10px] ${isCurrent ? "text-brand font-medium" : "text-ink-subtle"}`}>
-                {s.hint}
-              </span>
+            <span className={`min-w-0 hidden sm:block truncate text-sm ${isCurrent ? "font-bold text-ink" : s.done ? "font-semibold text-ink" : "font-semibold text-ink-muted"}`}>
+              {s.label}
             </span>
             <s.icon className={`ml-auto hidden h-3.5 w-3.5 shrink-0 lg:block ${isCurrent ? "text-brand" : "text-ink-subtle"}`} />
           </Comp>

@@ -6,6 +6,7 @@
 // Dans les deux cas, le contrat est rédigé puis ouvert dans l'éditeur
 // (variables surlignées) et comporte systématiquement un article RGPD.
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Loader2, AlertCircle, ChevronLeft, ChevronRight,
   Sparkles, ListChecks, Paperclip, ShieldCheck, X, FileText,
@@ -63,6 +64,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
   onReady: (r: { model: ContractModel; fileBase: string }) => void;
   onBack: () => void;
 }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("mode");
   const [questions, setQuestions] = useState<WizardQuestion[]>([]);
   const [idx, setIdx] = useState(0);
@@ -78,8 +80,54 @@ export function ScratchWizard({ title, onReady, onBack }: {
   const opId = useRef(0);
   // Étape d'où la rédaction a été lancée (retour pendant « generating »).
   const origin = useRef<"brief" | "asking">("brief");
+  // Dernière URL écrite par le wizard : la synchro ignore nos propres écritures
+  // et ne réagit qu'aux navigations du navigateur (Précédent / Suivant).
+  const lastUrl = useRef("");
 
   useEffect(() => () => { opId.current += 1; }, []);
+
+  /** Écrit l'étape courante dans l'URL (une entrée d'historique par étape). */
+  const writeUrl = (patch: { step?: string | null; q?: number | null }) => {
+    const next = new URLSearchParams(searchParams);
+    if (patch.step === null) next.delete("step");
+    else if (patch.step !== undefined) next.set("step", patch.step);
+    if (patch.q == null) next.delete("q");
+    else next.set("q", String(patch.q));
+    lastUrl.current = next.toString();
+    setSearchParams(next);
+  };
+
+  const goMode  = () => { setStep("mode"); setError(""); writeUrl({ step: null, q: null }); };
+  const goBrief = () => { setStep("brief"); setError(""); writeUrl({ step: "brief", q: null }); };
+  const goAsk   = (n: number) => { setStep("asking"); setIdx(n); setError(""); writeUrl({ step: "asking", q: n + 1 }); };
+
+  // Le navigateur pilote : Précédent / Suivant reviennent à l'étape (ou la
+  // question) précédente au lieu de sortir du questionnaire.
+  useEffect(() => {
+    const cur = searchParams.toString();
+    if (cur === lastUrl.current) return; // notre propre écriture — rien à faire
+    lastUrl.current = cur;
+    opId.current += 1; // toute navigation annule les appels IA en vol
+    const s = searchParams.get("step");
+    if (s === "brief") { setStep("brief"); setError(""); return; }
+    if (s === "asking") {
+      if (questions.length) {
+        const qn = Math.max(1, Number(searchParams.get("q") ?? "1"));
+        setIdx(Math.min(qn - 1, questions.length - 1));
+        setStep("asking"); setError("");
+      } else {
+        // Questions perdues (rechargement) : on repart proprement du choix du mode.
+        const next = new URLSearchParams(searchParams);
+        next.delete("step"); next.delete("q");
+        lastUrl.current = next.toString();
+        setSearchParams(next, { replace: true });
+        setStep("mode");
+      }
+      return;
+    }
+    setStep("mode"); setError("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, questions]);
 
   // Le questionnaire n'est préparé que si l'utilisateur choisit le mode guidé.
   const startGuided = async () => {
@@ -90,9 +138,8 @@ export function ScratchWizard({ title, onReady, onBack }: {
       const qs = await generateContractQuestions(title);
       if (opId.current !== id) return; // l'utilisateur a navigué entre-temps
       setQuestions(qs);
-      setIdx(0);
       setAnswers({});
-      setStep("asking");
+      goAsk(0);
     } catch {
       if (opId.current !== id) return;
       setError("Service IA indisponible — impossible de préparer les questions.");
@@ -181,7 +228,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
     const q = questions[idx];
     const next = { ...answers, [q.id]: value };
     setAnswers(next);
-    if (idx < questions.length - 1) setIdx(idx + 1);
+    if (idx < questions.length - 1) goAsk(idx + 1);
     else void finish(next);
   }
 
@@ -194,8 +241,11 @@ export function ScratchWizard({ title, onReady, onBack }: {
     if (step === "generating") {
       // Revient à l'étape d'origine sans rien perdre (brief, réponses, pièces).
       setStep(origin.current); setError("");
+    } else if (step === "asking" && idx > 0) {
+      // Question précédente — jamais un saut au tout début.
+      goAsk(idx - 1);
     } else if (step === "brief" || step === "asking" || step === "loading" || step === "error") {
-      setStep("mode"); setError("");
+      goMode();
     } else {
       onBack();
     }
@@ -211,7 +261,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
         {step === "mode" && (
           <div className="space-y-3">
             <button
-              onClick={() => setStep("brief")}
+              onClick={goBrief}
               className="w-full rounded-xl border border-line bg-white p-4 text-left transition-all hover:border-brand/50 hover:bg-brand-light/40 group"
             >
               <span className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -370,7 +420,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
 
             {idx > 0 && (
               <button
-                onClick={() => setIdx(idx - 1)}
+                onClick={() => goAsk(idx - 1)}
                 className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-ink-muted hover:text-brand"
               >
                 <ChevronLeft className="h-3.5 w-3.5" /> Précédent
