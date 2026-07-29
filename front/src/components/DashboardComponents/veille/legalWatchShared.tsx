@@ -39,13 +39,14 @@ export interface WatchStatus {
 
 export interface WatchConfig {
   sources: Array<{ name: string; isActive: boolean; lastRunAt: string | null }>;
-  concepts: Array<{ concept: string; label: string; legalDomain: string; isActive: boolean }>;
+  concepts: Array<{ concept: string; label: string; legalDomain: string; isActive: boolean, sourceUrl?: string | null }>;
 }
 
 // ── Libellés ─────────────────────────────────────────────────────────────────
 
 export const DOMAIN_LABELS: Record<string, string> = {
   droit_travail_contrats_precaires: "Droit du travail · Contrats précaires (CDD)",
+  convention_collective: "Conventions collectives",
 };
 
 const CONCEPT_LABELS: Record<string, string> = {

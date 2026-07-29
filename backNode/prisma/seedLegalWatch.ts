@@ -11,7 +11,7 @@
  * réelles de Contract.contractType via CONTRACT_TYPE_PATTERNS.
  */
 import "dotenv/config";
-import { prisma } from "./singletonPrisma";
+import { prisma } from "./singletonPrisma.js";
 
 const DOMAIN_CDD = "droit_travail_contrats_precaires";
 
@@ -21,6 +21,7 @@ type ConceptSeed = {
   legalDomain: string;
   keywords: string[];
   contractTypes: string[];
+  title?: string;
 };
 
 const CONCEPTS: ConceptSeed[] = [
@@ -152,6 +153,221 @@ const CONCEPTS: ConceptSeed[] = [
   },
 ];
 
+const CONVENTIONS: ConceptSeed[]= [
+  {
+    concept: "conv_syntec",
+    label: "Syntec / Bureaux d'études",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "syntec",
+      "bureaux d'études",
+      "ingénieurs conseils",
+      "sociétés de conseils",
+      "KALICONT000005635173",
+      "convention collective syntec",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale des bureaux d’études techniques, cabinets d’ingénieurs-conseils et sociétés de conseils",
+  },
+  {
+    concept: "conv_metallurgie",
+    label: "Métallurgie",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "métallurgie",
+      "industrie métallurgique",
+      "KALICONT000046993250",
+      "convention collective métallurgie",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale de la métallurgie du 7 février 2022",
+  },
+  {
+    concept: "conv_hcr",
+    label: "Hôtels, cafés, restaurants (HCR)",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "hcr",
+      "hôtels",
+      "cafés",
+      "restaurants",
+      "restauration",
+      "hôtellerie",
+      "KALICONT000005635534",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale des hôtels, cafés et restaurants",
+  },
+  {
+    concept: "conv_commerce_alimentaire",
+    label: "Commerce à prédominance alimentaire",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "commerce alimentaire",
+      "grande distribution",
+      "supermarché",
+      "hypermarché",
+      "commerce de détail alimentaire",
+      "KALICONT000005635085",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale du commerce de détail et de gros à prédominance alimentaire",
+  },
+  {
+    concept: "conv_commerce_gros",
+    label: "Commerce de gros",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "commerce de gros",
+      "negoce",
+      "grossiste",
+      "KALICONT000005635373",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale du commerce de gros",
+  },
+  {
+    concept: "conv_transports_routiers",
+    label: "Transports routiers",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "transports routiers",
+      "transport routier",
+      "chauffeur routier",
+      "logistique",
+      "activités auxiliaires du transport",
+      "KALICONT000005635624",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale des transports routiers et activités auxiliaires du transport",
+  },
+  {
+    concept: "conv_batiment_ouvriers_moins_10",
+    label: "Bâtiment ouvriers (-10 salariés)",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "bâtiment ouvriers",
+      "btp",
+      "moins de 10 salariés",
+      "artisanat bâtiment",
+      "KALICONT000005635221",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale du bâtiment – ouvriers (entreprises occupant jusqu’à 10 salariés)",
+  },
+  {
+    concept: "conv_batiment_ouvriers_plus_10",
+    label: "Bâtiment ouvriers (+10 salariés)",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "bâtiment ouvriers",
+      "btp",
+      "plus de 10 salariés",
+      "entreprise du bâtiment",
+      "KALICONT000005635220",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale du bâtiment – ouvriers (entreprises occupant plus de 10 salariés)",
+  },
+  {
+    concept: "conv_aide_domicile",
+    label: "Aide et soins à domicile",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "aide à domicile",
+      "soins à domicile",
+      "accompagnement à domicile",
+      "services à domicile",
+      "KALICONT000025805800",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale de l’aide, de l’accompagnement, des soins et des services à domicile",
+  },
+  {
+    concept: "conv_medico_social",
+    label: "Établissements médico-sociaux",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "médico-social",
+      "établissement médico-social",
+      "secteurs sanitaires et sociaux",
+      "uisss",
+      "KALICONT000026950865",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective relative aux établissements médico-sociaux de l’union intersyndicale des secteurs sanitaires et sociaux",
+  },
+  {
+    concept: "conv_particuliers_employeurs",
+    label: "Particuliers employeurs et emploi à domicile",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "particuliers employeurs",
+      "emploi à domicile",
+      "salarié du particulier employeur",
+      "assistante maternelle",
+      "KALICONT000044594539",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale des particuliers employeurs et de l’emploi à domicile",
+  },
+  {
+    concept: "conv_immobilier",
+    label: "Immobilier",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "immobilier",
+      "agence immobilière",
+      "gestion immobilière",
+      "copropriété",
+      "KALICONT000005635413",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale de l’immobilier",
+  },
+  {
+    concept: "conv_coiffure",
+    label: "Coiffure",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "coiffure",
+      "salon de coiffure",
+      "professions connexes coiffure",
+      "KALICONT000018563755",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale de la coiffure et des professions connexes",
+  },
+  {
+    concept: "conv_chimie",
+    label: "Industries chimiques",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "chimie",
+      "industries chimiques",
+      "secteur chimique",
+      "KALICONT000005635613",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale des industries chimiques et connexes",
+  },
+  {
+    concept: "conv_dechet",
+    label: "Activités du déchet",
+    legalDomain: "DOMAIN_CONVENTION_COLLECTIVE",
+    keywords: [
+      "déchet",
+      "activités du déchet",
+      "gestion des déchets",
+      "recyclage",
+      "propreté urbaine",
+      "KALICONT000005635782",
+    ],
+    contractTypes: ["convention_collective"],
+    title: "Convention collective nationale des activités du déchet",
+  },
+];
+
 async function main() {
   // Sources (l'ingestion met à jour lastRunAt à chaque run). Judilibre active
   // par défaut ; Légifrance présente mais désactivée — l'utilisateur l'active
@@ -167,7 +383,12 @@ async function main() {
     update: {},
     create: { name: "legifrance", isActive: false },
   });
-  console.log(`✔ Sources : ${judilibre.name} (active), ${legifrance.name} (désactivée par défaut)`);
+  const conventionCollective = await prisma.legalWatchSource.upsert({
+    where: {name: "convention_collective"},
+    update: {},
+    create: {name: "convention_collective", isActive: true},
+  })
+  console.log(`✔ Sources : ${judilibre.name} (active), ${legifrance.name}, ${conventionCollective.name} (désactivée par défaut)`);
 
   for (const c of CONCEPTS) {
     await prisma.legalConceptMapping.upsert({
@@ -182,6 +403,25 @@ async function main() {
         concept: c.concept,
         label: c.label,
         legalDomain: c.legalDomain,
+        keywords: c.keywords,
+        contractTypes: c.contractTypes,
+      },
+    });
+  }
+
+  for (const c of CONVENTIONS) {
+    await prisma.legalConceptMapping.upsert({
+      where: { concept: c.concept},
+      update: {
+        label: c.label,
+        legalDomain: "convention_collective",
+        keywords: c.keywords,
+        contractTypes: c.contractTypes,
+      },
+      create: {
+        concept: c.concept,
+        label: c.label,
+        legalDomain: "convention_collective",
         keywords: c.keywords,
         contractTypes: c.contractTypes,
       },

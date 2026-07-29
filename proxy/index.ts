@@ -1557,6 +1557,8 @@ app.post("/api/legal-watch/run", auth, (req, res) => {
   void trackFeature("legal_watch_run", res.locals.userId as number | undefined);
   relayToNode(req, res, "/legal-watch/run");
 });
+app.post("/api/legal-watch/legal-concept", auth, (req, res) => relayToNode(req, res, "/legal-watch/legal-concept"));
+
 // Consultation — la lecture du digest est l'usage utilisateur de la veille
 // (unread-count est appelé automatiquement par le header : non tracké pour ne pas fausser les stats)
 app.get("/api/legal-watch/alerts", auth, (req, res) => relayToNode(req, res, withQuery("/legal-watch/alerts", req)));

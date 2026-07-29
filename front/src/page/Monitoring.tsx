@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart2, MessageSquare, Users, TrendingUp, Activity, LayoutDashboard } from "lucide-react";
+import { BarChart2, MessageSquare, Users, TrendingUp, Activity, LayoutDashboard, Library } from "lucide-react";
 import { useUserStore } from "../store/userStore";
 import { Navigate } from "react-router-dom";
 import { LlmUsageSection } from "../components/MonitoringComponents/LlmUsageSection";
@@ -8,8 +8,9 @@ import { UserManagement } from "../components/DashboardComponents/admin/UserMana
 import { RevenueSection } from "../components/MonitoringComponents/RevenueSection";
 import { ActivitySection } from "../components/MonitoringComponents/ActivitySection";
 import { OverviewSection } from "../components/MonitoringComponents/OverviewSection";
+import { LegalWatchSection } from "../components/MonitoringComponents/LegalWatchSection";
 
-type Tab = "overview" | "llm" | "feedbacks" | "users" | "revenue" | "activity";
+type Tab = "overview" | "llm" | "feedbacks" | "users" | "revenue" | "activity" | "legalWatch";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; description: string }[] = [
   { id: "overview", label: "Vue d'ensemble", icon: LayoutDashboard, description: "KPIs, alertes et crédits" },
@@ -18,6 +19,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; description: stri
   { id: "users", label: "Utilisateurs", icon: Users, description: "Gestion des comptes et rôles" },
   { id: "revenue", label: "Revenus", icon: TrendingUp, description: "Abonnements et paiements" },
   { id: "activity", label: "Activité", icon: Activity, description: "Usage des fonctionnalités IA" },
+  { id: "legalWatch", label: "Legal Watch", icon: Library , description: "Ajout de conventions collectives"},
 ];
 
 const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
@@ -27,6 +29,7 @@ const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
   users: { title: "Gestion des utilisateurs", sub: "Rôles et droits d'accès" },
   revenue: { title: "Revenus", sub: "Abonnements actifs, paiements et chiffre d'affaires" },
   activity: { title: "Activité des fonctionnalités", sub: "Usage de chaque fonctionnalité IA par période" },
+  legalWatch: { title: "Legal Watch", sub: "Ajout de conventions collectives"},
 };
 
 export const Monitoring = () => {
@@ -83,6 +86,7 @@ export const Monitoring = () => {
             {activeTab === "users" && <UserManagement />}
             {activeTab === "revenue" && <RevenueSection />}
             {activeTab === "activity" && <ActivitySection />}
+            {activeTab === "legalWatch" && <LegalWatchSection />}
           </div>
 
         </div>
