@@ -141,7 +141,7 @@ app.listen(port, async () => {
   
   try {
     await seedBootstrapUsers();
-    new Mailer("l.beaute@laposte.net").initTransporter();
+    void Mailer.initTransporter();
   } catch (err) {
     console.error(
       "Erreur lors de l'initialisation des utilisateurs de bootstrap:",

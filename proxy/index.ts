@@ -1597,10 +1597,32 @@ app.post("/api/negotiation/public/:token/comments", (req, res) =>
     `/negotiation/public/${encodeURIComponent(req.params.token as string)}/comments`,
   ),
 );
+// Complétion guidée (invité) : saisie des champs et validation finale.
+app.patch("/api/negotiation/public/:token/fields", (req, res) =>
+  relayToNode(
+    req,
+    res,
+    `/negotiation/public/${encodeURIComponent(req.params.token as string)}/fields`,
+  ),
+);
+app.post("/api/negotiation/public/:token/complete", (req, res) =>
+  relayToNode(
+    req,
+    res,
+    `/negotiation/public/${encodeURIComponent(req.params.token as string)}/complete`,
+  ),
+);
 // Entrée & liste
+app.get("/api/negotiation/", auth, (req, res) =>
+  relayToNode(req, res, "/negotiation/"),
+);
 app.post("/api/negotiation/enter", auth, (req, res) => {
   void trackFeature("negotiation", res.locals.userId as number | undefined);
   relayToNode(req, res, "/negotiation/enter");
+});
+app.post("/api/negotiation/enter-completion", auth, (req, res) => {
+  void trackFeature("negotiation", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/negotiation/enter-completion");
 });
 app.get("/api/negotiation/contract/:contractExternalId", auth, (req, res) => relayToNode(req, res, `/negotiation/contract/${encodeURIComponent(req.params.contractExternalId as string)}`));
 // Sous-ressources (avant /:externalId nu)
@@ -1694,6 +1716,16 @@ app.post(
       req,
       res,
       `/negotiation/${encodeURIComponent(req.params.externalId as string)}/guests/${encodeURIComponent(req.params.guestExternalId as string)}/revoke`,
+    ),
+);
+app.post(
+  "/api/negotiation/:externalId/guests/:guestExternalId/remind",
+  auth,
+  (req, res) =>
+    relayToNode(
+      req,
+      res,
+      `/negotiation/${encodeURIComponent(req.params.externalId as string)}/guests/${encodeURIComponent(req.params.guestExternalId as string)}/remind`,
     ),
 );
 app.post("/api/negotiation/:externalId/guests", auth, (req, res) =>

@@ -195,29 +195,41 @@ const LoginForm = ({
     event.preventDefault();
     if (!email) {
       setSubmitForgotError(true);
-    } else {
-      setSubmitLoading(true);
-      setEmailSent(true);
-      try {
-        const response = await fetchProxy("/api/auth/forgotpassword", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-          credentials: "include",
-        });
-        if (response.status === 429) {
-          setEmailSent(false);
-          setShowRateLimitModal(true);
-          setSubmitLoading(false);
-          return;
-        }
-        if (!response.ok) {
-          setEmailSent(false);
-          setSubmitLoading(false);
-        }
-      } catch (error) {
-        console.error(error);
+      return;
+    }
+
+    setSubmitLoading(true);
+    try {
+      const response = await fetchProxy("/api/auth/forgotpassword", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+
+      if (response.status === 429) {
+        setShowRateLimitModal(true);
+        return;
       }
+
+      // La confirmation ne s'affiche qu'une fois la demande réellement acceptée.
+      if (response.ok) {
+        setEmailSent(true);
+      } else {
+        setServerErrorMessage(
+          "La demande n'a pas pu aboutir. Merci de réessayer dans un instant.",
+        );
+        setServerError(true);
+      }
+    } catch (error) {
+      console.error(error);
+      setServerErrorMessage(
+        "Serveur injoignable. Vérifiez votre connexion et réessayez.",
+      );
+      setServerError(true);
+    } finally {
+      // Le bouton redevient actif dans tous les cas.
+      setSubmitLoading(false);
     }
   };
 

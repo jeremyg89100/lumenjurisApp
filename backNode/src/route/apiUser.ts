@@ -852,8 +852,10 @@ routerUser.post(
     }
 
     try {
+      // Ne charge que les champs utiles au mail : requête plus légère.
       const user = await prisma.user.findUnique({
-        where: { email: email },
+        where: { email },
+        select: { idUser: true, prenom: true, nom: true },
       });
 
       if (user) {
@@ -862,12 +864,17 @@ routerUser.post(
           "forgotPassword",
         );
         const url = `${process.env.HOST}/user/resetpassword/${token.token}`;
-        await new Mailer(email).sendResetPassword(
-          url,
-          `${user.prenom} ${user.nom}`,
-        );
+
+        // Envoi en arrière-plan : la réponse HTTP ne dépend plus du SMTP
+        // (réponse immédiate, et un incident d'envoi ne casse pas la requête).
+        void new Mailer(email)
+          .sendResetPassword(url, `${user.prenom} ${user.nom}`)
+          .catch((err) =>
+            console.error("Envoi de l'email de réinitialisation échoué:", err),
+          );
       }
 
+      // Réponse identique que le compte existe ou non : pas d'énumération d'emails.
       return res.status(200).json({
         success: true,
         message:

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
-  <Id>9bb7a975-b568-4b2d-9683-39fd2900118f</Id>
-  <Version>1.0.0.0</Version>
-  <ProviderName>Lumen Juris</ProviderName>
+  <Id>055cf7a8-1834-4477-838e-7a1895858952</Id>
+  <Version>1.1.0.0</Version>
+  <ProviderName>Geoffrey Pin</ProviderName>
   <DefaultLocale>fr-FR</DefaultLocale>
   <DisplayName DefaultValue="LumenJuris"/>
-  <Description DefaultValue="Générez et adaptez vos contrats directement dans Word : template CDD, clauses alternatives insérées en suivi des modifications, analyse de risque (problèmes, questions, jurisprudence)."/>
+  <Description DefaultValue="Analysez vos contrats dans Word : clauses à risque détectées et surlignées, reformulations en suivi des modifications, jurisprudence. Compte LumenJuris requis (offre Free gratuite ; offres Pro et Enterprise pour les équipes)."/>
   <IconUrl DefaultValue="https://beta.lumenjuris.com/word-addin/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://beta.lumenjuris.com/word-addin/assets/icon-64.png"/>
-  <SupportUrl DefaultValue="https://beta.lumenjuris.com/word-addin/taskpane.html"/>
+  <SupportUrl DefaultValue="https://www.lumenjuris.com/contactez-nous/"/>
   <AppDomains>
     <AppDomain>https://beta.lumenjuris.com</AppDomain>
   </AppDomains>
@@ -72,7 +72,7 @@
         <bt:Image id="Icon.80x80" DefaultValue="https://beta.lumenjuris.com/word-addin/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812"/>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://www.lumenjuris.com"/>
         <bt:Url id="Commands.Url" DefaultValue="https://beta.lumenjuris.com/word-addin/commands.html" />
         <bt:Url id="Taskpane.Url" DefaultValue="https://beta.lumenjuris.com/word-addin/taskpane.html"/>
       </bt:Urls>
@@ -82,7 +82,7 @@
         <bt:String id="TaskpaneButton.Label" DefaultValue="LumenJuris" />
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="GetStarted.Description" DefaultValue="Le complément Lumen Juris est chargé. Ouvrez l'onglet Accueil et cliquez sur « Assistant Contrats » pour afficher le volet." />
+        <bt:String id="GetStarted.Description" DefaultValue="LumenJuris détecte et surligne les clauses à risque de vos contrats dans Word, puis propose des reformulations sourcées. Ouvrez l'onglet Accueil et cliquez sur « LumenJuris » pour afficher le volet et vous connecter (compte gratuit disponible)." />
         <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Afficher le volet Lumen Juris : templates de contrats, clauses alternatives et analyse de risque." />
       </bt:LongStrings>
     </Resources>

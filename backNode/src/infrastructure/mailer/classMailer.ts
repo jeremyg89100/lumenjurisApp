@@ -73,9 +73,10 @@ export class Mailer {
       console.log("Transporteur envoi email SMTP prêt.");
       logger.info("Vérification du transporter SMTP");
     } catch (err) {
-      console.error("Erreur lors de la vérification du transporteur");
+      // Un SMTP indisponible ne doit jamais empêcher le serveur de démarrer :
+      // seules les fonctionnalités d'e-mail sont dégradées.
+      console.error("Erreur lors de la vérification du transporteur SMTP");
       logger.error("Erreur lors de la vérification du transporteur", err);
-      throw err;
     }
   }
 

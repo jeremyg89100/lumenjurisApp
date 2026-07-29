@@ -2,9 +2,10 @@ import * as React from "react";
 import ClauseList from "./ClauseList";
 import ClauseDetail from "./ClauseDetail";
 import AnalysisForm from "./AnalysisForm";
+import LoginScreen from "./LoginScreen";
 import StatusMessage, { Status } from "./StatusMessage";
 import { AnalysisContext, ClauseRisk } from "../core/types";
-import { analyzeContract } from "../core/lumenService";
+import { analyzeContract, AuthError, clearToken, getToken } from "../core/lumenService";
 import { clearHighlights, getDocumentText, highlightClauses, selectClause } from "../core/wordDocument";
 
 type Screen = "form" | "results";
@@ -21,6 +22,8 @@ function ClauseCountBadge({ clauses }: { clauses: ClauseRisk[] }) {
 }
 
 const App: React.FC = () => {
+  const [authed, setAuthed] = React.useState<boolean>(() => Boolean(getToken()));
+  const [loginNotice, setLoginNotice] = React.useState<Status | null>(null);
   const [screen, setScreen] = React.useState<Screen>("form");
   const [documentText, setDocumentText] = React.useState("");
   const [analyzing, setAnalyzing] = React.useState(false);
@@ -31,14 +34,26 @@ const App: React.FC = () => {
   const [appliedIds, setAppliedIds] = React.useState<string[]>([]);
   const [selected, setSelected] = React.useState<ClauseRisk | null>(null);
 
-  // Lecture du document dès l'ouverture, pour pré-remplir le formulaire (IA).
+  // Lecture du document après connexion, pour pré-remplir le formulaire (IA).
   React.useEffect(() => {
+    if (!authed) return;
     getDocumentText()
       .then(setDocumentText)
       .catch(() => {
         /* best-effort */
       });
-  }, []);
+  }, [authed]);
+
+  /** Session invalide ou déconnexion volontaire : retour à l'écran de connexion. */
+  const signOut = (notice: Status | null) => {
+    clearToken();
+    setLoginNotice(notice);
+    setAuthed(false);
+    setScreen("form");
+    setClauses([]);
+    setSelected(null);
+    setStatus(null);
+  };
 
   /** Lance l'analyse avec le contexte du formulaire (texte lu à la volée). */
   const handleAnalyze = async (context: AnalysisContext) => {
@@ -77,9 +92,13 @@ const App: React.FC = () => {
         .catch((e) => setStatus({ kind: "warn", text: `Surlignage impossible : ${String(e)}` }))
         .finally(() => setHighlighting(false));
     } catch (error) {
+      if (error instanceof AuthError) {
+        signOut({ kind: "warn", text: "Votre session a expiré. Reconnectez-vous pour continuer." });
+        return;
+      }
       setStatus({
         kind: "err",
-        text: `Analyse échouée : ${error instanceof Error ? error.message : String(error)}. La plateforme LumenJuris est-elle démarrée ?`,
+        text: `Analyse échouée : ${error instanceof Error ? error.message : String(error)} Si le problème persiste, contactez-nous via lumenjuris.com.`,
       });
     } finally {
       setAnalyzing(false);
@@ -95,6 +114,19 @@ const App: React.FC = () => {
     setStatus(null);
     setScreen("form");
   };
+
+  /* ---------- Connexion obligatoire (première exécution) ---------- */
+  if (!authed) {
+    return (
+      <LoginScreen
+        notice={loginNotice}
+        onSignedIn={() => {
+          setLoginNotice(null);
+          setAuthed(true);
+        }}
+      />
+    );
+  }
 
   /* ---------- Fiche détail (fenêtre modale de la plateforme) ---------- */
   if (selected) {
@@ -113,6 +145,11 @@ const App: React.FC = () => {
   if (screen === "form") {
     return (
       <main className="lj-content">
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+          <button className="lj-btn secondary small" onClick={() => signOut(null)}>
+            Se déconnecter
+          </button>
+        </div>
         <AnalysisForm documentText={documentText} analyzing={analyzing} status={status} onSubmit={handleAnalyze} />
       </main>
     );

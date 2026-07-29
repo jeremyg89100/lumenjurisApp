@@ -248,7 +248,7 @@ const SignupForm = ({
     const value = event.target.value;
     setConfirmPassword(value);
     if (value.length >= 8 && value !== password) {
-      setConfirmPasswordError("Les mots de passes doivent-être identiques !");
+      setConfirmPasswordError("Les mots de passe doivent être identiques !");
     } else if (value.length >= 8 && value === password) {
       setConfirmPasswordError("");
     }
@@ -280,7 +280,7 @@ const SignupForm = ({
         <AlertBanner
           title="CGU !"
           variant="error"
-          detail="Vous devez acceptez nos CGU."
+          detail="Vous devez accepter nos CGU."
           onClose={() => {
             setSubmitCguError(false);
           }}

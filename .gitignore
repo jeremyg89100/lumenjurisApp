@@ -27,7 +27,6 @@ front/dist/
 backNode/.env
 backNode/.env.production
 backNode/node_modules
-backNode/prisma/migrations
 backNode/prisma/generated
 backNode/dist/
 gpt5_tokens_log.json
