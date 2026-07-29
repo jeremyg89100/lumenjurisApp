@@ -238,7 +238,7 @@ export function AccountSettingsPanel({
         )}
         {profileUpdateError && (
           <AlertBanner
-            title="Echec de la mise à jour !"
+            title="Échec de la mise à jour !"
             variant="error"
             detail="Vos informations personnelles n'ont pu être mises à jour. Veuillez réessayer."
             duration={7000}
@@ -265,7 +265,7 @@ export function AccountSettingsPanel({
         )}
         {deleteMailSuccess && (
           <AlertBanner
-            title="Suppression de compte demandé avec succès !"
+            title="Suppression de compte demandée avec succès !"
             variant="success"
             detail="Un e-mail contenant le lien pour supprimer votre compte vous a été envoyé."
             duration={7000}

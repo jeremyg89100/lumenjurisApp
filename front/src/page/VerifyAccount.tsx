@@ -99,7 +99,7 @@ export const VerifyAccount = () => {
 
         {/* Support link */}
         <p className="text-sm text-muted-foreground flex items-center justify-center">
-          Toujours des difficultés &nbsp;
+          Toujours des difficultés ?&nbsp;
           <a
             href="/support"
             className="text-primary underline underline-offset-4 hover:text-primary/80 inline-flex items-center gap-1 transition-colors"

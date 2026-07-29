@@ -32,11 +32,12 @@ const PLANS: Plan[] = [
     free: true,
     cta: "Commencer gratuitement",
     features: [
-      "1 utilisateur",
-      "5 contrats actifs maximum",
-      "Contrathèque statique (recherche basique)",
-      "3 templates standards",
-      "Signature électronique : 3 enveloppes / mois",
+      "Génération de contrats illimitée (export avec filigrane)",
+      "Signature électronique simple illimitée",
+      "3 analyses de contrat par IA / mois",
+      "Négociation collaborative incluse",
+      "Veille juridique incluse",
+      "Contrathèque : 5 contrats suivis",
     ],
   },
   {
@@ -47,11 +48,10 @@ const PLANS: Plan[] = [
     cta: "Choisir Starter",
     features: [
       "Tout le Free, plus :",
-      "Contrats illimités",
-      "Contrathèque dynamique (champs personnalisés & filtres)",
-      "Templates illimités",
-      "Signature électronique : 25 enveloppes / mois",
-      "Suivi des échéances & rappels automatisés",
+      "Export des contrats sans filigrane",
+      "30 analyses de contrat par IA / mois",
+      "Contrats et modèles illimités",
+      "Suivi des échéances illimité + alertes (préavis, loi Chatel)",
       "Tableau de bord des renouvellements",
     ],
   },
@@ -65,10 +65,10 @@ const PLANS: Plan[] = [
     cta: "Choisir Pro",
     features: [
       "Tout le Starter, plus :",
-      "Négociation collaborative (redlining & suivi des modifications)",
-      "Workflows d'approbation",
-      "Analyse des risques par IA (scoring & clauses sensibles)",
-      "Signature électronique illimitée",
+      "Analyses de contrat par IA illimitées",
+      "Jurisprudence reliée aux clauses analysées",
+      "Workflows d'approbation interne",
+      "10 signatures avancées eIDAS / mois (via DocuSign)",
       "Intégrations standards",
     ],
   },
@@ -82,11 +82,11 @@ const PLANS: Plan[] = [
     features: [
       "Tout le Pro, plus :",
       "RBAC avancé & espaces de travail multiples",
-      "Intégrations métier sur mesure & API",
+      "Signatures avancées en volume (sur mesure)",
+      "API & intégrations métier sur mesure",
       "Module d'audit & conformité RGPD renforcé",
       "SSO (authentification unique)",
-      "SLA & support dédié",
-      "Accompagnement à l'implémentation",
+      "SLA, support dédié & accompagnement",
     ],
   },
 ];
@@ -368,6 +368,14 @@ export function PlansPanel() {
           {
             q: "Comment fonctionne la facturation annuelle ?",
             a: "Vous économisez 20 % en réglant l'année en une fois. Une facture est émise automatiquement.",
+          },
+          {
+            q: "La génération de contrats est-elle vraiment gratuite ?",
+            a: "Oui, illimitée sur toutes les formules. En Free, l'export porte un filigrane Lumen Juris ; dès Starter, vos documents s'exportent sans filigrane.",
+          },
+          {
+            q: "Pourquoi l'analyse par IA est-elle limitée en Free ?",
+            a: "C'est la fonctionnalité la plus coûteuse à opérer (modèles d'IA, jurisprudence). Le Free inclut 3 analyses par mois ; Starter passe à 30, Pro les rend illimitées.",
           },
         ].map((item) => (
           <div

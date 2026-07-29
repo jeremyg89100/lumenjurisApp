@@ -3,7 +3,8 @@ import { prisma } from "../../../prisma/singletonPrisma.js"
 export type NegotiationAuditActionValue =
   | "SESSION_CREATED" | "STATUS_CHANGED" | "VERSION_CREATED" | "PROPOSAL_CREATED"
   | "PROPOSAL_STATUS_CHANGED" | "COMMENT_ADDED" | "PARTICIPANT_ADDED" | "PARTICIPANT_REMOVED"
-  | "GUEST_INVITED" | "GUEST_REVOKED" | "VALIDATED" | "ABORTED"
+  | "GUEST_INVITED" | "GUEST_REVOKED" | "GUEST_REMINDED" | "FIELD_FILLED" | "COMPLETION_FINISHED"
+  | "VALIDATED" | "ABORTED"
 
 /**
  * Trace une action dans la piste d'audit de la négociation.

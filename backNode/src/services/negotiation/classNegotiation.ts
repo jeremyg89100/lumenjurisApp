@@ -113,6 +113,7 @@ export class NegotiationService {
         participants: { orderBy: { createdAt: "asc" } },
         guestAccesses: { orderBy: { createdAt: "desc" } },
         auditLogs: { orderBy: { createdAt: "desc" }, take: 200 },
+        fields: { orderBy: { position: "asc" } },
       },
     });
     if (!s) return null;
@@ -190,10 +191,23 @@ export class NegotiationService {
       contractExternalId: s.contractExternalId,
       title: s.title,
       status: s.status,
+      mode: s.mode ?? "NEGOTIATION",
+      autoToSignature: Boolean(s.autoToSignature),
       ownerUserId: s.ownerUserId,
       finalVersionId: s.finalVersionId,
       createdAt: s.createdAt.toISOString(),
       updatedAt: s.updatedAt.toISOString(),
+      fields: ((s.fields as any[]) ?? []).map((f) => ({
+        id: f.externalId,
+        variableId: f.variableId,
+        label: f.label,
+        type: f.type,
+        side: f.side,
+        required: f.required,
+        position: f.position,
+        value: f.value,
+        filledAt: iso(f.filledAt),
+      })),
       versions: (s.versions as any[]).map((v) => ({
         id: v.externalId,
         versionNumber: v.versionNumber,
@@ -228,6 +242,10 @@ export class NegotiationService {
             id: g.externalId,
             token: g.token,
             participantId: g.participantId,
+            name: g.name ?? null,
+            email: g.email ?? null,
+            fillSide: g.fillSide ?? null,
+            lastSentAt: iso(g.lastSentAt),
             expiresAt: iso(g.expiresAt),
             revokedAt: iso(g.revokedAt),
             active: !g.revokedAt && g.expiresAt > new Date(),
@@ -498,11 +516,21 @@ export class NegotiationService {
 
   async inviteGuest(
     negotiationExternalId: string,
-    data: { participantExternalId?: string | null; ttlHours?: number },
+    data: {
+      participantExternalId?: string | null;
+      ttlHours?: number;
+      /** Lien nominatif : identité du destinataire (affichée sur la page invité). */
+      name?: string | null;
+      email?: string | null;
+      /** Rôle du participant externe créé quand aucun n'est fourni. */
+      role?: ParticipantRoleValue | "FILLER";
+      /** Mode COMPLETION : côté des champs que cet invité remplit. */
+      fillSide?: "COUNTERPARTY" | "THIRD_PARTY" | null;
+    },
   ) {
     const s = await prisma.negotiationSession.findUnique({
       where: { externalId: negotiationExternalId },
-      select: { idNegotiation: true },
+      select: { idNegotiation: true, mode: true },
     });
     if (!s) return null;
     let participantId: number | null = null;
@@ -515,23 +543,56 @@ export class NegotiationService {
         select: { idParticipant: true },
       });
       participantId = p?.idParticipant ?? null;
+    } else if (data.name || data.email) {
+      // Lien nominatif : matérialise l'invité comme participant externe,
+      // pour que ses contributions lui soient attribuées dans l'audit.
+      const role =
+        data.role && ["READER", "COMMENTER", "PROPOSER", "VALIDATOR", "FILLER"].includes(data.role)
+          ? data.role
+          : s.mode === "COMPLETION"
+            ? "FILLER"
+            : "COMMENTER";
+      const p = await prisma.negotiationParticipant.create({
+        data: {
+          externalId: crypto.randomUUID(),
+          side: "EXTERNAL",
+          role: role as any,
+          name: data.name ?? null,
+          email: data.email ?? null,
+          negotiationId: s.idNegotiation,
+        },
+      });
+      participantId = p.idParticipant;
     }
     const ttl =
       Number.isFinite(data.ttlHours) && (data.ttlHours as number) > 0
         ? (data.ttlHours as number)
         : 168; // 7 j par défaut
     const expiresAt = new Date(Date.now() + ttl * 3600 * 1000);
+    const fillSide =
+      s.mode === "COMPLETION"
+        ? data.fillSide === "THIRD_PARTY"
+          ? "THIRD_PARTY"
+          : "COUNTERPARTY"
+        : null;
     const g = await prisma.guestAccess.create({
       data: {
         externalId: crypto.randomUUID(),
         token: crypto.randomBytes(32).toString("hex"),
         participantId,
+        name: data.name ?? null,
+        email: data.email ?? null,
+        fillSide: fillSide as any,
         expiresAt,
         negotiationId: s.idNegotiation,
       },
     });
     await recordAudit(s.idNegotiation, "GUEST_INVITED", {
-      payload: { expiresAt: expiresAt.toISOString() },
+      payload: {
+        expiresAt: expiresAt.toISOString(),
+        email: data.email ?? null,
+        fillSide,
+      },
     });
     safeEmit("guest.invited", {
       negotiationExternalId,
@@ -541,8 +602,29 @@ export class NegotiationService {
     return {
       id: g.externalId,
       token: g.token,
+      name: g.name,
+      email: g.email,
       expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  /** Marque l'envoi (ou la relance) d'un e-mail d'invitation. */
+  async markGuestSent(negotiationExternalId: string, guestExternalId: string) {
+    const id = await this.findId(negotiationExternalId);
+    if (id == null) return null;
+    const g = await prisma.guestAccess.findFirst({
+      where: { externalId: guestExternalId, negotiationId: id },
+    });
+    if (!g || g.revokedAt || g.expiresAt <= new Date()) return null;
+    await prisma.guestAccess.update({
+      where: { idGuest: g.idGuest },
+      data: { lastSentAt: new Date() },
+    });
+    await recordAudit(id, "GUEST_REMINDED", {
+      payload: { guestExternalId, email: g.email },
+    });
+    safeEmit("guest.reminded", { negotiationExternalId, guestExternalId });
+    return { token: g.token, name: g.name, email: g.email };
   }
 
   async revokeGuest(negotiationExternalId: string, guestExternalId: string) {
@@ -570,6 +652,7 @@ export class NegotiationService {
         participants: { orderBy: { createdAt: "asc" } },
         guestAccesses: false as any,
         auditLogs: false as any,
+        fields: { orderBy: { position: "asc" } },
       },
     });
     if (!s) return null;
@@ -578,11 +661,20 @@ export class NegotiationService {
       { ...s, guestAccesses: [], auditLogs: [] },
       { includeInternal: false, userNames },
     );
+    const fillSide = (g as any).fillSide ?? "COUNTERPARTY";
     // Rôle/identité de l'invité → le front adapte les actions autorisées.
-    let guest: { role: string; name: string | null; canComment: boolean } = {
+    let guest: {
+      role: string;
+      name: string | null;
+      canComment: boolean;
+      canFill: boolean;
+      fillSide: string;
+    } = {
       role: "READER",
-      name: null,
+      name: (g as any).name ?? null,
       canComment: false,
+      canFill: s.mode === "COMPLETION",
+      fillSide,
     };
     if (g.participantId) {
       const p = await prisma.negotiationParticipant.findUnique({
@@ -593,11 +685,23 @@ export class NegotiationService {
           p.role === "COMMENTER" ||
           p.role === "PROPOSER" ||
           p.role === "VALIDATOR";
-        guest = { role: p.role, name: p.name || p.email || null, canComment };
+        guest = {
+          role: p.role,
+          name: (g as any).name || p.name || p.email || null,
+          canComment,
+          canFill: s.mode === "COMPLETION" && (p.role === "FILLER" || canComment),
+          fillSide,
+        };
       }
-    } else {
+    } else if (s.mode !== "COMPLETION") {
       // Lien sans participant nommé → droit de commenter par défaut.
-      guest = { role: "COMMENTER", name: null, canComment: true };
+      guest = {
+        role: "COMMENTER",
+        name: (g as any).name ?? null,
+        canComment: true,
+        canFill: false,
+        fillSide,
+      };
     }
     return { ...detail, guest };
   }

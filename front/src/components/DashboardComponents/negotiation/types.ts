@@ -1,8 +1,23 @@
 export type NegotiationStatus = "DRAFT" | "IN_NEGOTIATION" | "VALIDATED" | "BLOCKED" | "CLOSED";
+export type NegotiationMode = "NEGOTIATION" | "COMPLETION";
+export type FieldSide = "OWNER" | "COUNTERPARTY" | "THIRD_PARTY";
 export type ProposalStatus = "PROPOSED" | "ACCEPTED" | "REJECTED" | "COUNTERED";
 export type CommentVisibility = "INTERNAL" | "EXTERNAL";
 export type ParticipantSide = "INTERNAL" | "EXTERNAL";
-export type ParticipantRole = "READER" | "COMMENTER" | "PROPOSER" | "VALIDATOR";
+export type ParticipantRole = "READER" | "COMMENTER" | "PROPOSER" | "VALIDATOR" | "FILLER";
+
+/** Champ à compléter par une partie (mode COMPLETION). */
+export interface NegoField {
+  id: string;
+  variableId: string;
+  label: string;
+  type: string;
+  side: FieldSide;
+  required: boolean;
+  position: number;
+  value: string | null;
+  filledAt: string | null;
+}
 
 export interface NegoVersion {
   id: string;
@@ -56,6 +71,10 @@ export interface NegoGuest {
   id: string;
   token: string;
   participantId: number | null;
+  name: string | null;
+  email: string | null;
+  fillSide: FieldSide | null;
+  lastSentAt: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
   active: boolean;
@@ -75,14 +94,31 @@ export interface NegotiationDetail {
   contractExternalId: string;
   title: string;
   status: NegotiationStatus;
+  mode: NegotiationMode;
+  autoToSignature: boolean;
   ownerUserId: number;
   finalVersionId: number | null;
+  fields: NegoField[];
   versions: NegoVersion[];
   proposals: NegoProposal[];
   comments: NegoComment[];
   participants: NegoParticipant[];
   guestAccesses: NegoGuest[];
   auditLogs: NegoAudit[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Ligne de la page « Mes négociations ». */
+export interface NegotiationListItem {
+  id: string;
+  contractExternalId: string;
+  title: string;
+  status: NegotiationStatus;
+  mode: NegotiationMode;
+  counts: { versions: number; proposals: number; comments: number };
+  guests: { name: string | null; email: string | null; active: boolean }[];
+  completion: { filled: number; total: number } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,7 +140,13 @@ export interface DiffResult {
 
 /** Vue invité : détail + identité/rôle de l'invité. */
 export interface GuestNegotiation extends NegotiationDetail {
-  guest: { role: ParticipantRole; name: string | null; canComment: boolean };
+  guest: {
+    role: ParticipantRole;
+    name: string | null;
+    canComment: boolean;
+    canFill: boolean;
+    fillSide: FieldSide;
+  };
 }
 
 export const STATUS_LABEL: Record<NegotiationStatus, string> = {
@@ -140,4 +182,20 @@ export const ROLE_LABEL: Record<ParticipantRole, string> = {
   COMMENTER: "Commentaire",
   PROPOSER: "Proposition",
   VALIDATOR: "Validation",
+  FILLER: "Complétion",
+};
+
+export const MODE_LABEL: Record<NegotiationMode, string> = {
+  NEGOTIATION: "Négociation",
+  COMPLETION: "Complétion",
+};
+export const MODE_STYLE: Record<NegotiationMode, { bg: string; fg: string }> = {
+  NEGOTIATION: { bg: "#ede9fe", fg: "#5b21b6" },
+  COMPLETION: { bg: "#e0f2fe", fg: "#075985" },
+};
+
+export const FIELD_SIDE_LABEL: Record<FieldSide, string> = {
+  OWNER: "Moi",
+  COUNTERPARTY: "L’autre partie",
+  THIRD_PARTY: "Un tiers",
 };

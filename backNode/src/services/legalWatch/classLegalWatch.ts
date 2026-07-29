@@ -205,6 +205,10 @@ export class LegalWatchService {
         return { windowStart: toDateOnly(start), fetched: data.decisions.length, inserted, skipped, errors }
     }
 
+
+
+
+    
     /** Ingère toutes les sources actives (Judilibre, Légifrance…) et agrège. */
     async runIngest(): Promise<IngestReport> {
         await this.ensureJudilibre()
