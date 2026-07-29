@@ -973,12 +973,48 @@ export function Generateur() {
     if (searchParams.get("section") !== "scratch") goLibrary();
   }
 
-  // Contrat créé par le questionnaire : on l'archive puis on ouvre l'éditeur.
+  // Contrat créé par le questionnaire : on l'archive, on le préenregistre en
+  // bibliothèque de modèles (réutilisable), puis on ouvre l'éditeur.
   function handleScratchReady(r: { model: ContractModel; fileBase: string }) {
-    addCreatedContract({ title: wizardTitle ?? r.model.label, model: r.model, fileBase: r.fileBase });
+    const title = wizardTitle ?? r.model.label;
+    addCreatedContract({ title, model: r.model, fileBase: r.fileBase });
+    void saveModelAsTemplate(title, r.model);
     setWizardTitle(null);
     setBlankEditor(r);
     setSection("blank");
+  }
+
+  /** Préenregistre le contrat généré comme modèle réutilisable (best-effort :
+   *  un échec ne bloque jamais l'ouverture de l'éditeur). Le tokeniseur des
+   *  modèles lit nativement le format {{variable}} : aucune conversion du
+   *  contenu n'est nécessaire. */
+  async function saveModelAsTemplate(title: string, model: ContractModel) {
+    try {
+      const structure: TemplateStructure = {
+        sections: model.blocks
+          .filter((b) => b.kind !== "title" && b.content?.trim())
+          .map((b, i) => {
+            const heading = b.heading?.trim() || (b.kind === "signature" ? "Signatures" : `Section ${i + 1}`);
+            const vars = model.variables
+              .filter((v) => (b.content ?? "").includes(`{{${v.id}}}`))
+              .map((v) => v.id);
+            return {
+              title: heading,
+              clauses: [{ id: b.id, title: heading, content: b.content, variables: vars }],
+            };
+          }),
+        detectedVariables: model.variables.map((v) => v.id),
+      };
+      const res = await fetchProxy("/api/template", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: title, contractType: title, structure }),
+      });
+      if (res.ok) notifyAdded();
+    } catch {
+      // silencieux : le contrat reste utilisable et ré-enregistrable plus tard
+    }
   }
 
   // Rouvre un contrat déjà créé depuis l'historique.

@@ -1342,6 +1342,13 @@ app.delete("/api/feedback/:id", auth, (req, res) =>
 );
 
 // Template de contrats
+// Création directe d'un modèle (structure déjà prête, sans structuration IA) —
+// utilisée par la génération « de zéro » pour préenregistrer le contrat en
+// bibliothèque de modèles.
+app.post("/api/template", auth, (req, res) => {
+  void trackFeature("import_template", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/template");
+});
 app.post("/api/template/import", auth, handleTemplateImport);
 app.get("/api/template", auth, handleTemplateList);
 app.get("/api/template/:externalId", auth, handleTemplateGet);

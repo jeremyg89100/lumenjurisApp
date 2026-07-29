@@ -364,6 +364,12 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
   // Partage à l'autre partie (négociation ou complétion guidée)
   const [shareOpen, setShareOpen] = useState(false);
   const [sharedNego, setSharedNego] = useState<{ id: string; mode: "NEGOTIATION" | "COMPLETION" } | null>(null);
+  // Accès direct à la barre « Modifier avec l'IA » depuis la barre d'outils.
+  const globalAiInputRef = useRef<HTMLInputElement>(null);
+  const focusGlobalAi = () => {
+    globalAiInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    globalAiInputRef.current?.focus({ preventScroll: true });
+  };
 
   // ── Modification globale par l'IA (barre sticky sous le contrat) ─────────
   const [globalAi, setGlobalAi] = useState<{
@@ -607,7 +613,9 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
         {/* Colonne gauche — alignée en haut (self-start) et fixée au scroll (sticky).
             top-[4.5rem] : sous le header de l'app (h-14 = 56px) avec un petit écart
             de 16px, à la même hauteur que la barre de fonctions sticky de l'éditeur. */}
-        <aside className="space-y-4 self-start lg:sticky lg:top-[4.5rem]">
+        {/* max-h + overflow interne : un panneau plus haut que l'écran ne peut
+            pas « suivre » le défilement — on le borne pour que le sticky opère. */}
+        <aside className="space-y-4 self-start lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
           <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-ink-subtle">
               Champs à compléter
@@ -662,9 +670,14 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
               )}
 
               <div className="flex shrink-0 items-center gap-3">
-                <span className="hidden items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-muted sm:inline-flex">
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Brouillon enregistré
-                </span>
+                <button
+                  type="button"
+                  onClick={focusGlobalAi}
+                  title="Demander une modification du contrat en langage naturel"
+                  className="hidden items-center gap-1.5 rounded-full border border-brand/30 bg-brand-light/50 px-3 py-1.5 text-xs font-medium text-brand transition-colors hover:bg-brand-light sm:inline-flex"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Modifier avec l&apos;IA
+                </button>
                 <div className="relative">
                   <button
                     onClick={() => setGenOpen((o) => !o)}
@@ -767,12 +780,14 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
             </div>
           </div>
 
-          {/* Barre sticky « Modifier avec l'IA » */}
+          {/* Barre sticky « Modifier avec l'IA » — liseré de marque pour être
+              repérée dès l'arrivée sur la page. */}
           <div className="sticky bottom-3 z-20">
-            <div className="rounded-2xl border border-line bg-white/95 p-2 shadow-card-md backdrop-blur">
+            <div className="rounded-2xl border border-brand/30 bg-white/95 p-2 shadow-card-md backdrop-blur">
               <div className="flex items-center gap-2">
                 <Sparkles className="ml-2 h-4 w-4 shrink-0 text-brand" />
                 <input
+                  ref={globalAiInputRef}
                   value={globalAi.instruction}
                   onChange={(e) => setGlobalAi((g) => ({ ...g, instruction: e.target.value, applied: false }))}
                   onKeyDown={(e) => { if (e.key === "Enter") void runGlobalAi(); }}
