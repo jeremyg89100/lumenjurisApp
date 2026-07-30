@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response, Router } from "express"
 import express from "express"
 import { authMiddleware } from "../middleware/authMiddleware.js"
 import { LegalWatchService } from "../services/legalWatch/classLegalWatch.js"
+import { report } from "process"
 
 /**
  * Routes de la veille juridique.
@@ -74,6 +75,28 @@ routerLegalWatch.post("/run", jobGuard, async (_req: Request, res: Response) => 
     } catch (err) {
         console.error("[legal-watch] run error:", err)
         return res.status(502).json({ success: false, message: "Pipeline de veille en échec." })
+    }
+})
+
+routerLegalWatch.post("/legal-concept", authMiddleware, async(req: Request, res: Response) => {
+    try {
+    const {concept, label, keywords, contractTypes, legalDomain} = req.body;
+    const formattedKeywords = Array.isArray(keywords) ? keywords : typeof keywords === "string" ? keywords.split(",").map((k) => k.trim()).filter(Boolean) : [];
+
+    let result ;
+
+    switch (legalDomain) {
+        case "convention_collective":
+            result = await svc.addLegalConcept({concept, label, keywords: formattedKeywords, contractTypes, legalDomain});
+            break;
+        default: return res.status(400).json({success: false, message: `Le domaine juridique '${legalDomain}' n'est pas supporté.`});
+    }
+    
+    return res.json({success: true, data: result});
+
+    } catch (err) {
+        console.error("[legal-watch] convention error: ", err);
+        return res.status(500).json({success: false, message: "L'ajout de la convention a échouée"});
     }
 })
 

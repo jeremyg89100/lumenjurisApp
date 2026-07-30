@@ -87,6 +87,14 @@ export interface DigestItemDTO {
     isEvolution: boolean | null
 }
 
+type LegalConceptMapping = {
+  concept: string;
+  label: string;
+  legalDomain: string;
+  keywords: string[];
+  contractTypes: string[];
+};
+
 // ── Service ──────────────────────────────────────────────────────────────────
 
 export class LegalWatchService {
@@ -125,6 +133,19 @@ export class LegalWatchService {
             : new Date(Date.now() - FIRST_RUN_DAYS * 86_400_000)
         const runStartedAt = new Date()
 
+        let conventions: { textId: string; title: string }[] = []
+        if (source.name === "convention_collective") {
+            const mappings = await prisma.legalConceptMapping.findMany({
+                where: { legalDomain: "convention_collective", isActive: true },
+                select: { keywords: true, label: true },
+            })
+            for (const m of mappings) {
+                const kws = Array.isArray(m.keywords) ? m.keywords as string[] : []
+                const textId = kws.find((k) => k.startsWith("KALICONT"))
+                if (textId) conventions.push({ textId, title: m.label })
+            }
+        }
+
         const r = await fetch(`${PYTHON_URL}/legal-watch/fetch`, {
             method: "POST",
             headers: pythonHeaders(),
@@ -134,6 +155,7 @@ export class LegalWatchService {
                 date_start: toDateOnly(start),
                 chamber: "soc",
                 max_decisions: MAX_DECISIONS_PER_RUN,
+                conventions,
             }),
         })
         if (!r.ok) {
@@ -380,6 +402,30 @@ export class LegalWatchService {
         return report
     }
 
+    async addLegalConcept(data: {concept: string, label: string, keywords: string[], contractTypes: string[], legalDomain: string}): Promise<LegalConceptMapping> {
+        const legalConcept = await prisma.legalConceptMapping.upsert({
+            where: { concept: data.concept },
+            update: {
+                label: data.label,
+                legalDomain: data.legalDomain,
+                keywords: data.keywords,
+                contractTypes: data.contractTypes,
+            },
+            create: {
+                concept: data.concept,
+                label: data.label,
+                legalDomain: data.legalDomain,
+                keywords: data.keywords,
+                contractTypes: data.contractTypes,
+            },
+        })
+        return {
+            ...legalConcept,
+            keywords: Array.isArray(legalConcept.keywords) ? (legalConcept.keywords as string[]) : [],
+            contractTypes: Array.isArray(legalConcept.contractTypes) ? (legalConcept.contractTypes as string[]) : [],
+        };
+    }
+    
     // ── Requêtes côté API ────────────────────────────────────────────────────
 
     private toDigestDTO(item: {
@@ -489,12 +535,17 @@ export class LegalWatchService {
                 isActive: s.isActive,
                 lastRunAt: s.lastRunAt ? s.lastRunAt.toISOString() : null,
             })),
-            concepts: concepts.map((c) => ({
-                concept: c.concept,
-                label: c.label,
-                legalDomain: c.legalDomain,
-                isActive: c.isActive,
-            })),
+            concepts: concepts.map((c) => {
+                const kws = Array.isArray(c.keywords) ? c.keywords as string[] : []
+                const textId = kws.find(k => k.startsWith("KALICONT"));
+                return {
+                    concept: c.concept,
+                    label: c.label,
+                    legalDomain: c.legalDomain,
+                    isActive: c.isActive,
+                    sourceUrl: textId ? `https://legifrance.gouv.fr/conv_coll/id/${textId}` : null,
+                }
+            }),
         }
     }
 

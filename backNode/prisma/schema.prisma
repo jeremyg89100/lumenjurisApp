@@ -143,6 +143,7 @@ model User {
   authProviders AuthProviderAccount[]
   subscription  Subscription?
   enterprise    Enterprise?
+  contractSummaries ContractSummary[]
 
   userCredit        UserCredit?
   preference        UserPreference?
@@ -616,6 +617,7 @@ model Contract {
   user     User    @relation(fields: [userId], references: [idUser], onDelete: Cascade)
   folderId Int?
   folder   Folder? @relation(fields: [folderId], references: [idFolder], onDelete: SetNull)
+ 
 
   metadataFields ContractMetadataField[]
   amendments     Amendment[]
@@ -623,6 +625,7 @@ model Contract {
   tags           ContractTag[]
   auditLogs      AuditLog[]
   comments       ContractComment[]
+  contractSummaries ContractSummary[]
 
   @@index([userId])
   @@index([status])
@@ -1140,4 +1143,43 @@ model NegotiationAudit {
   negotiation   NegotiationSession @relation(fields: [negotiationId], references: [idNegotiation], onDelete: Cascade)
 
   @@index([negotiationId])
+}
+
+model ContractSummary {
+  idSummary   Int      @id @default(autoincrement())
+  externalId  String   @unique
+
+  // Résumé IA structuré
+  identification          Json
+  resume_executif         String   @db.Text
+  parties                 Json     // Array d'objets ou strings
+  dates                   Json
+  objet                   String   @db.Text
+  obligations             Json     // string[] → stocké en JSON*
+  conditions_financieres  Json
+  responsabilite          Json
+  clauses_particulieres   Json
+  delais_importants       Json
+  annexes                 Json
+  resiliation             Json
+  points_attention        Json     // string[] → stocké en JSON
+  niveau_risque           Json?     // Objet { "niveau" : "", justification : ""}
+
+  duree           String?
+
+  // Texte source (pour pouvoir re-générer sans re-uploader)
+  fileName  String?
+  rawText   String?  @db.LongText
+
+  createdAt DateTime @default(now())
+
+  // Relation utilisateur
+  userId Int
+  user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+
+  // Relation optionnelle vers un contrat de la contrathèque
+  contractId Int?
+  contract   Contract? @relation(fields: [contractId], references: [idContract], onDelete: SetNull)
+
+  @@index([userId])
 }

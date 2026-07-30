@@ -24,6 +24,7 @@ class FetchRequest(BaseModel):
     date_end: Optional[str] = None
     chamber: str = "soc"  # Judilibre uniquement
     max_decisions: int = Field(default=50, ge=1, le=200)
+    conventions: List[Dict[str, str]] = []
 
 
 class FetchedDecision(BaseModel):

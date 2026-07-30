@@ -932,6 +932,7 @@ app.post("/api/legal-watch/ingest", auth, (req, res) => relayToNode(req, res, "/
 app.post("/api/legal-watch/enrich", auth, (req, res) => relayToNode(req, res, "/legal-watch/enrich"));
 app.post("/api/legal-watch/publish", auth, (req, res) => relayToNode(req, res, "/legal-watch/publish"));
 app.post("/api/legal-watch/run", auth, (req, res) => relayToNode(req, res, "/legal-watch/run"));
+app.post("/api/legal-watch/legal-concept", auth, (req, res) => relayToNode(req, res, "/legal-watch/legal-concept"));
 // Consultation
 app.get("/api/legal-watch/alerts", auth, (req, res) => relayToNode(req, res, withQuery("/legal-watch/alerts", req)));
 app.patch("/api/legal-watch/alerts/:externalId", auth, (req, res) => relayToNode(req, res, `/legal-watch/alerts/${encodeURIComponent(req.params.externalId)}`));
