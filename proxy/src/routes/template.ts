@@ -40,7 +40,9 @@ templateRouter.post("/:externalId/generate", auth, handleTemplateGenerate);
 // Création directe d'un modèle (structure déjà prête, sans structuration IA) —
 // utilisée par la génération « de zéro » pour préenregistrer le contrat en
 // bibliothèque de modèles.
-templateRouter.post("/api/template", auth, (req, res) => {
+// Le router est monté sur "/api/template" (voir proxy/index.ts), donc ce chemin
+// relatif "/" correspond bien à POST /api/template attendu par le front.
+templateRouter.post("/", auth, (req, res) => {
   void trackFeature("import_template", res.locals.userId as number | undefined);
   relayToNode(req, res, "/template");
 });
