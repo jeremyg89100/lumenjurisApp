@@ -1,6 +1,6 @@
 import { Router } from "express"
 import { proxyAuthMiddleware as auth } from "../middleware/authMiddleware.js";
-import { relayToNode } from "../relay.js";
+import { relayToNode, relayToNodeRaw, withQuery } from "../relay.js";
 
 
 
@@ -44,4 +44,19 @@ adminRouter.get("/feature-usage/users/:idUser", auth, (req, res) =>
 
 adminRouter.get("/overview", auth, (req, res) =>
     relayToNode(req, res, "/admin/overview")
+);
+
+// ─── Fiscalité (récap TVA mensuel + export des factures) ───
+adminRouter.get("/fiscalite", auth, (req, res) =>
+    relayToNode(req, res, withQuery("/admin/fiscalite", req))
+);
+
+// Export binaire (ZIP de PDF) : passthrough pour préserver le fichier.
+adminRouter.get("/fiscalite/factures-zip", auth, (req, res) =>
+    relayToNodeRaw(req, res, withQuery("/admin/fiscalite/factures-zip", req))
+);
+
+// Export CSV : passthrough pour préserver le fichier et son content-disposition.
+adminRouter.get("/fiscalite/factures-csv", auth, (req, res) =>
+    relayToNodeRaw(req, res, withQuery("/admin/fiscalite/factures-csv", req))
 );

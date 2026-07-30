@@ -52,7 +52,9 @@ const MUTED = "#6b7280"; // texte secondaire
 const LINE = "#e5e7eb"; // filets / bordures
 const BG_SOFT = "#f9fafb"; // fonds de blocs
 
-const TVA_RATE = 0.2;
+// Taux de TVA appliqué à toutes les factures (exporté : source unique de vérité,
+// réutilisé par le calcul fiscal du monitoring).
+export const TVA_RATE = 0.2;
 
 // ── Mise en page ────────────────────────────────────────────────────────────
 const MARGIN = 50;
