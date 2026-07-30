@@ -63,6 +63,7 @@ const navItems: NavItem[] = [
   { icon: PenTool, label: "Signature", path: "/signature" },
   { icon: ScrollText, label: "Bibliothèque de clauses", path: "/clauses" },
   { icon: ShieldCheck, label: "Analyse des risques", path: "/conformite" },
+  { icon: ShieldCheck, label: "Comprendre ses contrats", path: "/comprendre-contrat"},
   { icon: MessageSquare, label: "Chat juridique", path: "/chatjuridique" },
   { icon: Newspaper, label: "Veille", path: "/veille", notificationKey: "legalWatchUnread" },
   { icon: User, label: "Votre cluster", path:"/cluster" }

@@ -16,6 +16,7 @@ import { getRecommendedClauses } from "./src/utils/recommendClause.js";
 import { detectLegalReferences } from "./src/utils/detectLegalReferences.js";
 import { fetchLegalTexts } from "./src/utils/fetchLegalTexts.js";
 import { summarizeCaseInline } from "./src/utils/aiSummarizer.js";
+import { summarizeContract } from "./src/utils/contractSummarizer.js";
 import type { JurisprudenceCase } from "./src/utils/aiSummarizer.js";
 
 // Charge d'abord server/.env puis la racine
@@ -679,6 +680,123 @@ async function handleAnalyzeContract(
   }
 }
 
+async function handleSummarizeContract(req: Request, res: Response): Promise<void> {
+  const { content, fileName, selectedLlm } = req.body as {content?: string; fileName?: string, selectedLlm: string};
+
+  if (!content || typeof content !== "string") {
+    res.status(400).json({success: false, message: "Le champs 'content' est requis."});
+    return;
+  }
+
+  if (!selectedLlm || typeof selectedLlm !== "string") {
+    res.status(400).json({success: false, message: "Aucun llm n'a été attribué."});
+  }
+
+  const userId = res.locals.userId;
+  if (!userId) {
+    res.status(401).json({ success: false, message: "Utilisateur non authentifié." });
+    return;
+  }
+
+  try {
+    const data = await summarizeContract(content, selectedLlm ?? "gpt-4o-mini");
+
+    const response = await fetch(`${BACKNODE_URL}/contract/contract-summary`, {
+        method:"POST",
+        
+        headers: {
+          "Content-Type" : "application/json",
+          "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
+          "x-user-id": String(userId),
+          "x-user-role": String(res.locals.role ?? "USER"),
+        },
+        body: JSON.stringify({summary: data, fileName, rawText: content}),
+    })
+
+    if (!response.ok) {
+      console.error("[PROXY] Echec de la sauvegarde back-node : ", response.status, response.text());
+    }
+
+    res.json({success: true, data});
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur interne";
+    res.status(500).json({success: false, message: message});
+  }
+}
+
+export async function handleGetListSummarizeContract(req: Request, res: Response) {
+  const userId = res.locals.userId;
+
+  if (!userId) {
+    res.status(401).json({ success: false, message: "Utilisateur non authentifié." });
+    return;
+  }
+  try {
+  const response = await fetch(`${BACKNODE_URL}/contract/list-contract-summary`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
+      "x-user-id": String(userId),
+      "x-user-role": String(res.locals.role ?? "USER"),
+    }
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "(body illisible)");
+    console.error(`[list-contract-summarize] backNode ${response.status}:`, body);
+    throw new Error(`backNode ${response.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await response.json() as {success: boolean; data: any};
+
+  return res.status(200).json(data);
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur interne";
+    console.error("[list-contract-summarize] catch:", message);
+    res.status(500).json({success: false, message: message});
+  }
+}
+
+export async function handleGetContractSummarize(req: Request, res: Response) {
+
+  const userId = res.locals.userId;
+  const { idSummary } = req.query;
+
+  if (!userId) {
+    res.status(401).json({success: false, message: "Utilisateur non authentifié."});
+    return;
+  }
+
+  if (!idSummary) {
+    return res.status(400).json({ success: false, message: "L'identifiant idSummary est requis." });
+  }
+
+  try {
+  const response = await fetch(`${BACKNODE_URL}/contract/contract-summary-info?idSummary=${idSummary}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
+      "x-user-id": String(userId),
+      "x-user-role": String(res.locals.role ?? "USER"),
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({ success: false }));
+    return res.status(response.status).json(data);
+  }
+
+  const data = await response.json() as {success: true, data: any};
+
+  return res.status(200).json(data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur interne";
+    res.status(500).json({success: false, message: message});
+  }
+}
+
 function handleNodeVeille(req: Request, res: Response): void {
   const qs = req.query.nocache === "1" ? "?nocache=1" : "";
   relayToNode(req, res, `/veille${qs}`);
@@ -1322,6 +1440,9 @@ app.put("/api/billing/add-credits", auth, handleBillingAddCredits);
 app.put("/api/billing/remove-credits", auth, handleBillingRemoveCredits);
 app.get("/api/billing/credits", auth, handleBillingCredits);
 app.post("/api/analyze-contract", auth, handleAnalyzeContract);
+app.post("/api/summarize-contract", auth, handleSummarizeContract);
+app.get("/api/list-contract-summarize", auth, handleGetListSummarizeContract);
+app.get("/api/contract-summarize-content", auth, handleGetContractSummarize);
 app.post("/api/detect-contract", auth, handleDetectContract);
 app.post("/api/market-analysis", auth, handleMarketAnalysis);
 app.post("/api/recommend-clause", auth, handleRecommendClause);

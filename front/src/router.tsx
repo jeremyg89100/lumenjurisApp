@@ -15,6 +15,7 @@ import { UserManagement } from "./components/DashboardComponents/admin/UserManag
 import { NegotiationWorkspace } from "./components/DashboardComponents/negotiation/NegotiationWorkspace";
 import { NegotiationGuest } from "./page/NegotiationGuest";
 import { MesFiligranes } from "./components/DashboardComponents/MesFiligranes";
+import { ComprendreContrat } from "./components/DashboardComponents/ComprendreContrat";
 
 import { Dashboard } from "./page/Dashboard";
 import { VerifyAccount } from "./page/VerifyAccount";
@@ -122,6 +123,7 @@ export function App() {
           <Route path="/calculateur" element={<Calculateur />} />
           <Route path="/veille" element={<Veille />} />
           <Route path="/conformite" element={<Conformite />} />
+          <Route path="/comprendre-contrat" element={<ComprendreContrat />} />
           <Route path="/mon-compte" element={<ParamCompte />} />
           <Route path="/analyzer" element={<ContractAnalysis />} />
 

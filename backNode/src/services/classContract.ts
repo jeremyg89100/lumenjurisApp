@@ -1,5 +1,7 @@
 import crypto from "crypto"
 import { prisma } from "../../prisma/singletonPrisma.js"
+import { ContractSummary } from "@prisma/client"
+import { sum } from "pdf-lib"
 
 /**
  * Service métier de la Contrathèque.
@@ -741,6 +743,103 @@ export class ContractService {
         ])
         const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`
         return [header, ...rows].map((r) => r.map(escape).join(";")).join("\r\n")
+    }
+
+    async contractSummarizeToDB(summary: ContractSummary, fileName: string, rawText: string, userId: number) {
+        try {
+            await prisma.contractSummary.create({
+                data: {
+                    externalId: crypto.randomUUID(),
+                    
+                    // String
+                    objet: summary.objet ?? "",
+                    resume_executif: summary.resume_executif ?? "",
+                    duree: summary.duree ?? null,
+                    fileName: fileName,
+                    rawText: rawText,
+                    userId: userId,
+                    
+                    // Array
+                    annexes: summary.annexes ?? [],
+                    clauses_particulieres: summary.clauses_particulieres ?? [],
+                    delais_importants: summary.delais_importants ?? [],
+                    parties: summary.parties ?? [],
+                    points_attention: summary.points_attention ?? [],
+
+                    // Objets
+                    niveau_risque: summary.niveau_risque ?? {},
+                    resiliation: summary.resiliation ?? {},
+                    responsabilite: summary.responsabilite ?? {},
+                    obligations: summary.obligations ?? {},
+                    conditions_financieres: summary.conditions_financieres ?? {},
+                    dates: summary.dates ?? {},
+                    identification: summary.identification ?? {},
+                    
+                }
+            })
+        } catch (error) {
+            console.error("[contract-summary] contract summary failed : ", error);
+            throw error;
+        }
+    }
+    async getListContractSummarize(userId: number) {
+        try {
+            const list = await prisma.contractSummary.findMany({
+                where: {userId: userId},
+                orderBy: {createdAt: "desc"},
+                select: {
+                    idSummary: true,
+                    fileName: true,
+                    createdAt: true,
+                    objet: true,
+                    niveau_risque: true,
+                }
+            });
+            return list;
+        } catch (err) {
+            console.error("[GET-list-contract-summary] Erreur lors de la récupération :", err);
+            throw err;
+        }
+    }
+
+    async getContentContractSummarize(userId: number, idSummary: number) {
+        try {
+            const contractSummary = await prisma.contractSummary.findFirst({
+                where: {
+                    idSummary: idSummary, 
+                    userId: userId
+                },
+                select: {
+                    idSummary: true,
+                    externalId: true,
+                    fileName: true,
+                    createdAt: true,
+                    objet: true,
+                    resume_executif: true,
+                    duree: true,
+                    parties: true,
+                    annexes: true,
+                    clauses_particulieres: true,
+                    conditions_financieres: true,
+                    dates: true,
+                    delais_importants: true,
+                    identification: true,
+                    niveau_risque: true,
+                    obligations: true,
+                    points_attention: true,
+                    resiliation: true,
+                    responsabilite: true,
+                }
+            });
+            if (!contractSummary) {
+                console.error("[GET-contract-summary] Impossible de récupérer la table contractSummarize");
+            }
+
+            return contractSummary;
+        } catch (err) {
+            console.error("[GET-contract-summary] Impossible de récupérer la table contractSummarize", err);
+            throw err;
+        }
     }
 }
 
