@@ -314,6 +314,45 @@ export class Subscription {
     return { buffer, invoiceNumber };
   }
 
+  /**
+   * Variante ADMIN de {@link getInvoicePdf} : régénère le PDF d'une facture
+   * SANS la restreindre à un utilisateur donné (réservé au monitoring/fiscalité,
+   * derrière requireAdmin). Renvoie `null` si la facture n'existe pas.
+   */
+  async getInvoicePdfAdmin(
+    idFacture: number,
+  ): Promise<{ buffer: Buffer; invoiceNumber: string } | null> {
+    const facture = await prisma.facture.findUnique({
+      where: { idFacture },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+            user: { select: USER_INVOICE_SELECT },
+          },
+        },
+      },
+    });
+    if (!facture) return null;
+
+    const user = facture.subscription.user;
+    const plan = facture.subscription.plan;
+
+    const invoiceNumber = buildInvoiceNumber(facture.idFacture, facture.createdAt);
+
+    const buffer = await generateInvoicePDF({
+      invoiceNumber,
+      date: facture.createdAt,
+      ...buildCustomerInvoiceInfo(user),
+      planName: plan.name,
+      interval: plan.interval,
+      amountTTCCents: facture.price,
+      stripePaymentIntentId: facture.stripeInvoiceId,
+    });
+
+    return { buffer, invoiceNumber };
+  }
+
   async activateFreemium(userId: number): Promise<void> {
     try {
       const existingSubscription = await prisma.subscription.findUnique({

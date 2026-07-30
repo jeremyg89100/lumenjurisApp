@@ -3,7 +3,6 @@ import type { Request, Response } from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import path from "path";
-//import { Llm } from "./services/classLlm"
 import { User } from "./src/services/classUser.js";
 import routerGoogleAuth from "./src/route/authGoogle.js";
 import routerLlm from "./src/route/apiLlm.js";
@@ -33,7 +32,6 @@ import { authMiddleware } from "./src/middleware/authMiddleware.js";
 import { prisma } from "./prisma/singletonPrisma.js";
 import fs from "fs";
 import { internalApiKeyMiddleware } from "./src/middleware/internalApiKeyMiddleware.js";
-// import { internalApiKeyMiddleware } from "./middleware/internalApiKeyMiddleware";
 
 
 /**
@@ -55,10 +53,14 @@ const port = process.env.PORT || 3020;
 app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+
+
 app.use((req, _res, next) => {
   console.log("[backnode] requête :", req.method, req.path, "| origin :", req.headers.origin, "| cookies :", req.headers.cookie);
   next();
 });
+
+
 app.use(
   cors({
     origin:
@@ -123,18 +125,10 @@ app.get("/userassets/:filename", authMiddleware, async (req, res) => {
   }
 });
 
-async function sandbox() {
-  //Vous pouvez faire vos testes içi
-  console.log("Sandbox running");
-  const user = await new User().create({
-    email: "julienmessage@gmail.com",
-    nom: "Doe",
-    prenom: "Serge",
-    password: "azertyuioP1.",
-    cgu: true,
-  });
-  console.log(user, " ");
-}
+
+
+
+
 
 app.listen(port, async () => {
   console.log(`Serveur backend nodejs running on port ${port}`);
