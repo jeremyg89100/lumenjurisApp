@@ -4,12 +4,12 @@ import { handleSummarizeContract } from "../utils/summariseContract/handleSummar
 import { handleGetListSummarizeContract } from "../utils/summariseContract/handleGetListSummarizeContract.js";
 import { handleGetContractSummarize } from "../utils/summariseContract/handleGetContractSummarize.js";
 
-export const summarizeCpntractRouter : Router = Router()
+export const summarizeContractRouter : Router = Router()
 
 
 
 // Chemin relatif ->  /api/summarize-contract
 
-summarizeCpntractRouter.post("/", auth, handleSummarizeContract);
-summarizeCpntractRouter.get("/list-contract-summarize", auth, handleGetListSummarizeContract);
-summarizeCpntractRouter.get("/contract-summarize-content", auth, handleGetContractSummarize);
+summarizeContractRouter.post("/", auth, handleSummarizeContract);
+summarizeContractRouter.get("/list-contract-summarize", auth, handleGetListSummarizeContract);
+summarizeContractRouter.get("/content", auth, handleGetContractSummarize);

@@ -85,5 +85,5 @@ userRouter.post("/account", auth, (req,res)=>{
 userRouter.get("/auth/google", (req, res) => {
   console.log("[proxy/google] redirect vers :", `${BACKNODE_URL}/api/user/auth/google`);
   console.log("[proxy/google] cookies entrants :", req.headers.cookie);
-  res.redirect(`${BACKNODE_URL}/api/user/auth/google`);
+  res.redirect(`${BACKNODE_URL}/auth/google`);
 });

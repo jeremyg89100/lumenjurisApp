@@ -129,11 +129,11 @@ export function App() {
           <Route path="/mon-compte" element={<ParamCompte />} />
           <Route path="/analyzer" element={<ContractAnalysis />} />
 
-          {/* Page de gestion d'un cluster pour les multi user */}
-          <Route path="/cluster" element={<ClusterUserPage />} />
+          {/* Page de gestion d'un cluster pour les multi user
+          <Route path="/cluster" element={<ClusterUserPage />} /> EN COURS DE DEV
+          */}
 
-
-        <Route path="/monitoring" element={<Monitoring /> } />
+          <Route path="/monitoring" element={<Monitoring />} />
         </Route>
 
         <Route
@@ -161,7 +161,7 @@ export function App() {
         <Route path="/verify-account" element={<VerifyAccount />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/souscription" element={<Subscription />} />
-        
+
         <Route element={<PublicLayout />}>
           <Route path="/user/deleteaccount/:token" element={<ConfirmDeleteAccountPage />} />
         </Route>

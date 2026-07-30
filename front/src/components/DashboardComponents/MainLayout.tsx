@@ -17,7 +17,7 @@ import {
   X,
   Sparkles,
   ShieldHalf,
-  User,
+  //User,
   MessagesSquare
 } from "lucide-react";
 
@@ -68,7 +68,8 @@ const navItems: NavItem[] = [
   { icon: ShieldCheck, label: "Comprendre ses contrats", path: "/comprendre-contrat"},
   { icon: MessageSquare, label: "Chat juridique", path: "/chatjuridique" },
   { icon: Newspaper, label: "Veille", path: "/veille", notificationKey: "legalWatchUnread" },
-  { icon: User, label: "Votre cluster", path:"/cluster" }
+  
+  //{ icon: User, label: "Votre cluster", path:"/cluster" } EN COURS DE DEV 
 
 ];
 

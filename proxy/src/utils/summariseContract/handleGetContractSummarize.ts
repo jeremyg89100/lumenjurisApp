@@ -3,6 +3,9 @@ import { type Request, Response } from "express"
 
 export async function handleGetContractSummarize(req: Request, res: Response) {
     
+
+
+    console.log("DECLNCHEMENT DE GET CONTENT CONTRAT SUMMARIZE")
     const BACKNODE_URL = process.env.BACKNODE_URL
 
     const userId = res.locals.userId;
