@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `facture` ADD COLUMN `status` VARCHAR(191) NOT NULL DEFAULT 'PAID';

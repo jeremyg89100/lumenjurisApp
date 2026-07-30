@@ -52,7 +52,7 @@ export function ComprendreContrat() {
   const handleListContract = async () => {
     try {
       setIsLoading(true);
-      const res = await fetchProxy("/api/summarize-contrac/list-contract-summarize", {
+      const res = await fetchProxy("/api/summarize-contract/list-contract-summarize", {
         credentials: "include",
       });
       const result = await res.json();
@@ -69,7 +69,7 @@ export function ComprendreContrat() {
 
   const handleSelectContract = async (idSummary: number) => {
     try {
-      const res = await fetchProxy(`/api/contract-summarize/contract-summarize-content?idSummary=${idSummary}`, {
+      const res = await fetchProxy(`/api/summarize-contract/content?idSummary=${idSummary}`, {
         credentials: "include",
       });
       const result = await res.json();
@@ -94,7 +94,7 @@ export function ComprendreContrat() {
     setSummary(resSummary);
     setSelectedContract(null);
     setIsModalOpen(false);
-    
+    setIsLoading(false)
     await handleListContract();
   };
 

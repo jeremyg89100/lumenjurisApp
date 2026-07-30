@@ -10,12 +10,12 @@
  */
 import "dotenv/config"
 import assert from "assert"
-import { sha256 } from "../src/services/legalWatch/classLegalWatch"
+import { sha256 } from "../src/services/legalWatch/classLegalWatch.js"
 import {
     contractTypeMatchesKeys,
     normalizeContractType,
     resolveContractTypeKeys,
-} from "../src/services/legalWatch/matching"
+} from "../src/services/legalWatch/matching.js"
 
 let passed = 0
 

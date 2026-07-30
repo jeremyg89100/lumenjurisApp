@@ -55,12 +55,6 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use((req, _res, next) => {
-  console.log("[backnode] requête :", req.method, req.path, "| origin :", req.headers.origin, "| cookies :", req.headers.cookie);
-  next();
-});
-
-
 app.use(
   cors({
     origin:

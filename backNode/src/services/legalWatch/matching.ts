@@ -1,4 +1,4 @@
-import { prisma } from "../../../prisma/singletonPrisma"
+import { prisma } from "../../../prisma/singletonPrisma.js"
 
 /**
  * Matching veille juridique — phase 1 : par TYPE DE MODÈLE.

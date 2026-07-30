@@ -29,7 +29,8 @@ if IS_PROD:
         _legifrance_search,
         _judilibre_search,
         _openai_client,
-    )
+    )   
+    from legal_watch.router import router as legal_watch_router
 else:
     from back.services.pdf_processing import (
         allowed_file,
@@ -44,9 +45,8 @@ else:
         _legifrance_search,
         _judilibre_search,
         _openai_client,
-    )
-
-from back.legal_watch.router import router as legal_watch_router
+    )   
+    from back.legal_watch.router import router as legal_watch_router
 
 from .logging_setup import setup_logging
 import logging

@@ -19,8 +19,8 @@ process.env.LEGAL_WATCH_MAX_DECISIONS = process.env.LEGAL_WATCH_MAX_DECISIONS ||
 
 const TARGET_USER_ID = Number(process.argv[2] ?? 1)
 
-const { prisma } = await import("../prisma/singletonPrisma")
-const { LegalWatchService } = await import("../src/services/legalWatch/classLegalWatch")
+const { prisma } = await import("../prisma/singletonPrisma.js")
+const { LegalWatchService } = await import("../src/services/legalWatch/classLegalWatch.js")
 
 const svc = new LegalWatchService()
 

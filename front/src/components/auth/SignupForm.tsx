@@ -190,10 +190,18 @@ const SignupForm = ({
     }
   };
 
+
+
+
+
   // Inscription via Google
-  const handleSubmitGoogle = () => {
-    window.location.href = `${PROXY_URL}/api/user/auth/google`;
+  const handleSubmitGoogle = async() => {
+    await fetchProxy(`${PROXY_URL}/api/user/auth/google`);
   };
+
+
+
+
 
   const handleChangeLastname = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;

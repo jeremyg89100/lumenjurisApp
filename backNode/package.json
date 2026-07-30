@@ -19,8 +19,6 @@
     "test:negotiation": "tsx tests/negotiation.stateMachine.test.ts && tsx tests/negotiation.integration.ts"
   },
   "devDependencies": {
-    "@prisma/adapter-mariadb": "^7.6.0",
-    "@prisma/client": "^7.6.0",
     "@types/archiver": "^8.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
@@ -35,6 +33,8 @@
     "typescript": "^6.0.2"
   },
   "dependencies": {
+    "@prisma/adapter-mariadb": "^7.6.0",
+    "@prisma/client": "^7.6.0",
     "archiver": "^8.0.0",
     "axios": "^1.14.0",
     "bcrypt": "^6.0.0",

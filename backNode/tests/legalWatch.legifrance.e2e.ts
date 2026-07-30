@@ -11,8 +11,8 @@ import "dotenv/config"
 
 process.env.LEGAL_WATCH_MAX_DECISIONS = process.env.LEGAL_WATCH_MAX_DECISIONS || "3"
 
-const { prisma } = await import("../prisma/singletonPrisma")
-const { LegalWatchService } = await import("../src/services/legalWatch/classLegalWatch")
+const { prisma } = await import("../prisma/singletonPrisma.js")
+const { LegalWatchService } = await import("../src/services/legalWatch/classLegalWatch.js")
 const svc = new LegalWatchService()
 
 const before = await prisma.legalWatchSource.findUnique({ where: { name: "legifrance" } })

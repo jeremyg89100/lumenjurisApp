@@ -14,6 +14,10 @@ export const PORT = Number(process.env.PORT || 3000);
 export const BACKEND_URL = IS_PROD
   ? process.env.BACKEND_URL
   : "http://127.0.0.1:5678";
+// En dev on utilise "localhost" (et non 127.0.0.1) : le navigateur traite
+// 127.0.0.1 et localhost comme deux hosts différents, donc un cookie posé
+// par le backNode sur 127.0.0.1 ne serait jamais renvoyé au front/proxy
+// qui tournent sur localhost.
 export const BACKNODE_URL = IS_PROD
   ? process.env.BACKNODE_URL
-  : "http://127.0.0.1:3020";
+  : "http://localhost:3020";
