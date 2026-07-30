@@ -31,7 +31,7 @@ function getMissionPlaceholder(contractType: string): string {
 /**
  * Écran d'accueil = contexte d'analyse (réplique du formulaire contextuel de
  * la plateforme). Tous les champs sont présentés directement, pré-remplis par
- * l'IA (/api/detect-contract) dès l'ouverture, puis l'analyse se lance ici même.
+ * l'IA (/api/analyzer/detect-contract) dès l'ouverture, puis l'analyse se lance ici même.
  */
 const AnalysisForm: React.FC<Props> = ({ documentText, analyzing, status, onSubmit }) => {
   const [context, setContext] = React.useState<AnalysisContext>({ ...DEFAULT_CONTEXT });

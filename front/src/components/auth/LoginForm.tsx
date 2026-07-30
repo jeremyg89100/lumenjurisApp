@@ -43,7 +43,7 @@ const PROXY_URL: string =
  *    Le proxy gère le callback et pose le cookie JWT, puis redirige vers `/analyzer`.
  *
  * 3. **Mot de passe oublié** — bascule le rendu vers un formulaire minimaliste
- *    (contrôlé par `forgotPassword`) qui appelle `POST /api/auth/forgotpassword`.
+ *    (contrôlé par `forgotPassword`) qui appelle `POST /api/user/auth/forgotpassword`.
  *    L'envoi est best-effort : aucune erreur serveur n'est exposée à l'utilisateur
  *    pour ne pas révéler l'existence d'un compte.
  *
@@ -186,7 +186,7 @@ const LoginForm = ({
 
   // Connexion via Google
   const handleSubmitGoogle = () => {
-    window.location.href = `${PROXY_URL}/auth/google`;
+    window.location.href = `${PROXY_URL}/api/user/auth/google`;
   };
 
   const handleSubmitForgotPassword = async (
@@ -200,7 +200,7 @@ const LoginForm = ({
 
     setSubmitLoading(true);
     try {
-      const response = await fetchProxy("/api/auth/forgotpassword", {
+      const response = await fetchProxy("/api/user/auth/forgotpassword", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

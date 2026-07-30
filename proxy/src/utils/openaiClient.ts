@@ -25,7 +25,12 @@ async function logTokens(usage: OpenAiUsagePayload | undefined, userId?: number)
       `${BACKNODE_URL}/llm/increment/${encodeURIComponent(usage.model)}/${input}/${output}`,
       {
         method: "PUT",
-        headers: userId ? { "x-user-id": String(userId) } : {},
+        headers: {
+          // backNode protège toutes ses routes via internalApiKeyMiddleware :
+          // sans cette clé, l'incrément renvoie 401 et le tracking est perdu en silence.
+          "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
+          ...(userId ? { "x-user-id": String(userId) } : {}),
+        },
       },
     );
   } catch {

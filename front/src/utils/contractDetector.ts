@@ -4,7 +4,7 @@ import { fetchProxy } from "./fetchProxy";
 export async function detectContractWithAI(
   text: string,
 ): Promise<AnalysisContext> {
-  const res = await fetchProxy("/api/detect-contract", {
+  const res = await fetchProxy("/api/analyzer/detect-contract", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

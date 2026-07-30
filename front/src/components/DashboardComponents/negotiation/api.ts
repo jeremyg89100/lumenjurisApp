@@ -105,7 +105,7 @@ export const negotiationApi = {
 
   /** Diff structuré clause par clause (délégué à FastAPI via le proxy). */
   diff: async (leftText: string, rightText: string): Promise<DiffResult> => {
-    const res = await fetchProxy(`/api/negotiation-diff`, {
+    const res = await fetchProxy(`/api/negotiation/negotiation-diff`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ leftText, rightText }),

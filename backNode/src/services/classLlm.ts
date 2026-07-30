@@ -1,4 +1,5 @@
 import { prisma } from "../../prisma/singletonPrisma.js";
+import { buildDayWindow, localDayKey } from "../utils/dayWindow.js";
 
 // Structure d'un jour dans l'historique, renvoyée par getUsageHistory
 type DayEntry = {
@@ -255,15 +256,20 @@ export class Llm {
 
   async getAllUsersUsage() {
     try {
+      // Fenêtre glissante des 30 derniers jours (aujourd'hui inclus).
+      // On ne se limite pas à la seule journée courante, sinon le classement
+      // est vide dès qu'aucun utilisateur n'a consommé de LLM aujourd'hui.
       const today = new Date();
-      const startAt = new Date(
+      const todayStart = new Date(
         today.getFullYear(),
         today.getMonth(),
         today.getDate(),
       );
+      const from = new Date(todayStart);
+      from.setDate(from.getDate() - 29);
 
       const records = await prisma.userLlmUsage.findMany({
-        where: { startAt },
+        where: { startAt: { gte: from } },
         include: {
           llm: { select: { name: true } },
           user: {
@@ -308,18 +314,9 @@ export class Llm {
     try {
       await this.setLlm();
 
-      const today = new Date();
-      // Début de la journée courante (minuit local)
-      const todayStart = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      );
-
-      // Point de départ : on remonte (days - 1) jours en arrière pour
-      // qu'aujourd'hui soit toujours inclus dans la fenêtre
-      const from = new Date(todayStart);
-      from.setDate(from.getDate() - (days - 1));
+      // Fenêtre commune à tous les graphes journaliers (voir dayWindow.ts) :
+      // jours en heure locale, début à minuit, zéro-remplie.
+      const { from, keys } = buildDayWindow(days);
 
       const records = await prisma.llmUsage.findMany({
         where: { startAt: { gte: from } },
@@ -329,14 +326,8 @@ export class Llm {
 
       // Construction d'une timeline complète avec des zéros pour les jours sans données.
       // Cela garantit que le graphe côté front n'a aucun trou sur l'axe X.
-      const toKey = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
       const timeline: Record<string, DayEntry> = {};
-      for (let i = 0; i < days; i++) {
-        const d = new Date(from);
-        d.setDate(d.getDate() + i);
-        const key = toKey(d);
+      for (const key of keys) {
         timeline[key] = {
           date: key,
           totalCostUsd: 0,
@@ -350,7 +341,7 @@ export class Llm {
       for (const r of records) {
         // On recalcule la clé via les composantes locales de la date pour éviter
         // les décalages de fuseau horaire liés à l'ISO string (ex: UTC vs Europe/Paris)
-        const key = toKey(r.startAt);
+        const key = localDayKey(r.startAt);
         if (!timeline[key]) continue;
 
         const entry = timeline[key];

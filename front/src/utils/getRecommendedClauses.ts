@@ -10,7 +10,7 @@ export async function getRecommendedClauses(
   context?: AnalysisContext,
   model: OpenAIModelId = "gpt-4o",
 ): Promise<ClauseRecommendation[]> {
-  const res = await fetchProxy("/api/recommend-clause", {
+  const res = await fetchProxy("/api/analyzer/recommend-clause", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

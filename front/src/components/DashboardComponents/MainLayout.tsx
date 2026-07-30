@@ -289,7 +289,10 @@ export function MainLayout() {
           <HeaderNavigationBar />
         </header>
 
-        <main className="flex-1 overflow-auto p-4 sm:p-5 lg:p-7">
+        {/* Pas d'overflow-auto ici : la page défile via la fenêtre (min-h-screen),
+            et un overflow non défilant ferait de <main> le conteneur de calcul des
+            position:sticky enfants (sommaire, barres d'outils/IA), les rendant inertes. */}
+        <main className="flex-1 p-4 sm:p-5 lg:p-7">
           <ErrorBoundary key={location.pathname}>
             <Outlet />
           </ErrorBoundary>

@@ -272,7 +272,7 @@ model DocumentCustom {
 model DocumentTemplate {
   idDocument      Int    @id @default(autoincrement())
   type            String
-  templateContent String @db.Text
+  templateContent String @db.Text 
 }
 
 // --- HISTORIQUE CHAT JURIDIQUE ---

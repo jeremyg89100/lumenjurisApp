@@ -226,7 +226,7 @@ async function classifyBatch(
     title: a.title,
     description: a.description,
   }));
-  const r = await fetch(`${PROXY_URL}/classify-veille`, {
+  const r = await fetch(`${PROXY_URL}/api/veille/classify-veille`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ articles: payload }),

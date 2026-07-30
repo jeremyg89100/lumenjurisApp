@@ -450,7 +450,7 @@ export default function ContractAnalysis() {
           processingPhase: "analysis",
         }));
 
-        const response = await fetchProxy("/api/analyze-contract", {
+        const response = await fetchProxy("/api/analyzer/analyze-contract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
