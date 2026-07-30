@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException
 
-from back.legal_watch import judilibre_client, legifrance_client
+from back.legal_watch import judilibre_client, legifrance_client, convention_client
 from back.legal_watch.enrichment import DEFAULT_MODEL, enrich_items
 from back.legal_watch.schemas import (
     EnrichRequest,
@@ -51,6 +51,9 @@ async def legal_watch_fetch(
                 max_texts=req.max_decisions,
                 on_error=errors.append,
             )
+        elif req.source == "convention_collective":
+            decisions = convention_client.collect_conventions(conventions=req.conventions, on_error=errors.append)
+            
         else:
             decisions = judilibre_client.collect_decisions(
                 queries=req.queries,

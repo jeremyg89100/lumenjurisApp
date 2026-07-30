@@ -3,7 +3,8 @@ import { TextInputZone } from "./TextInputZone";
 import { FileText, Brain, BarChart3, FileCheck } from "lucide-react";
 
 interface UploadZoneProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File) => Promise<void> | void;
+  disabled?: boolean;
   onTextSubmit: (text: string, fileName: string) => void;
   isProcessing: boolean;
   processingPhase?: string;

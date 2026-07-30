@@ -1,8 +1,7 @@
 /* eslint-disable no-console */
 import express, { Request, Response } from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
-
+import cookieParser from "cookie-parser"
 import { PORT, BACKEND_URL, BACKNODE_URL } from "./src/config.js";
 
 
@@ -71,6 +70,12 @@ app.use("/api/openai", openaiRouter);
 app.use("/api/legal-text", legalTextRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/admin", adminRouter)
+
+
+
+app.post("/api/summarize-contract", auth, handleSummarizeContract);
+app.get("/api/list-contract-summarize", auth, handleGetListSummarizeContract);
+app.get("/api/contract-summarize-content", auth, handleGetContractSummarize);
 
 
 

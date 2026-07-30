@@ -72,7 +72,7 @@ app.use(
 );
 app.use(globalLimiter);
 app.set("trust-proxy", 1);
-app.use(internalApiKeyMiddleware);
+// app.use(internalApiKeyMiddleware);
 
 app.use("/", routerGoogleAuth);
 app.use("/llm", routerLlm);

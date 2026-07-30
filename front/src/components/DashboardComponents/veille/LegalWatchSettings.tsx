@@ -3,6 +3,10 @@ import { ChevronDown, Lock } from "lucide-react";
 import { fetchProxy } from "../../../utils/fetchProxy";
 import { useUserStore } from "../../../store/userStore";
 import { WatchConfig, domainLabel } from "./legalWatchShared";
+import { ExternalLink } from "lucide-react";
+import { Button } from "@base-ui/react";
+import { LegalConceptModal } from "../../ui/LegalConceptModal";
+import { AlertBanner } from "../../common/AlertBanner";
 
 /**
  * Onglet « Paramètres » : rend le fonctionnement transparent et donne le
@@ -15,6 +19,7 @@ import { WatchConfig, domainLabel } from "./legalWatchShared";
 const SOURCE_META: Record<string, { label: string; url: string }> = {
   judilibre: { label: "Cour de cassation", url: "https://www.courdecassation.fr" },
   legifrance: { label: "Légifrance", url: "https://www.legifrance.gouv.fr" },
+  convention_collective: { label: "Conventions collectives", url: "https://www.legifrance.gouv.fr" },
 };
 
 /** Affiche l'URL sans protocole ni www (ex. "courdecassation.fr"). */
@@ -58,6 +63,11 @@ export function LegalWatchSettings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isOpen, setIsOpen] = useState(false);
+  const [legalConceptName, setLegalConceptName] = useState("");
+  const [isAlertError, setIsAlertError] = useState(false);
+  const [isAlertSuccess, setIsAlertSuccess] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
   const role = useUserStore((s) => s.userData?.profile?.role);
   const canEdit = role === "ADMIN" || role === "JURISTE";
 
@@ -150,11 +160,47 @@ export function LegalWatchSettings() {
     return <div className="text-sm text-gray-400">Chargement des paramètres…</div>;
   }
 
+  const themeConcepts = config?.concepts.filter(c => c.legalDomain !== "convention_collective") ?? [];
+  const conventionConcepts = config?.concepts.filter(c => c.legalDomain === "convention_collective") ?? [];
+
   // Concepts regroupés par domaine juridique.
   const byDomain = new Map<string, WatchConfig["concepts"]>();
-  for (const c of config?.concepts ?? []) {
+  for (const c of themeConcepts) {
     byDomain.set(c.legalDomain, [...(byDomain.get(c.legalDomain) ?? []), c]);
   }
+
+  const conventionDomain = new Map<string, WatchConfig["concepts"]>();
+  for (const c of conventionConcepts) {
+    conventionDomain.set(c.legalDomain, [...(conventionDomain.get(c.legalDomain) ?? []), c]);
+  }
+
+  const handleLegalConcept = async () => {
+    if (!legalConceptName.trim()) {
+      setIsEmpty(true);
+      return;
+    }
+    try {
+    const payload = await fetchProxy("/api/feedback", {
+      method: "POST",
+      credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        comment: legalConceptName,
+        context: "Veille juridique",
+        page: "/veille"
+      }) 
+    });
+    const res = await payload.json();
+    console.log("Succès :", res.message);
+    setIsAlertSuccess(true);
+    } catch (err) {
+      setIsAlertError(true);
+      console.error("Erreur serveur : ",err);
+    }
+    setLegalConceptName("");
+    setIsOpen(false);
+  }
+
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -169,6 +215,57 @@ export function LegalWatchSettings() {
           <Lock className="h-3.5 w-3.5" />
           Lecture seule — modification réservée aux Juristes et Administrateurs.
         </div>
+      )}
+
+      {isOpen && (
+        <LegalConceptModal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          title="Demande d'ajout d'une convention collective"
+          description="Veuillez ajouter le nom de la convention collective"
+        >
+          <textarea value={legalConceptName} onChange={(e) => setLegalConceptName(e.target.value)} className="text-sm text-gray-700 w-full 
+          border rounded-lg border-gray-300 p-2" placeholder="Ecrivez le nom de votre convention collective ici..."></textarea>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button className="border border-gray-300 text-white hover:bg-blue-800 bg-blue-700 px-4 py-2 rounded-lg" onClick={handleLegalConcept}>
+              Envoyer
+            </Button>
+            <Button className="border border-gray-300 bg-red-700 text-white hover:bg-red-800 px-4 py-2 rounded-lg" onClick={() => setIsOpen(false)}>
+              Fermer
+            </Button>
+          </div>
+        </LegalConceptModal>
+      )}
+
+      {isEmpty && (
+        <AlertBanner
+          title="Champs manquants !"
+          variant="error"
+          detail="Veuillez remplir tous les champs."
+          duration={8000}
+          onClose={() => setIsEmpty(false)}
+        />
+      )}
+
+      {isAlertError && (
+        <AlertBanner
+          title="La demande a échouée"
+          variant="error"
+          detail="L'envoi de la demande d'ajout de convention collective a échouée, veuillez réessayer."
+          duration={8000}
+          onClose={() => setIsAlertError(false)}
+        />
+      )}
+
+      {isAlertSuccess && (
+        <AlertBanner
+          title="Demande de convention collective envoyée"
+          variant="success"
+          detail="Votre demande a bien été prise en compte. Les administrateurs traiteront votre demande sous peu."
+          duration={8000}
+          onClose={() => setIsAlertSuccess(false)}
+        />
       )}
 
       {/* ── Sources ── */}
@@ -252,6 +349,75 @@ export function LegalWatchSettings() {
                             disabled={!canEdit}
                             onChange={(v) => toggleConcept(c.concept, v)}
                           />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+      <section className="space-y-2">
+        <div className="flex gap-4 items-center">
+          <h2 className="text-base font-semibold text-gray-900">Conventions collectives</h2>
+          <button type="button" onClick={() => setIsOpen(true)} className="inline-flex items-center justify-center gap-2 
+          rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all
+          duration-150 hover:bg-blue-700">
+            <span>Ajouter une convention</span>
+          </button>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="divide-y divide-gray-100">
+            {[...conventionDomain.entries()].map(([domain, concepts]) => {
+              const activeCount = concepts.filter((c) => c.isActive).length;
+              const isOpen = expanded.has(domain);
+              return (
+                <div key={domain}>
+                  <div className="flex items-center justify-between gap-3 py-2.5">
+                    <button
+                      onClick={() => toggleExpanded(domain)}
+                      className="flex items-center gap-1.5 min-w-0 text-left"
+                    >
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                      <span className={`text-sm ${activeCount > 0 ? "text-gray-800" : "text-gray-400"}`}>
+                        {domainLabel(domain)}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {activeCount}/{concepts.length}
+                      </span>
+                    </button>
+                    <Toggle
+                      checked={activeCount > 0}
+                      disabled={!canEdit}
+                      onChange={(v) => toggleDomain(concepts, v)}
+                    />
+                  </div>
+                  {isOpen && (
+                    <div className="pl-5 pb-1 divide-y divide-gray-100">
+                      {concepts.map((c) => (
+                        <div key={c.concept} className="flex items-center justify-between gap-3 py-2">
+                          <span className={`text-sm ${c.isActive ? "text-gray-600" : "text-gray-400"}`}>
+                            {c.label}
+                          </span>
+                          <div className="flex items-center gap-5">
+                            {c.sourceUrl &&
+                              <a
+                                href={c.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-right gap-2 text-xs font-medium text-lumenjuris hover:underline"
+                              >Ouvrir<ExternalLink className="w-3.5 h-3.5" /></a>
+                            }
+                            <Toggle
+                              checked={c.isActive}
+                              disabled={!canEdit}
+                              onChange={(v) => toggleConcept(c.concept, v)}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>

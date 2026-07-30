@@ -7,6 +7,7 @@ import { authMiddleware } from "../middleware/authMiddleware.js"
 import { ContractService } from "../services/classContract.js"
 import type { ContractListFilters } from "../services/classContract.js"
 import { encryptBuffer, decryptBuffer } from "../services/cryptoFile.js"
+import { ContractSummary } from "@prisma/client"
 
 const router: Router = express.Router()
 const svc = new ContractService()
@@ -164,6 +165,65 @@ router.post("/", authMiddleware, requireEditor, async (req: Request, res: Respon
         return res.status(500).json({ success: false, message: "Erreur serveur." })
     }
 })
+
+// ─── Contract Summary ────────────────────────────────────────────────────────────
+
+router.post("/contract-summary", authMiddleware, async (req: Request, res: Response) => {
+    const { summary, fileName, rawText } = req.body as { summary?: ContractSummary, fileName?: string, rawText?: string};
+    const userId = Number(req.idUser);
+    if (!userId || isNaN(userId) ) {
+        return res.status(401).json({success: false, message: "Utilisateur non identifié."});
+    }
+    if (!summary || !fileName || !rawText ||  typeof fileName !== "string" || typeof rawText !== "string") {
+        return res.status(400).json({success: false, message: "Les données sont éronnées ou n'ont pas été remplies."})
+    }
+    try {
+        await svc.contractSummarizeToDB(summary, fileName, rawText, userId);
+        return res.json({success: true, message: "Les données du contrat ont bien été ajoutées dans la base de données."})
+    } catch (error) {
+        return res.json({success: false, message: "Les données du contrat n'ont pas pu être ajoutées en bdd" })
+    }
+})
+
+router.get("/list-contract-summary", authMiddleware, async (req: Request, res: Response) => {
+    const userId = Number(req.idUser);
+
+    if (!userId || isNaN(userId)) {
+        return res.status(401).json({success: false, message: "Utilisateur non identifié"});
+    }
+
+    try {
+        const list = await svc.getListContractSummarize(userId);
+        return res.json({success: true, message: "La liste de contractSummary a bien été retournée.", data: list});
+    } catch (err) {
+        return res.json({success: false, message: "La liste de contractSummary n'a pas pu être retournée."});
+    }
+});
+
+router.get("/contract-summary-info", authMiddleware, async (req: Request, res: Response) => {
+    const userId = Number(req.idUser);
+    const idSummary = Number(req.query.idSummary);
+
+    if (!userId || isNaN(userId)) {
+        return res.status(401).json({success: false, message: "Utilisateur non identifié"});
+    }
+
+    if (!idSummary || isNaN(idSummary)) {
+        return res.status(401).json({success: false, message: "Identifiant du contrat introuvable."});
+    }
+
+    try {
+        const summary = await svc.getContentContractSummarize(userId, idSummary);
+
+        if (!summary) {
+            return res.status(404).json({ success: false, message: "Contrat introuvable." });
+        }
+
+        return res.json({success: true, message: "La liste de contractSummary a bien été retournée.", data: summary});
+    } catch (err) {
+        return res.status(500).json({success: false, message: "La liste de contractSummary n'a pas pu être retournée."});
+    }
+});
 
 // ─── Détail / document / mutations ──────────────────────────────────────────────
 
