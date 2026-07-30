@@ -45,7 +45,7 @@ export async function performCompleteMarketAnalysis(
   contractType: string,
   detectedClauses: ClauseRisk[],
 ): Promise<MarketAnalysisResult> {
-  const res = await fetchProxy("/api/market-analysis", {
+  const res = await fetchProxy("/api/analyzer/market-analysis", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

@@ -1,33 +1,19 @@
 import express from "express"
 import type { Request, Response, Router, NextFunction } from "express"
+// archiver v8 est un module ESM qui exporte des classes (plus de fonction
+// factory `archiver("zip")`) : on instancie donc directement ZipArchive.
+import { ZipArchive } from "archiver"
 import { prisma } from "../../prisma/singletonPrisma.js"
 import { authMiddleware } from "../middleware/authMiddleware.js"
+import { requireAdmin } from "../middleware/requireAdmin.js"
+import { buildDayWindow, localDayKey } from "../utils/dayWindow.js"
+import { TVA_RATE } from "../infrastructure/pdf/invoicePDF.js"
+import { getUsdToEurRate, convertUsdToEur } from "../utils/currency.js"
+import { Subscription } from "../services/classSubscription.js"
 
 const router: Router = express.Router()
 
 const VALID_ROLES = new Set(["ADMIN", "JURISTE", "USER", "LECTEUR"])
-
-/**
- * Réserve l'accès aux administrateurs.
- * Le rôle est vérifié EN BASE (et non depuis le token JWT) : un changement de
- * rôle prend effet immédiatement, sans attendre une reconnexion, et un token
- * périmé ne peut pas être utilisé pour une élévation de privilèges.
- */
-async function requireAdmin(req: Request, res: Response, next: NextFunction) {
-    try {
-        const user = await prisma.user.findUnique({
-            where: { idUser: Number(req.idUser) },
-            select: { role: true },
-        })
-        if (!user || user.role !== "ADMIN") {
-            return res.status(403).json({ success: false, message: "Action réservée aux administrateurs." })
-        }
-        next()
-    } catch (err) {
-        console.error("[admin] requireAdmin error:", err)
-        return res.status(500).json({ success: false, message: "Erreur serveur." })
-    }
-}
 
 /** GET /admin/users — liste tous les utilisateurs (mono-entreprise). */
 router.get("/users", authMiddleware, requireAdmin, async (_req: Request, res: Response) => {
@@ -184,37 +170,38 @@ router.patch("/users/:idUser/ban", authMiddleware, requireAdmin, async (req: Req
 router.get("/feature-usage", authMiddleware, requireAdmin, async (req: Request, res: Response) => {
     try {
         const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 1825)
-        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        // Fenêtre commune à tous les graphes journaliers (voir dayWindow.ts) :
+        // début à minuit local, jours en heure locale, zéro-remplie.
+        const { from, keys } = buildDayWindow(days)
 
         // 1. Résumé par feature
         const featureCounts = await prisma.featureUsage.groupBy({
             by: ["feature"],
-            where: { createdAt: { gte: since } },
+            where: { createdAt: { gte: from } },
             _count: { id: true },
             orderBy: { _count: { id: "desc" } },
         })
         const summary = featureCounts.map((f) => ({ feature: f.feature, count: f._count.id }))
 
-        // 2. Timeline brute (agrégation JS par jour)
+        // 2. Timeline par jour, zéro-remplie et découpée en heure locale
         const events = await prisma.featureUsage.findMany({
-            where: { createdAt: { gte: since } },
+            where: { createdAt: { gte: from } },
             select: { feature: true, createdAt: true },
             orderBy: { createdAt: "asc" },
         })
         const byDay: Record<string, Record<string, number>> = {}
+        for (const key of keys) byDay[key] = {}
         for (const e of events) {
-            const day = e.createdAt.toISOString().slice(0, 10)
-            if (!byDay[day]) byDay[day] = {}
+            const day = localDayKey(e.createdAt)
+            if (!byDay[day]) continue // hors fenêtre (sécurité)
             byDay[day][e.feature] = (byDay[day][e.feature] ?? 0) + 1
         }
-        const timeline = Object.entries(byDay)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, counts]) => ({ date, ...counts }))
+        const timeline = keys.map((date) => ({ date, ...byDay[date] }))
 
         // 3. Tous les utilisateurs actifs sur la période (triés par volume)
         const userGroups = await prisma.featureUsage.groupBy({
             by: ["userId"],
-            where: { createdAt: { gte: since }, userId: { not: null } },
+            where: { createdAt: { gte: from }, userId: { not: null } },
             _count: { id: true },
             orderBy: { _count: { id: "desc" } },
         })
@@ -227,7 +214,7 @@ router.get("/feature-usage", authMiddleware, requireAdmin, async (req: Request, 
             userIds.length > 0
                 ? prisma.featureUsage.groupBy({
                     by: ["userId", "feature"],
-                    where: { createdAt: { gte: since }, userId: { in: userIds } },
+                    where: { createdAt: { gte: from }, userId: { in: userIds } },
                     _count: { id: true },
                 })
                 : Promise.resolve([]),
@@ -262,7 +249,8 @@ router.get("/feature-usage/users/:idUser", authMiddleware, requireAdmin, async (
             return res.status(400).json({ success: false, message: "ID invalide." })
         }
         const days = Math.min(Math.max(Number(req.query["days"]) || 30, 1), 1825)
-        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+        // Mêmes conventions que le graphe global (voir dayWindow.ts).
+        const { from, keys } = buildDayWindow(days)
 
         const user = await prisma.user.findUnique({
             where: { idUser: targetId },
@@ -271,26 +259,25 @@ router.get("/feature-usage/users/:idUser", authMiddleware, requireAdmin, async (
         if (!user) return res.status(404).json({ success: false, message: "Utilisateur introuvable." })
 
         const events = await prisma.featureUsage.findMany({
-            where: { userId: targetId, createdAt: { gte: since } },
+            where: { userId: targetId, createdAt: { gte: from } },
             select: { feature: true, createdAt: true },
             orderBy: { createdAt: "asc" },
         })
 
-        // Résumé par feature + agrégation timeline par jour
+        // Résumé par feature + timeline par jour (locale, zéro-remplie)
         const byFeature: Record<string, number> = {}
         const byDay: Record<string, Record<string, number>> = {}
+        for (const key of keys) byDay[key] = {}
         for (const e of events) {
             byFeature[e.feature] = (byFeature[e.feature] ?? 0) + 1
-            const day = e.createdAt.toISOString().slice(0, 10)
-            if (!byDay[day]) byDay[day] = {}
+            const day = localDayKey(e.createdAt)
+            if (!byDay[day]) continue // hors fenêtre (sécurité)
             byDay[day][e.feature] = (byDay[day][e.feature] ?? 0) + 1
         }
         const summary = Object.entries(byFeature)
             .map(([feature, count]) => ({ feature, count }))
             .sort((a, b) => b.count - a.count)
-        const timeline = Object.entries(byDay)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, counts]) => ({ date, ...counts }))
+        const timeline = keys.map((date) => ({ date, ...byDay[date] }))
 
         // 50 derniers événements (les plus récents en premier)
         const recentEvents = events
@@ -471,6 +458,273 @@ router.get("/overview", authMiddleware, requireAdmin, async (_req: Request, res:
     } catch (err) {
         console.error("[admin] overview error:", err)
         return res.status(500).json({ success: false, message: "Erreur serveur." })
+    }
+})
+
+// ════════════════════════════════════════════════════════════════════════════
+// FISCALITÉ — récapitulatif TVA mensuel + export des factures d'un mois
+// ════════════════════════════════════════════════════════════════════════════
+
+const MONTH_LABELS = [
+    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+]
+
+// Version sans accent, sûre pour les noms de fichiers (ZIP, PDF).
+const MONTH_SLUGS = [
+    "janvier", "fevrier", "mars", "avril", "mai", "juin",
+    "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
+]
+
+/**
+ * À partir d'un montant TTC (en centimes), déduit la base HT et la TVA.
+ * Le prix stocké dans Facture est toujours TTC ; la TVA n'est jamais stockée,
+ * elle se recalcule au taux fixe TVA_RATE (même règle que le PDF de facture).
+ * Renvoie des euros (nombres décimaux), pas des centimes.
+ */
+function breakdownTtcCents(ttcCents: number): { ht: number; tva: number; ttc: number } {
+    const ttc = ttcCents / 100
+    const ht = ttc / (1 + TVA_RATE)
+    const tva = ttc - ht
+    return { ht, tva, ttc }
+}
+
+/** Valide et borne l'année demandée (défaut : année courante). */
+function parseYear(raw: unknown): number {
+    const year = Number(raw)
+    if (!Number.isInteger(year) || year < 2020 || year > 2100) {
+        return new Date().getFullYear()
+    }
+    return year
+}
+
+/** Valide le mois demandé (1–12). Renvoie null si invalide. */
+function parseMonth(raw: unknown): number | null {
+    const month = Number(raw)
+    if (!Number.isInteger(month) || month < 1 || month > 12) return null
+    return month
+}
+
+/**
+ * GET /admin/fiscalite?year=YYYY
+ * Récapitulatif fiscal par mois pour l'année demandée :
+ *  - Ventes (TVA collectée) : base HT, TVA 20 %, TTC, nombre de factures payées.
+ *  - LLM (TVA autoliquidée) : coût USD → EUR, TVA 20 % notionnelle. Cette TVA est
+ *    neutre à payer (autoliquidation), elle sert seulement à la déclaration.
+ */
+router.get("/fiscalite", authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const year = parseYear(req.query["year"])
+        const startOfYear = new Date(year, 0, 1)
+        const startOfNextYear = new Date(year + 1, 0, 1)
+
+        // 1. Ventes de l'année : uniquement les paiements réussis (revenus réels).
+        const factures = await prisma.facture.findMany({
+            where: { status: "PAID", createdAt: { gte: startOfYear, lt: startOfNextYear } },
+            select: { price: true, createdAt: true },
+        })
+
+        // 2. Coûts LLM de l'année (dépense en USD), datés par startAt.
+        const llmUsages = await prisma.llmUsage.findMany({
+            where: { startAt: { gte: startOfYear, lt: startOfNextYear } },
+            select: { totalCostUsd: true, startAt: true },
+        })
+
+        // 3. Un accumulateur par mois (12 cases, index 0 = janvier).
+        const months = MONTH_LABELS.map((label, index) => ({
+            month: index + 1,
+            label,
+            ventesHt: 0,
+            ventesTva: 0,
+            ventesTtc: 0,
+            facturesCount: 0,
+            llmCostUsd: 0,
+            llmCostEur: 0,
+            llmTvaEur: 0, // TVA autoliquidée (neutre à payer)
+        }))
+
+        for (const facture of factures) {
+            const bucket = months[facture.createdAt.getMonth()]
+            const { ht, tva, ttc } = breakdownTtcCents(facture.price)
+            bucket.ventesHt += ht
+            bucket.ventesTva += tva
+            bucket.ventesTtc += ttc
+            bucket.facturesCount += 1
+        }
+
+        for (const usage of llmUsages) {
+            const bucket = months[usage.startAt.getMonth()]
+            const costUsd = Number(usage.totalCostUsd)
+            const costEur = convertUsdToEur(costUsd)
+            bucket.llmCostUsd += costUsd
+            bucket.llmCostEur += costEur
+            bucket.llmTvaEur += costEur * TVA_RATE
+        }
+
+        // 4. Totaux annuels.
+        const totals = months.reduce(
+            (acc, m) => ({
+                ventesHt: acc.ventesHt + m.ventesHt,
+                ventesTva: acc.ventesTva + m.ventesTva,
+                ventesTtc: acc.ventesTtc + m.ventesTtc,
+                facturesCount: acc.facturesCount + m.facturesCount,
+                llmCostUsd: acc.llmCostUsd + m.llmCostUsd,
+                llmCostEur: acc.llmCostEur + m.llmCostEur,
+                llmTvaEur: acc.llmTvaEur + m.llmTvaEur,
+            }),
+            { ventesHt: 0, ventesTva: 0, ventesTtc: 0, facturesCount: 0, llmCostUsd: 0, llmCostEur: 0, llmTvaEur: 0 },
+        )
+
+        return res.json({
+            success: true,
+            data: {
+                year,
+                usdToEurRate: getUsdToEurRate(),
+                tvaRate: TVA_RATE,
+                months,
+                totals,
+            },
+        })
+    } catch (err) {
+        console.error("[admin] fiscalite error:", err)
+        return res.status(500).json({ success: false, message: "Erreur serveur." })
+    }
+})
+
+/**
+ * Récupère les factures payées d'un mois donné (année + mois), les plus récentes
+ * d'abord, avec les infos nécessaires à l'export (client, plan).
+ */
+async function findPaidFacturesOfMonth(year: number, month: number) {
+    const startOfMonth = new Date(year, month - 1, 1)
+    const startOfNextMonth = new Date(year, month, 1)
+    return prisma.facture.findMany({
+        where: { status: "PAID", createdAt: { gte: startOfMonth, lt: startOfNextMonth } },
+        orderBy: { createdAt: "desc" },
+        include: {
+            subscription: {
+                include: {
+                    plan: { select: { name: true, interval: true } },
+                    user: { select: { email: true, nom: true, prenom: true } },
+                },
+            },
+        },
+    })
+}
+
+/** Formate un nombre en euros à la française pour un CSV (virgule décimale). */
+function formatEurForCsv(amount: number): string {
+    return amount.toFixed(2).replace(".", ",")
+}
+
+/** Échappe une valeur pour un CSV séparé par point-virgule. */
+function csvCell(value: string): string {
+    // Guillemets si la valeur contient un séparateur, un guillemet ou un saut de ligne.
+    if (/[";\n]/.test(value)) {
+        return `"${value.replace(/"/g, '""')}"`
+    }
+    return value
+}
+
+/**
+ * GET /admin/fiscalite/factures-csv?year=YYYY&month=MM
+ * Journal des ventes du mois au format CSV (pour l'expert-comptable).
+ */
+router.get("/fiscalite/factures-csv", authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const year = parseYear(req.query["year"])
+        const month = parseMonth(req.query["month"])
+        if (month === null) {
+            return res.status(400).json({ success: false, message: "Mois invalide (attendu 1–12)." })
+        }
+
+        const factures = await findPaidFacturesOfMonth(year, month)
+
+        const header = [
+            "N° facture", "Date", "Client", "Email", "Plan",
+            "Montant HT (€)", "TVA 20% (€)", "Montant TTC (€)",
+        ]
+        const lines = [header.map(csvCell).join(";")]
+
+        for (const facture of factures) {
+            const user = facture.subscription.user
+            const clientName = [user.prenom, user.nom].filter(Boolean).join(" ") || user.email
+            const invoiceNumber = `LJ-${facture.createdAt.toISOString().slice(0, 10).replace(/-/g, "")}-${String(facture.idFacture).padStart(4, "0")}`
+            const { ht, tva, ttc } = breakdownTtcCents(facture.price)
+
+            const row = [
+                invoiceNumber,
+                facture.createdAt.toLocaleDateString("fr-FR"),
+                clientName,
+                user.email,
+                facture.subscription.plan.name,
+                formatEurForCsv(ht),
+                formatEurForCsv(tva),
+                formatEurForCsv(ttc),
+            ]
+            lines.push(row.map(csvCell).join(";"))
+        }
+
+        // BOM UTF-8 pour qu'Excel ouvre correctement les accents.
+        const csv = "﻿" + lines.join("\r\n")
+        const fileName = `ventes_${MONTH_SLUGS[month - 1]}_${year}.csv`
+
+        res.setHeader("Content-Type", "text/csv; charset=utf-8")
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`)
+        return res.send(csv)
+    } catch (err) {
+        console.error("[admin] fiscalite csv error:", err)
+        return res.status(500).json({ success: false, message: "Erreur serveur." })
+    }
+})
+
+/**
+ * GET /admin/fiscalite/factures-zip?year=YYYY&month=MM
+ * Archive ZIP contenant le PDF de chaque facture payée du mois.
+ */
+router.get("/fiscalite/factures-zip", authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+    try {
+        const year = parseYear(req.query["year"])
+        const month = parseMonth(req.query["month"])
+        if (month === null) {
+            return res.status(400).json({ success: false, message: "Mois invalide (attendu 1–12)." })
+        }
+
+        const factures = await findPaidFacturesOfMonth(year, month)
+        if (factures.length === 0) {
+            return res.status(404).json({ success: false, message: "Aucune facture pour ce mois." })
+        }
+
+        const fileName = `factures_${MONTH_SLUGS[month - 1]}_${year}.zip`
+        res.setHeader("Content-Type", "application/zip")
+        res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`)
+
+        const archive = new ZipArchive({ zlib: { level: 9 } })
+        archive.on("error", (err: Error) => {
+            console.error("[admin] fiscalite zip archive error:", err)
+            // Les en-têtes sont peut-être déjà partis : on ne peut que couper le flux.
+            res.end()
+        })
+        archive.pipe(res)
+
+        // Régénère chaque PDF et l'ajoute à l'archive.
+        const subscriptionService = new Subscription()
+        for (const facture of factures) {
+            const pdf = await subscriptionService.getInvoicePdfAdmin(facture.idFacture)
+            if (pdf) {
+                archive.append(pdf.buffer, { name: `${pdf.invoiceNumber}.pdf` })
+            }
+        }
+
+        await archive.finalize()
+        return
+    } catch (err) {
+        console.error("[admin] fiscalite zip error:", err)
+        // Si rien n'a encore été envoyé, on peut répondre proprement.
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, message: "Erreur serveur." })
+        }
+        return res.end()
     }
 })
 

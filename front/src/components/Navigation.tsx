@@ -2,6 +2,8 @@
 
 export function Navigation() {
 
+    const proxy = import.meta.env.VITE_URL_BACKNODE
+    const url = `${proxy}/api/user/auth/google`
     //Direction vers la page d'auth Google
     const ConnectGoogle = () => {
         return (
@@ -12,8 +14,8 @@ export function Navigation() {
                     <path fill="#FABB05" d="M8.85 27.77c-.4-1.19-.62-2.46-.62-3.77s.22-2.58.62-3.77v-5.2h-6.7C.78 17.73 0 20.77 0 24s.78 6.27 2.14 8.97l6.71-5.2z"></path>
                     <path fill="#E94235" d="M20 12c2.93 0 5.55 1.01 7.62 2.98l5.76-5.76C29.92 5.98 25.39 4 20 4 12.18 4 5.43 8.49 2.14 15.03l6.7 5.2C10.41 15.51 14.81 12 20 12z"></path>
                 </svg>
-                <a href="http://localhost:3020/auth/google">
-                    Connection avec Google
+                <a href={url}>
+                    Connexion avec Google
                 </a>
             </div>)
     }
@@ -24,10 +26,10 @@ export function Navigation() {
         <div className="flex flex-row gap-2">
             <a href="/analyzer">Analyse de contrat</a>
             <a href="/dashboard">Dashboard</a>
-            <a href="/connect">Se connecter/Se deconnecter</a>
+            <a href="/connect">Se connecter / Se déconnecter</a>
             <ConnectGoogle />
             <a href="/sandbox">Sandbox</a>
-            <a href="/mon-compte">Parametre de compte</a>
+            <a href="/mon-compte">Paramètres de compte</a>
         </div>
     )
 }

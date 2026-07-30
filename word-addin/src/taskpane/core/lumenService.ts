@@ -1,13 +1,13 @@
 import { AnalysisContext, ClauseAI, ClauseRisk, JurisprudenceCase, Recommendation } from "./types";
 
-/* global localStorage, fetch, window */
+/* global localStorage, fetch, window, Response */
 
 /**
  * Client des endpoints LumenJuris — les MÊMES routes que la page « Analyse
  * des risques » de la plateforme :
  *  - POST /api/addin/login       → JWT (Bearer) pour le complément
- *  - POST /api/analyze-contract  → ClauseRisk[] (analyse IA du proxy)
- *  - POST /api/recommend-clause  → recommandations alternatives
+ *  - POST /api/analyzer/analyze-contract  → ClauseRisk[] (analyse IA du proxy)
+ *  - POST /api/analyzer/recommend-clause  → recommandations alternatives
  *  - POST /api/jurisprudence     → recherche hybride (backend Python)
  *  - POST /api/openai-chat-5     → détail clause (issues/advice) et questions
  *
@@ -32,26 +32,39 @@ export class AuthError extends Error {}
 export const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
 export const clearToken = (): void => localStorage.removeItem(TOKEN_KEY);
 
-async function post<T>(endpoint: string, body: unknown, withAuth = false): Promise<T> {
+async function post<T>(endpoint: string, body: unknown): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (withAuth) {
-    // POC : le token est optionnel — en local, le proxy accepte les requêtes
-    // sans authentification (voir authMiddleware, mode dev).
-    const token = getToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
+  // Toutes les routes métier exigent l'authentification en production :
+  // le Bearer est envoyé dès qu'une session existe (login obligatoire côté UI).
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(`${PROXY_BASE}${endpoint}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // TypeError « Failed to fetch » : réseau coupé, serveur injoignable ou CORS.
+    throw new Error(
+      "Serveur LumenJuris injoignable. Vérifiez votre connexion internet puis réessayez."
+    );
   }
-  const response = await fetch(`${PROXY_BASE}${endpoint}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
   if (response.status === 401) {
     clearToken();
-    throw new AuthError("Session expirée — reconnectez-vous.");
+    const data = (await response.json().catch(() => ({}))) as { message?: string };
+    throw new AuthError(data.message || "Session expirée — reconnectez-vous.");
   }
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(`${endpoint} → ${response.status} ${text.slice(0, 200)}`);
+    let message = "";
+    try {
+      message = (JSON.parse(text) as { message?: string }).message || "";
+    } catch {
+      /* réponse non JSON */
+    }
+    throw new Error(message || `${endpoint} → ${response.status} ${text.slice(0, 200)}`);
   }
   return (await response.json()) as T;
 }
@@ -83,16 +96,15 @@ export const DEFAULT_CONTEXT: AnalysisContext = {
  * même route que la plateforme (`detectContractWithAI`).
  */
 export async function detectContract(text: string): Promise<Partial<AnalysisContext>> {
-  return post<Partial<AnalysisContext>>("/api/detect-contract", { text }, true);
+  return post<Partial<AnalysisContext>>("/api/analyzer/detect-contract", { text });
 }
 
 /** Analyse du document — même payload que ContractAnalysis.tsx. */
 export async function analyzeContract(content: string, context: AnalysisContext): Promise<ClauseRisk[]> {
-  const data = await post<{ success: boolean; clauses: ClauseRisk[] }>(
-    "/api/analyze-contract",
-    { content, context },
-    true
-  );
+  const data = await post<{ success: boolean; clauses: ClauseRisk[] }>("/api/analyzer/analyze-contract", {
+    content,
+    context,
+  });
   return (data.clauses ?? []).map((clause, i) => ({
     ...clause,
     id: clause.id || `clause-${i}`,
@@ -107,7 +119,7 @@ export async function fetchRecommendations(
   const data = await post<
     | { title?: string; clauseText: string; benefits?: string; riskReduction?: string }[]
     | { recommendations?: { title?: string; clauseText: string; benefits?: string; riskReduction?: string }[] }
-  >("/api/recommend-clause", { clause, context }, true);
+  >("/api/analyzer/recommend-clause", { clause, context });
   const items = Array.isArray(data) ? data : (data.recommendations ?? []);
   return items
     .filter((r) => r && r.clauseText)

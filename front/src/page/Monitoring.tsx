@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart2, MessageSquare, Users, TrendingUp, Activity, LayoutDashboard, Library } from "lucide-react";
+import { BarChart2, MessageSquare, Users, TrendingUp, Activity, LayoutDashboard, Landmark, Library } from "lucide-react";
 import { useUserStore } from "../store/userStore";
 import { Navigate } from "react-router-dom";
 import { LlmUsageSection } from "../components/MonitoringComponents/LlmUsageSection";
@@ -9,8 +9,10 @@ import { RevenueSection } from "../components/MonitoringComponents/RevenueSectio
 import { ActivitySection } from "../components/MonitoringComponents/ActivitySection";
 import { OverviewSection } from "../components/MonitoringComponents/OverviewSection";
 import { LegalWatchSection } from "../components/MonitoringComponents/LegalWatchSection";
+import { FiscaliteSection } from "../components/MonitoringComponents/FiscaliteSection";
 
 type Tab = "overview" | "llm" | "feedbacks" | "users" | "revenue" | "activity" | "legalWatch";
+
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; description: string }[] = [
   { id: "overview", label: "Vue d'ensemble", icon: LayoutDashboard, description: "KPIs, alertes et crédits" },
@@ -20,6 +22,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; description: stri
   { id: "revenue", label: "Revenus", icon: TrendingUp, description: "Abonnements et paiements" },
   { id: "activity", label: "Activité", icon: Activity, description: "Usage des fonctionnalités IA" },
   { id: "legalWatch", label: "Legal Watch", icon: Library , description: "Ajout de conventions collectives"},
+  { id: "fiscalite", label: "Fiscalité", icon: Landmark, description: "TVA et factures par mois" },
 ];
 
 const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
@@ -30,6 +33,7 @@ const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
   revenue: { title: "Revenus", sub: "Abonnements actifs, paiements et chiffre d'affaires" },
   activity: { title: "Activité des fonctionnalités", sub: "Usage de chaque fonctionnalité IA par période" },
   legalWatch: { title: "Legal Watch", sub: "Ajout de conventions collectives"},
+  fiscalite: { title: "Fiscalité", sub: "Récapitulatif TVA mensuel et export des factures" },
 };
 
 export const Monitoring = () => {
@@ -87,6 +91,7 @@ export const Monitoring = () => {
             {activeTab === "revenue" && <RevenueSection />}
             {activeTab === "activity" && <ActivitySection />}
             {activeTab === "legalWatch" && <LegalWatchSection />}
+            {activeTab === "fiscalite" && <FiscaliteSection />}
           </div>
 
         </div>

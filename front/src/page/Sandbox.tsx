@@ -128,7 +128,7 @@ export function Sandbox() {
     setClassifyError("");
     setClassifyTags({});
     try {
-      const res = await fetchProxy("/api/classify-veille", {
+      const res = await fetchProxy("/api/veille/classify-veille", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -201,7 +201,7 @@ export function Sandbox() {
       setInseeLoading(true);
       setInseeResult("");
       const response = await fetchProxy(
-        `/api/insee/${encodeURIComponent(inseeSiren)}`,
+        `/api/enterprise/insee/${encodeURIComponent(inseeSiren)}`,
         { credentials: "include" },
       );
       const rawText = await response.text();

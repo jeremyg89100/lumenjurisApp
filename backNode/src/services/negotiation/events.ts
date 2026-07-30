@@ -18,6 +18,9 @@ export type NegotiationEventName =
   | "proposal.created"
   | "comment.added"
   | "guest.invited"
+  | "guest.reminded"
+  | "completion.fieldsFilled"
+  | "completion.finished"
 
 /**
  * Stub de notification branchable. Par défaut : log. Remplaçable par un vrai

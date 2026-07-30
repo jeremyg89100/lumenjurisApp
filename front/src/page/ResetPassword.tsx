@@ -127,7 +127,7 @@ export const ResetPassword = () => {
     const value = event.target.value;
     setConfirmPassword(value);
     if (value.length >= 8 && value !== password) {
-      setConfirmError("Les mots de passes doivent-être identiques !");
+      setConfirmError("Les mots de passe doivent être identiques !");
     } else if (value.length >= 8 && value === password) {
       setConfirmError("");
     }

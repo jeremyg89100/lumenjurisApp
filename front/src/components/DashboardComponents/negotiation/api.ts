@@ -2,7 +2,21 @@
  * Couche d'accès API du module Négociation (passe par le proxy).
  */
 import { fetchProxy } from "../../../utils/fetchProxy";
-import type { NegotiationDetail, DiffResult, ProposalStatus, GuestNegotiation } from "./types";
+import type {
+  NegotiationDetail, DiffResult, ProposalStatus, GuestNegotiation,
+  NegotiationListItem, FieldSide,
+} from "./types";
+
+/** Champ transmis à l'ouverture d'une complétion guidée. */
+export interface CompletionFieldPayload {
+  variableId: string;
+  label: string;
+  type?: string;
+  side?: FieldSide;
+  required?: boolean;
+  position?: number;
+  value?: string | null;
+}
 
 const BASE = "/api/negotiation";
 
@@ -21,9 +35,19 @@ function postJson(path: string, body?: unknown) {
 }
 
 export const negotiationApi = {
+  /** Page « Mes négociations » : toutes les sessions de l'utilisateur. */
+  list: () =>
+    fetchProxy(`${BASE}/`, { credentials: "include" }).then(json<NegotiationListItem[]>),
+
   /** Ouvre (ou réutilise) une négociation pour un contrat. */
   enter: (contractExternalId: string, title?: string) =>
     postJson(`${BASE}/enter`, { contractExternalId, title }).then(json<{ id: string; status: string }>),
+
+  /** Ouvre une complétion guidée (texte avec marqueurs {{variableId}} + champs). */
+  enterCompletion: (p: {
+    contractExternalId: string; title?: string; contentText: string;
+    fields: CompletionFieldPayload[]; autoToSignature?: boolean;
+  }) => postJson(`${BASE}/enter-completion`, p).then(json<{ id: string }>),
 
   listForContract: (contractExternalId: string) =>
     fetchProxy(`${BASE}/contract/${contractExternalId}`, { credentials: "include" }).then(json<unknown[]>),
@@ -66,15 +90,22 @@ export const negotiationApi = {
   removeParticipant: (id: string, participantId: string) =>
     fetchProxy(`${BASE}/${id}/participants/${participantId}`, { method: "DELETE", credentials: "include" }).then(json<unknown>),
 
-  // Invités
-  inviteGuest: (id: string, ttlHours?: number) =>
-    postJson(`${BASE}/${id}/guests`, { ttlHours }).then(json<{ id: string; token: string; expiresAt: string }>),
+  // Invités (liens nominatifs : nom + e-mail → e-mail d'invitation automatique)
+  inviteGuest: (id: string, opts?: {
+    ttlHours?: number; name?: string; email?: string;
+    role?: string; fillSide?: "COUNTERPARTY" | "THIRD_PARTY"; sendEmail?: boolean;
+  }) =>
+    postJson(`${BASE}/${id}/guests`, opts ?? {}).then(
+      json<{ id: string; token: string; name: string | null; email: string | null; expiresAt: string; emailSent: boolean }>,
+    ),
+  remindGuest: (id: string, guestId: string) =>
+    postJson(`${BASE}/${id}/guests/${guestId}/remind`).then(json<{ emailSent: boolean }>),
   revokeGuest: (id: string, guestId: string) =>
     postJson(`${BASE}/${id}/guests/${guestId}/revoke`).then(json<unknown>),
 
   /** Diff structuré clause par clause (délégué à FastAPI via le proxy). */
   diff: async (leftText: string, rightText: string): Promise<DiffResult> => {
-    const res = await fetchProxy(`/api/negotiation-diff`, {
+    const res = await fetchProxy(`/api/negotiation/negotiation-diff`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ leftText, rightText }),
@@ -95,4 +126,18 @@ export const guestApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(c),
     }).then(json<{ id: string }>),
+
+  /** Complétion guidée : enregistre les valeurs saisies (partiel autorisé). */
+  saveFields: (token: string, values: Record<string, string>) =>
+    fetchProxy(`${BASE}/public/${token}/fields`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ values }),
+    }).then(json<{ saved: number; invalid: string[] }>),
+
+  /** Complétion guidée : l'invité déclare avoir terminé. */
+  complete: (token: string) =>
+    fetchProxy(`${BASE}/public/${token}/complete`, { method: "POST" }).then(
+      json<{ done: boolean; allPartiesDone?: boolean; autoToSignature?: boolean; missing?: { id: string; label: string }[] }>,
+    ),
 };

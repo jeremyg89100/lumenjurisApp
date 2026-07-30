@@ -223,7 +223,7 @@ export function ParamCompte() {
       setProfileUpdateError(true);
       throw new Error(
         payload?.message ||
-        "Impossible de mettre a jour les informations du compte.",
+        "Impossible de mettre à jour les informations du compte.",
       );
     }
 

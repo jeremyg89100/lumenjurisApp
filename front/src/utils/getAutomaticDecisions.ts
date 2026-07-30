@@ -12,7 +12,7 @@ async function fetchDecisionsFromBackend(
 ): Promise<JurisprudenceCase[] | null> {
   try {
     console.log(`🚀 [API Auto] Recherche hybride avec ${queries.length} requêtes:`, queries);
-    const response = await fetchProxy(`/jurisprudence`, {
+    const response = await fetchProxy(`/api/legal-text/jurisprudence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ queries, context }),

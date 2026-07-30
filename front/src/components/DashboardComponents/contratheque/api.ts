@@ -123,7 +123,7 @@ export const contractApi = {
   /** Suggestion de reformulation d'une clause par l'IA (réutilise /openai-chat-5). */
   reformulateClause: async (clauseText: string, instruction: string): Promise<string> => {
     const prompt = `Tu es juriste expert en droit français des contrats. Reformule la clause ci-dessous ${instruction ? `en tenant compte de cette consigne : « ${instruction} ». ` : "pour la rendre plus claire, équilibrée et juridiquement robuste. "}Réponds UNIQUEMENT avec le texte reformulé de la clause, sans préambule ni explication.\n\nClause à reformuler :\n"""\n${clauseText}\n"""`;
-    const res = await fetchProxy("/api/openai-chat-5", {
+    const res = await fetchProxy("/api/openai/openai-chat-5", {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, reasoning: "none", verbosity: "medium", model: "gpt-5.4-nano" }),

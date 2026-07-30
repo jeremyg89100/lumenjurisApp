@@ -162,7 +162,7 @@ export function useEnterpriseSettings(
       setEnterpriseDraft(cloneEnterpriseSettings(enterpriseSettings));
 
       const response = await fetchProxy(
-        `/api/insee/${encodeURIComponent(normalizedLookupSiren)}`,
+        `/api/enterprise/insee/${encodeURIComponent(normalizedLookupSiren)}`,
         {
           credentials: "include",
           signal: abortController.signal,

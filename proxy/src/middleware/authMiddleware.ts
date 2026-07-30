@@ -34,7 +34,6 @@ export function proxyAuthMiddleware( req: Request, res: Response, next: NextFunc
   }
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload;
-    console.log(payload)
     res.locals.userId = payload.userId;
     res.locals.role = payload.role ?? "USER";
 

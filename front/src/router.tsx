@@ -13,6 +13,7 @@ import { Contratheque } from "./components/DashboardComponents/Contratheque";
 import { ClausesLibrary } from "./components/DashboardComponents/clauses/ClausesLibrary";
 import { UserManagement } from "./components/DashboardComponents/admin/UserManagement";
 import { NegotiationWorkspace } from "./components/DashboardComponents/negotiation/NegotiationWorkspace";
+import { NegotiationsList } from "./components/DashboardComponents/negotiation/NegotiationsList";
 import { NegotiationGuest } from "./page/NegotiationGuest";
 import { MesFiligranes } from "./components/DashboardComponents/MesFiligranes";
 import { ComprendreContrat } from "./components/DashboardComponents/ComprendreContrat";
@@ -115,6 +116,7 @@ export function App() {
           <Route path="/contratheque/:externalId" element={<Contratheque />} />
           <Route path="/clauses" element={<ClausesLibrary />} />
           <Route path="/utilisateurs" element={<UserManagement />} />
+          <Route path="/negociations" element={<NegotiationsList />} />
           <Route
             path="/negociation/:negotiationId"
             element={<NegotiationWorkspace />}
