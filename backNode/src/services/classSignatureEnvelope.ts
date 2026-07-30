@@ -263,6 +263,34 @@ export class SignatureEnvelopeService {
     return toDTO(updated);
   }
 
+  /**
+   * Génère à la volée le PDF « aplati » (PDF source + signatures incrustées)
+   * d'une enveloppe appartenant à l'utilisateur.
+   *
+   * Renvoie `null` si l'enveloppe n'existe pas, si aucun fichier PDF n'est
+   * référencé, ou si le fichier est introuvable sur le disque — la route
+   * répond alors 404. Les signatures ne sont jamais stockées fusionnées :
+   * le PDF est reconstruit à chaque téléchargement.
+   */
+  async generateSignedPdf(
+    userId: number,
+    externalId: string,
+  ): Promise<{ documentName: string; buffer: Buffer } | null> {
+    const envelope = await this.get(userId, externalId);
+    if (!envelope || !envelope.documentFilePath) return null;
+
+    let pdfBytes: Buffer;
+    try {
+      pdfBytes = await fs.readFile(envelope.documentFilePath);
+    } catch (err) {
+      console.warn("[signature] PDF source introuvable:", envelope.documentFilePath, err);
+      return null;
+    }
+
+    const buffer = await flattenSignaturesIntoPdf(pdfBytes, envelope.fields);
+    return { documentName: envelope.meta.documentName, buffer };
+  }
+
   /** Supprime définitivement une enveloppe. */
   async delete(userId: number, externalId: string): Promise<void> {
     await prisma.signatureEnvelope.deleteMany({

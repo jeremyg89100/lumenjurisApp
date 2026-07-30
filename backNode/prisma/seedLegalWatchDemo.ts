@@ -13,7 +13,7 @@
  * Idempotent (upsert). Lancement : npx tsx prisma/seedLegalWatchDemo.ts [userId]
  */
 import "dotenv/config";
-import { prisma } from "./singletonPrisma";
+import { prisma } from "./singletonPrisma.js";
 
 const EXTERNAL_ID = "seed-legalwatch-demo-cdd";
 const TARGET_USER_ID = Number(process.argv[2] ?? 1);

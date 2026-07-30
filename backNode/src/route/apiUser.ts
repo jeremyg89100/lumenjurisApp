@@ -227,8 +227,11 @@ routerUser.post(
       return res
         .cookie("authLumenJuris", "", {
           httpOnly: true,
-          secure: process.env.ENV === "production",
+          secure: process.env.NODE_ENV === "production",
           //sameSite: "strict",
+          // Doit matcher le domaine posé à la connexion, sinon le logout
+          // vide un cookie qui n'existe pas et la session reste active.
+          domain: process.env.COOKIE_DOMAIN || undefined,
           path: "/",
           maxAge: 0,
         })

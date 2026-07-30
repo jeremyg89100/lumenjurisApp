@@ -40,13 +40,14 @@ app.use(
       /^http:\/\/127\.0\.0\.1:\d+$/,
       /^https:\/\/.*\.odns\.fr$/,
       "http://localhost:5173",
+      "https://beta.lumenjuris.com"
     ],
     credentials: true,
   }),
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: "20mb" }));
+app.use(express.json({ limit: "80mb" }));
 
 // ─── Montage des routers par domaine ───
 app.use("/api/llm", llmRouter);
@@ -75,6 +76,11 @@ app.use("/api/summarize-contract", summarizeContractRouter)
 
 
 
+app.get("/api/google", (req, res) => {
+  console.log("[proxy/google] redirect vers :", `${BACKNODE_URL}/api/user/auth/google`);
+  console.log("[proxy/google] cookies entrants :", req.headers.cookie);
+  res.redirect(`${BACKNODE_URL}/auth/google`);
+});
 
 
 // Health pour tester le serveur

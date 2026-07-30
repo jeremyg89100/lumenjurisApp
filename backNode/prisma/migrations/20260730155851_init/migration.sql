@@ -1,45 +1,159 @@
--- DropForeignKey
-ALTER TABLE `authprovideraccount` DROP FOREIGN KEY `AuthProviderAccount_userId_fkey`;
+-- CreateTable
+CREATE TABLE `User` (
+    `idUser` INTEGER NOT NULL AUTO_INCREMENT,
+    `role` ENUM('USER', 'ADMIN', 'JURISTE', 'LECTEUR') NOT NULL DEFAULT 'USER',
+    `email` VARCHAR(191) NOT NULL,
+    `nom` VARCHAR(191) NULL,
+    `prenom` VARCHAR(191) NULL,
+    `password` VARCHAR(191) NULL,
+    `isVerified` BOOLEAN NOT NULL DEFAULT false,
+    `twoFactorEnabled` BOOLEAN NOT NULL DEFAULT false,
+    `isBanned` BOOLEAN NOT NULL DEFAULT false,
+    `cgu` BOOLEAN NOT NULL DEFAULT false,
+    `stripeCustomerId` VARCHAR(191) NULL,
 
--- DropForeignKey
-ALTER TABLE `documentcustom` DROP FOREIGN KEY `DocumentCustom_userId_fkey`;
+    UNIQUE INDEX `User_email_key`(`email`),
+    PRIMARY KEY (`idUser`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- DropForeignKey
-ALTER TABLE `enterprise` DROP FOREIGN KEY `Enterprise_userId_fkey`;
+-- CreateTable
+CREATE TABLE `AuthProviderAccount` (
+    `idAuthProvider` INTEGER NOT NULL AUTO_INCREMENT,
+    `providerId` VARCHAR(191) NOT NULL,
+    `provider` ENUM('GOOGLE') NOT NULL,
+    `avatarUrl` VARCHAR(191) NULL,
+    `userId` INTEGER NOT NULL,
 
--- DropForeignKey
-ALTER TABLE `event` DROP FOREIGN KEY `Event_userId_fkey`;
+    UNIQUE INDEX `AuthProviderAccount_providerId_key`(`providerId`),
+    PRIMARY KEY (`idAuthProvider`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- DropForeignKey
-ALTER TABLE `subscription` DROP FOREIGN KEY `Subscription_userId_fkey`;
+-- CreateTable
+CREATE TABLE `UserPreference` (
+    `idUserPreference` INTEGER NOT NULL AUTO_INCREMENT,
+    `preferenceUI` JSON NULL,
+    `accountParameters` JSON NULL,
+    `userId` INTEGER NOT NULL,
 
--- DropForeignKey
-ALTER TABLE `token` DROP FOREIGN KEY `Token_userId_fkey`;
+    UNIQUE INDEX `UserPreference_userId_key`(`userId`),
+    PRIMARY KEY (`idUserPreference`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- DropForeignKey
-ALTER TABLE `usercredit` DROP FOREIGN KEY `UserCredit_userId_fkey`;
+-- CreateTable
+CREATE TABLE `Enterprise` (
+    `idEnterprise` INTEGER NOT NULL AUTO_INCREMENT,
+    `siren` VARCHAR(191) NULL,
+    `codeNaf` VARCHAR(191) NULL,
+    `intituleNaf` VARCHAR(191) NULL,
+    `name` VARCHAR(191) NULL,
+    `statusJuridiqueCode` VARCHAR(191) NULL,
+    `statusJuridique` VARCHAR(191) NULL,
+    `idccSelections` JSON NULL,
+    `selectedIdccKey` VARCHAR(191) NULL,
+    `userId` INTEGER NOT NULL,
 
--- DropForeignKey
-ALTER TABLE `userpreference` DROP FOREIGN KEY `UserPreference_userId_fkey`;
+    UNIQUE INDEX `Enterprise_userId_key`(`userId`),
+    PRIMARY KEY (`idEnterprise`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- DropIndex
-DROP INDEX `AuthProviderAccount_userId_fkey` ON `authprovideraccount`;
+-- CreateTable
+CREATE TABLE `Address` (
+    `idAddress` INTEGER NOT NULL AUTO_INCREMENT,
+    `address` VARCHAR(191) NULL,
+    `codePostal` VARCHAR(191) NULL,
+    `pays` VARCHAR(191) NULL DEFAULT 'FRANCE',
+    `enterpriseId` INTEGER NOT NULL,
 
--- DropIndex
-DROP INDEX `DocumentCustom_userId_fkey` ON `documentcustom`;
+    UNIQUE INDEX `Address_enterpriseId_key`(`enterpriseId`),
+    PRIMARY KEY (`idAddress`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- DropIndex
-DROP INDEX `Event_userId_fkey` ON `event`;
+-- CreateTable
+CREATE TABLE `Token` (
+    `idToken` INTEGER NOT NULL AUTO_INCREMENT,
+    `token` VARCHAR(191) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `type` VARCHAR(191) NOT NULL,
+    `status` ENUM('ACTIVE', 'EXPIRED', 'USED') NOT NULL DEFAULT 'ACTIVE',
+    `userId` INTEGER NOT NULL,
 
--- DropIndex
-DROP INDEX `Token_userId_fkey` ON `token`;
+    UNIQUE INDEX `Token_token_key`(`token`),
+    PRIMARY KEY (`idToken`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- AlterTable
-ALTER TABLE `facture` ADD COLUMN `status` VARCHAR(191) NOT NULL DEFAULT 'PAID';
+-- CreateTable
+CREATE TABLE `Event` (
+    `idEvent` INTEGER NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(191) NOT NULL,
+    `state` VARCHAR(191) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `userId` INTEGER NOT NULL,
 
--- AlterTable
-ALTER TABLE `user` ADD COLUMN `isBanned` BOOLEAN NOT NULL DEFAULT false,
-    MODIFY `role` ENUM('USER', 'ADMIN', 'JURISTE', 'LECTEUR') NOT NULL DEFAULT 'USER';
+    PRIMARY KEY (`idEvent`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DocumentCustom` (
+    `idDocumentCustom` INTEGER NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(191) NOT NULL,
+    `templateContent` TEXT NOT NULL,
+    `userId` INTEGER NULL,
+    `eventId` INTEGER NULL,
+
+    UNIQUE INDEX `DocumentCustom_eventId_key`(`eventId`),
+    PRIMARY KEY (`idDocumentCustom`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DocumentTemplate` (
+    `idDocument` INTEGER NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(191) NOT NULL,
+    `templateContent` TEXT NOT NULL,
+
+    PRIMARY KEY (`idDocument`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ChatHistory` (
+    `idChatHistory` INTEGER NOT NULL AUTO_INCREMENT,
+    `conversations` LONGTEXT NOT NULL,
+    `userId` INTEGER NOT NULL,
+
+    UNIQUE INDEX `ChatHistory_userId_key`(`userId`),
+    PRIMARY KEY (`idChatHistory`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ContractHistory` (
+    `idHistory` INTEGER NOT NULL AUTO_INCREMENT,
+    `externalId` VARCHAR(191) NOT NULL,
+    `fileName` VARCHAR(191) NOT NULL,
+    `contractType` VARCHAR(191) NULL,
+    `overallRiskScore` DOUBLE NULL,
+    `wordCount` INTEGER NOT NULL DEFAULT 0,
+    `clausesCount` INTEGER NOT NULL DEFAULT 0,
+    `activePatchCount` INTEGER NOT NULL DEFAULT 0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    `lastOpenedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `encryptedSnapshot` LONGTEXT NOT NULL,
+    `userId` INTEGER NOT NULL,
+
+    UNIQUE INDEX `ContractHistory_externalId_key`(`externalId`),
+    INDEX `ContractHistory_userId_idx`(`userId`),
+    PRIMARY KEY (`idHistory`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UserCredit` (
+    `idUserCredit` INTEGER NOT NULL AUTO_INCREMENT,
+    `creditIncluded` INTEGER NOT NULL,
+    `creditAdded` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+
+    UNIQUE INDEX `UserCredit_userId_key`(`userId`),
+    PRIMARY KEY (`idUserCredit`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `FeatureUsage` (
@@ -52,6 +166,55 @@ CREATE TABLE `FeatureUsage` (
     INDEX `FeatureUsage_feature_idx`(`feature`),
     INDEX `FeatureUsage_createdAt_idx`(`createdAt`),
     PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Subscription` (
+    `idSubscription` INTEGER NOT NULL AUTO_INCREMENT,
+    `status` ENUM('ACTIVE', 'CANCELLED', 'EXPIRED', 'PENDING') NOT NULL,
+    `startAt` DATETIME(3) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `stripeSubscriptionId` VARCHAR(191) NULL,
+    `stripePriceId` VARCHAR(191) NULL,
+    `userId` INTEGER NOT NULL,
+    `planId` INTEGER NOT NULL,
+
+    UNIQUE INDEX `Subscription_userId_key`(`userId`),
+    PRIMARY KEY (`idSubscription`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Plan` (
+    `idPlan` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `price` INTEGER NOT NULL,
+    `interval` VARCHAR(191) NOT NULL,
+    `creditIncluded` INTEGER NOT NULL,
+
+    PRIMARY KEY (`idPlan`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Facture` (
+    `idFacture` INTEGER NOT NULL AUTO_INCREMENT,
+    `price` INTEGER NOT NULL,
+    `stripeInvoiceId` VARCHAR(191) NOT NULL,
+    `status` VARCHAR(191) NOT NULL DEFAULT 'PAID',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `subscriptionId` INTEGER NOT NULL,
+
+    PRIMARY KEY (`idFacture`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Llm` (
+    `idLlm` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(191) NOT NULL,
+    `tokenPriceInput` INTEGER NOT NULL,
+    `tokenPriceOutput` INTEGER NOT NULL,
+
+    UNIQUE INDEX `Llm_name_key`(`name`),
+    PRIMARY KEY (`idLlm`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -145,6 +308,46 @@ CREATE TABLE `SignatureEnvelope` (
     INDEX `SignatureEnvelope_userId_idx`(`userId`),
     INDEX `SignatureEnvelope_status_idx`(`status`),
     PRIMARY KEY (`idEnvelope`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UserUpload` (
+    `idUserUpload` INTEGER NOT NULL AUTO_INCREMENT,
+    `uploadedImages` JSON NOT NULL,
+    `userId` INTEGER NOT NULL,
+
+    UNIQUE INDEX `UserUpload_userId_key`(`userId`),
+    PRIMARY KEY (`idUserUpload`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `LlmUsage` (
+    `idLlmUsage` INTEGER NOT NULL AUTO_INCREMENT,
+    `startAt` DATETIME(3) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `totalCostUsd` DECIMAL(18, 6) NOT NULL,
+    `tokenInput` INTEGER NOT NULL,
+    `tokenOutput` INTEGER NOT NULL,
+    `llmId` INTEGER NOT NULL,
+
+    UNIQUE INDEX `LlmUsage_llmId_startAt_key`(`llmId`, `startAt`),
+    PRIMARY KEY (`idLlmUsage`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UserLlmUsage` (
+    `idUserLlmUsage` INTEGER NOT NULL AUTO_INCREMENT,
+    `startAt` DATETIME(3) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `totalCostUsd` DECIMAL(18, 6) NOT NULL,
+    `tokenInput` INTEGER NOT NULL,
+    `tokenOutput` INTEGER NOT NULL,
+    `userId` INTEGER NOT NULL,
+    `llmId` INTEGER NOT NULL,
+
+    INDEX `UserLlmUsage_userId_idx`(`userId`),
+    UNIQUE INDEX `UserLlmUsage_llmId_startAt_userId_key`(`llmId`, `startAt`, `userId`),
+    PRIMARY KEY (`idUserLlmUsage`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -608,6 +811,9 @@ ALTER TABLE `UserPreference` ADD CONSTRAINT `UserPreference_userId_fkey` FOREIGN
 ALTER TABLE `Enterprise` ADD CONSTRAINT `Enterprise_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `Address` ADD CONSTRAINT `Address_enterpriseId_fkey` FOREIGN KEY (`enterpriseId`) REFERENCES `Enterprise`(`idEnterprise`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Token` ADD CONSTRAINT `Token_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -617,6 +823,15 @@ ALTER TABLE `Event` ADD CONSTRAINT `Event_userId_fkey` FOREIGN KEY (`userId`) RE
 ALTER TABLE `DocumentCustom` ADD CONSTRAINT `DocumentCustom_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `DocumentCustom` ADD CONSTRAINT `DocumentCustom_eventId_fkey` FOREIGN KEY (`eventId`) REFERENCES `Event`(`idEvent`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ChatHistory` ADD CONSTRAINT `ChatHistory_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `ContractHistory` ADD CONSTRAINT `ContractHistory_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `UserCredit` ADD CONSTRAINT `UserCredit_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -624,6 +839,12 @@ ALTER TABLE `FeatureUsage` ADD CONSTRAINT `FeatureUsage_userId_fkey` FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE `Subscription` ADD CONSTRAINT `Subscription_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Subscription` ADD CONSTRAINT `Subscription_planId_fkey` FOREIGN KEY (`planId`) REFERENCES `Plan`(`idPlan`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Facture` ADD CONSTRAINT `Facture_subscriptionId_fkey` FOREIGN KEY (`subscriptionId`) REFERENCES `Subscription`(`idSubscription`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `ContractTemplate` ADD CONSTRAINT `ContractTemplate_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -639,6 +860,18 @@ ALTER TABLE `GenerationLog` ADD CONSTRAINT `GenerationLog_templateId_fkey` FOREI
 
 -- AddForeignKey
 ALTER TABLE `SignatureEnvelope` ADD CONSTRAINT `SignatureEnvelope_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserUpload` ADD CONSTRAINT `UserUpload_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `LlmUsage` ADD CONSTRAINT `LlmUsage_llmId_fkey` FOREIGN KEY (`llmId`) REFERENCES `Llm`(`idLlm`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserLlmUsage` ADD CONSTRAINT `UserLlmUsage_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserLlmUsage` ADD CONSTRAINT `UserLlmUsage_llmId_fkey` FOREIGN KEY (`llmId`) REFERENCES `Llm`(`idLlm`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Contract` ADD CONSTRAINT `Contract_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;

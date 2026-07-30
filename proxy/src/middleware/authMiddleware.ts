@@ -45,6 +45,9 @@ export function proxyAuthMiddleware( req: Request, res: Response, next: NextFunc
     res.cookie("authLumenJuris", refreshed, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      // Même domaine que le cookie d'origine, sinon le refresh recrée un
+      // cookie sur le mauvais domaine et casse la session.
+      domain: process.env.COOKIE_DOMAIN || undefined,
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });

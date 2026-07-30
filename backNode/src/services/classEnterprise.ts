@@ -332,7 +332,7 @@ export class Enterprise {
                     name: input.name !== undefined ? input.name : undefined,
                     statusJuridiqueCode: input.statusJuridiqueCode !== undefined ? input.statusJuridiqueCode : undefined,
                     statusJuridique: input.statusJuridique !== undefined ? input.statusJuridique : undefined,
-                    idccSelections: nextSelections as Prisma.InputJsonValue,
+                    idccSelections: nextSelections,
                     selectedIdccKey,
                 },
                 create: {
@@ -343,7 +343,7 @@ export class Enterprise {
                     name: input.name ?? null,
                     statusJuridiqueCode: input.statusJuridiqueCode ?? null,
                     statusJuridique: input.statusJuridique ?? null,
-                    idccSelections: nextSelections as Prisma.InputJsonValue,
+                    idccSelections: nextSelections,
                     selectedIdccKey,
                 },
             })
@@ -452,12 +452,12 @@ export class Enterprise {
             await prisma.enterprise.upsert({
                 where: { userId },
                 update: {
-                    idccSelections: nextSelections as Prisma.InputJsonValue,
+                    idccSelections: nextSelections,
                     selectedIdccKey,
                 },
                 create: {
                     userId,
-                    idccSelections: nextSelections as Prisma.InputJsonValue,
+                    idccSelections: nextSelections,
                     selectedIdccKey,
                 },
             })
@@ -524,7 +524,7 @@ export class Enterprise {
             await prisma.enterprise.update({
                 where: { userId },
                 data: {
-                    idccSelections: nextSelections as Prisma.InputJsonValue,
+                    idccSelections: nextSelections,
                     selectedIdccKey: nextSelectedIdccKey,
                 },
             })
