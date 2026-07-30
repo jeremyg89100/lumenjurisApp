@@ -26,7 +26,7 @@ import { openaiRouter } from "./src/routes/callopenai.js";
 import { legalTextRouter } from "./src/routes/legalText.js";
 import { aiRouter } from "./src/routes/ai.js";
 import { adminRouter } from "./src/routes/admin.js";
-
+import { summarizeCpntractRouter } from "./src/routes/summarizeContract.js";
 
 const app = express();
 app.set("etag", false);
@@ -70,12 +70,10 @@ app.use("/api/openai", openaiRouter);
 app.use("/api/legal-text", legalTextRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/admin", adminRouter)
+app.use("/api/summarize-contract", summarizeCpntractRouter)
 
 
 
-app.post("/api/summarize-contract", auth, handleSummarizeContract);
-app.get("/api/list-contract-summarize", auth, handleGetListSummarizeContract);
-app.get("/api/contract-summarize-content", auth, handleGetContractSummarize);
 
 
 
