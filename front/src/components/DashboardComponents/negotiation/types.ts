@@ -199,3 +199,10 @@ export const FIELD_SIDE_LABEL: Record<FieldSide, string> = {
   COUNTERPARTY: "L’autre partie",
   THIRD_PARTY: "Un tiers",
 };
+
+/** Couleur d'assignation d'un champ (surlignage dans le document + légende). */
+export const FIELD_SIDE_COLOR: Record<FieldSide, { dot: string; chip: string }> = {
+  OWNER:        { dot: "#0284c7", chip: "#e0f2fe" }, // sky
+  COUNTERPARTY: { dot: "#059669", chip: "#d1fae5" }, // emerald
+  THIRD_PARTY:  { dot: "#7c3aed", chip: "#ede9fe" }, // violet
+};

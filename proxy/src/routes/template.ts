@@ -4,8 +4,52 @@ import { BACKEND_URL, BACKNODE_URL } from "../config.js";
 import { relayToNode } from "../relay.js";
 import { logOpenAiTokens, trackFeature } from "../tracking.js";
 
-// Monté sur "/api/template" — chemins relatifs.
+// Chemin relatif /api/template" 
 export const templateRouter: Router = Router();
+
+
+
+
+
+
+
+
+// ─── Routes ────────────────────────────────────────────────────────────────────
+const id = (req: Request) => encodeURIComponent(req.params.externalId as string);
+
+templateRouter.post("/import", auth, handleTemplateImport);
+templateRouter.get("/", auth, (req, res) => relayToNode(req, res, "/template"));
+templateRouter.get("/:externalId", auth, (req, res) =>
+  relayToNode(req, res, `/template/${id(req)}`),
+);
+templateRouter.put("/:externalId", auth, (req, res) =>
+  relayToNode(req, res, `/template/${id(req)}`),
+);
+templateRouter.delete("/:externalId", auth, (req, res) =>
+  relayToNode(req, res, `/template/${id(req)}`),
+);
+templateRouter.get("/:externalId/playbook", auth, (req, res) =>
+  relayToNode(req, res, `/template/${id(req)}/playbook`),
+);
+templateRouter.put("/:externalId/playbook", auth, (req, res) =>
+  relayToNode(req, res, `/template/${id(req)}/playbook`),
+);
+templateRouter.post("/:externalId/generate", auth, handleTemplateGenerate);
+
+
+// Création directe d'un modèle (structure déjà prête, sans structuration IA) —
+// utilisée par la génération « de zéro » pour préenregistrer le contrat en
+// bibliothèque de modèles.
+templateRouter.post("/api/template", auth, (req, res) => {
+  void trackFeature("import_template", res.locals.userId as number | undefined);
+  relayToNode(req, res, "/template");
+});
+
+
+
+
+
+
 
 // ─── Génération d'un contrat à partir d'un modèle ──────────────────────────────
 
@@ -66,9 +110,9 @@ async function handleTemplateGenerate(
       "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
       ...(res.locals.userId !== undefined
         ? {
-            "x-user-id": String(res.locals.userId),
-            "x-user-role": String(res.locals.role ?? "USER"),
-          }
+          "x-user-id": String(res.locals.userId),
+          "x-user-role": String(res.locals.role ?? "USER"),
+        }
         : {}),
     };
 
@@ -334,9 +378,9 @@ async function handleTemplateImport(
         "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
         ...(res.locals.userId !== undefined
           ? {
-              "x-user-id": String(res.locals.userId),
-              "x-user-role": String(res.locals.role ?? "USER"),
-            }
+            "x-user-id": String(res.locals.userId),
+            "x-user-role": String(res.locals.role ?? "USER"),
+          }
           : {}),
       },
       body: JSON.stringify({
@@ -363,25 +407,3 @@ async function handleTemplateImport(
   }
 }
 
-// ─── Routes ────────────────────────────────────────────────────────────────────
-// Handlers volumineux → fonctions nommées ; CRUD fin → inline.
-const id = (req: Request) => encodeURIComponent(req.params.externalId as string);
-
-templateRouter.post("/import", auth, handleTemplateImport);
-templateRouter.get("/", auth, (req, res) => relayToNode(req, res, "/template"));
-templateRouter.get("/:externalId", auth, (req, res) =>
-  relayToNode(req, res, `/template/${id(req)}`),
-);
-templateRouter.put("/:externalId", auth, (req, res) =>
-  relayToNode(req, res, `/template/${id(req)}`),
-);
-templateRouter.delete("/:externalId", auth, (req, res) =>
-  relayToNode(req, res, `/template/${id(req)}`),
-);
-templateRouter.get("/:externalId/playbook", auth, (req, res) =>
-  relayToNode(req, res, `/template/${id(req)}/playbook`),
-);
-templateRouter.put("/:externalId/playbook", auth, (req, res) =>
-  relayToNode(req, res, `/template/${id(req)}/playbook`),
-);
-templateRouter.post("/:externalId/generate", auth, handleTemplateGenerate);

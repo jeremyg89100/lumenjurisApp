@@ -26,8 +26,9 @@ import ReactMarkdown from "react-markdown";
 import { instructClause, instructContract, verifyConvention } from "./clauseAi";
 import { contractApi } from "../../contratheque/api";
 import { negotiationApi } from "../../negotiation/api";
-import { ShareContractPanel } from "../../negotiation/ShareContractPanel";
+import { ShareContractPanel, guessSide, SIDE_CYCLE, type ShareMode } from "../../negotiation/ShareContractPanel";
 import { PipelineStepBar } from "../../negotiation/PipelineStepBar";
+import type { FieldSide } from "../../negotiation/types";
 
 const isEmptyClause = (c: string) => c.trim() === "Sans objet.";
 
@@ -361,9 +362,63 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
   const [ccFinderMsg, setCcFinderMsg] = useState<string | null>(null);
   const [negoLoading, setNegoLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  // Partage à l'autre partie (négociation ou complétion guidée)
+  // Partage à l'autre partie (négociation ou complétion guidée) — panneau
+  // latéral intégré : on reste sur le contrat, pas de pop-up.
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareMode, setShareMode] = useState<ShareMode>("choice");
+  const [shareSides, setShareSides] = useState<Record<string, FieldSide>>({});
   const [sharedNego, setSharedNego] = useState<{ id: string; mode: "NEGOTIATION" | "COMPLETION" } | null>(null);
+
+  /** Ouvre le panneau de partage en (ré)initialisant l'assignation heuristique
+   *  d'après les valeurs actuellement saisies dans le document. */
+  const openShare = () => {
+    const map: Record<string, FieldSide> = {};
+    for (const v of model.variables) {
+      map[v.id] = shareSides[v.id] ?? guessSide({ id: v.id, label: v.label, value: values[v.id] ?? "" });
+    }
+    setShareSides(map);
+    setShareMode("choice");
+    setShareOpen(true);
+  };
+  const shareSideOf = (id: string): FieldSide => shareSides[id] ?? "COUNTERPARTY";
+
+  // Mode « assignation » : les champs du document sont colorés par partie et un
+  // clic change l'assignation (au lieu d'éditer la valeur).
+  const assignMode = shareOpen && shareMode === "completion";
+
+  // Dépose la couleur d'assignation sur chaque champ du document via un
+  // attribut data-share-side (stylé par les variantes arbitraires ci-dessous).
+  useEffect(() => {
+    const root = editor?.view.dom;
+    if (!root) return;
+    const inputs = root.querySelectorAll<HTMLInputElement>("input[data-var-name]");
+    inputs.forEach((el) => {
+      if (assignMode) el.setAttribute("data-share-side", shareSideOf(el.dataset.varName ?? ""));
+      else el.removeAttribute("data-share-side");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignMode, shareSides, editor, tick]);
+
+  /** En mode assignation, un clic sur un champ du contrat fait tourner
+   *  l'assignation (Moi → L'autre partie → Un tiers) sans ouvrir la saisie. */
+  const onAssignMouseDown = (e: React.MouseEvent) => {
+    const el = (e.target as HTMLElement).closest?.("input[data-var-name]") as HTMLInputElement | null;
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const id = el.dataset.varName ?? "";
+    setShareSides((m) => {
+      const cur = m[id] ?? "COUNTERPARTY";
+      const next = SIDE_CYCLE[(SIDE_CYCLE.indexOf(cur) + 1) % SIDE_CYCLE.length];
+      return { ...m, [id]: next };
+    });
+  };
+  // Accès direct à la barre « Modifier avec l'IA » depuis la barre d'outils.
+  const globalAiInputRef = useRef<HTMLInputElement>(null);
+  const focusGlobalAi = () => {
+    globalAiInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    globalAiInputRef.current?.focus({ preventScroll: true });
+  };
 
   // ── Modification globale par l'IA (barre sticky sous le contrat) ─────────
   const [globalAi, setGlobalAi] = useState<{
@@ -574,7 +629,7 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
   );
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className={`mx-auto ${shareOpen ? "max-w-7xl" : "max-w-6xl"}`}>
       {/* Fil d'ariane cliquable (sans flèche) déposé dans le header de l'app. */}
       {headerSlot && createPortal(
         <nav className="flex min-w-0 items-center gap-1.5 text-sm">
@@ -596,19 +651,44 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
             shared: Boolean(sharedNego),
             sharedMode: sharedNego?.mode,
           }}
-          onShare={() => setShareOpen(true)}
+          onShare={openShare}
           onSign={goSignature}
           onFollow={() => sharedNego && navigate(`/negociation/${sharedNego.id}`)}
         />
       </div>
 
-      {/* Corps : panneau latéral + éditeur */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      {/* Corps : panneau latéral + éditeur. En mode partage, la colonne
+          s'élargit pour accueillir le panneau (on reste sur le contrat). */}
+      <div className={`grid grid-cols-1 items-start gap-6 ${shareOpen ? "lg:grid-cols-[19rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_minmax(0,1fr)]"}`}>
+        {/* Voile gris très léger sur le contenu pendant le partage : borné sous
+            le header (top-16) et sous le menu latéral (z-30 > 25), au-dessus de
+            la barre d'outils du document (z-20) pour un grisé uniforme, sans
+            bande blanche. Le contenu reste cliquable (pointer-events-none). */}
+        {shareOpen && <div aria-hidden className="fixed inset-x-0 top-16 bottom-0 z-[25] bg-ink/[0.03] pointer-events-none" />}
         {/* Colonne gauche — alignée en haut (self-start) et fixée au scroll (sticky).
             top-[4.5rem] : sous le header de l'app (h-14 = 56px) avec un petit écart
             de 16px, à la même hauteur que la barre de fonctions sticky de l'éditeur. */}
-        <aside className="space-y-4 self-start lg:sticky lg:top-[4.5rem]">
-          <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+        {/* max-h + overflow interne : un panneau plus haut que l'écran ne peut
+            pas « suivre » le défilement — on le borne pour que le sticky opère. */}
+        <aside className={`space-y-4 self-start lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1 ${shareOpen ? "relative z-30" : ""}`}>
+          {/* En mode partage, le panneau remplace la liste des champs : on
+              assigne les champs directement dans le contrat, sans pop-up. */}
+          {shareOpen && (
+            <ShareContractPanel
+              onClose={() => setShareOpen(false)}
+              title={model.label || fileBase}
+              variables={model.variables.map((v) => ({ id: v.id, label: v.label, value: values[v.id] ?? "" }))}
+              mode={shareMode}
+              onModeChange={setShareMode}
+              sideOf={shareSideOf}
+              onSideChange={(id, side) => setShareSides((m) => ({ ...m, [id]: side }))}
+              getMarkedText={getMarkedContractText}
+              getPlainText={getContractText}
+              createContract={saveToContratheque}
+              onShared={(r) => setSharedNego({ id: r.negotiationId, mode: r.mode })}
+            />
+          )}
+          <div className={`rounded-2xl border border-line bg-white p-4 shadow-card ${shareOpen ? "hidden" : ""}`}>
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-ink-subtle">
               Champs à compléter
             </p>
@@ -635,7 +715,7 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
           </div>
 
           {/* Pré-remplissage employeur (SIRET / nom) — seulement si le modèle a un employeur */}
-          {hasEmployer && (
+          {hasEmployer && !shareOpen && (
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <CompanySearchField onSelect={applyCompany} label="Pré-remplir l'employeur" hint="" />
             </div>
@@ -646,12 +726,10 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
         <div className="min-w-0 space-y-3">
           {/* Le contrat — entièrement éditable, avec sa barre de fonctions en en-tête */}
           <div className="rounded-2xl border border-line bg-white shadow-card">
-            {/* Barre de fonctions en haut du bloc éditeur — sticky : reste visible
-                sous le header de l'app (h-16 + écart de 16px) pendant le défilement,
-                pour ne pas remonter à chaque mise en forme. Le pseudo-élément before
-                couvre l'écart au-dessus de la barre (fond page) afin que le texte du
-                contrat ne transparaisse pas entre le header et la barre. */}
-            <div className="sticky top-[4.5rem] z-20 -mx-px -mt-px flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border border-line border-b-line-subtle bg-white px-4 py-2.5 before:absolute before:inset-x-0 before:-top-4 before:h-4 before:bg-white before:content-['']">
+            {/* Barre de fonctions en haut du bloc éditeur — sticky : vient se
+                coller directement sous le header de l'app (h-16) pendant le
+                défilement, sans écart ni bande de raccord. */}
+            <div className="sticky top-16 z-20 -mx-px -mt-px flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border border-line border-b-line-subtle bg-white px-4 py-2.5">
               {editor && (
                 <div className="flex shrink-0 items-center gap-1">
                   <button type="button" className={tbtn(editor.isActive("bold"))} onClick={() => editor.chain().focus().toggleBold().run()}><Bold className="h-4 w-4" /></button>
@@ -662,9 +740,14 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
               )}
 
               <div className="flex shrink-0 items-center gap-3">
-                <span className="hidden items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-muted sm:inline-flex">
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand" /> Brouillon enregistré
-                </span>
+                <button
+                  type="button"
+                  onClick={focusGlobalAi}
+                  title="Demander une modification du contrat en langage naturel"
+                  className="hidden items-center gap-1.5 rounded-full border border-brand/30 bg-brand-light/50 px-3 py-1.5 text-xs font-medium text-brand transition-colors hover:bg-brand-light sm:inline-flex"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Modifier avec l&apos;IA
+                </button>
                 <div className="relative">
                   <button
                     onClick={() => setGenOpen((o) => !o)}
@@ -676,7 +759,7 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
                     <>
                       <div className="fixed inset-0 z-30" onClick={() => setGenOpen(false)} />
                       <div className="absolute right-0 top-full z-40 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-white py-1 shadow-card-md">
-                        <MenuItem icon={Share2} label="Partager à l'autre partie" onClick={() => setShareOpen(true)} tone="brand" />
+                        <MenuItem icon={Share2} label="Partager à l'autre partie" onClick={openShare} tone="brand" />
                         <MenuItem icon={FileSignature} label="Envoyer en signature" onClick={goSignature} />
                         <MenuItem icon={MessagesSquare} label="Ouvrir la négociation" onClick={() => void goNegotiation()} />
                         <MenuItem icon={ShieldAlert} label="Réviser (risques)" onClick={goReview} />
@@ -698,7 +781,12 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
               ref={wrapRef}
               onMouseMove={onMouseMove}
               onMouseLeave={() => setHover(null)}
-              className="relative min-h-[60vh] px-10 pb-10 pt-6"
+              onMouseDownCapture={assignMode ? onAssignMouseDown : undefined}
+              className="relative min-h-[60vh] px-10 pb-10 pt-6
+                [&_input[data-share-side]]:cursor-pointer
+                [&_input[data-share-side=OWNER]]:!bg-sky-100 [&_input[data-share-side=OWNER]]:!text-sky-800 [&_input[data-share-side=OWNER]]:!ring-sky-300
+                [&_input[data-share-side=COUNTERPARTY]]:!bg-emerald-100 [&_input[data-share-side=COUNTERPARTY]]:!text-emerald-800 [&_input[data-share-side=COUNTERPARTY]]:!ring-emerald-300
+                [&_input[data-share-side=THIRD_PARTY]]:!bg-violet-100 [&_input[data-share-side=THIRD_PARTY]]:!text-violet-800 [&_input[data-share-side=THIRD_PARTY]]:!ring-violet-300"
             >
             <EditorContent
               editor={editor}
@@ -767,12 +855,14 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
             </div>
           </div>
 
-          {/* Barre sticky « Modifier avec l'IA » */}
+          {/* Barre sticky « Modifier avec l'IA » — liseré de marque pour être
+              repérée dès l'arrivée sur la page. */}
           <div className="sticky bottom-3 z-20">
-            <div className="rounded-2xl border border-line bg-white/95 p-2 shadow-card-md backdrop-blur">
+            <div className="rounded-2xl border border-brand/30 bg-white/95 p-2 shadow-card-md backdrop-blur">
               <div className="flex items-center gap-2">
                 <Sparkles className="ml-2 h-4 w-4 shrink-0 text-brand" />
                 <input
+                  ref={globalAiInputRef}
                   value={globalAi.instruction}
                   onChange={(e) => setGlobalAi((g) => ({ ...g, instruction: e.target.value, applied: false }))}
                   onKeyDown={(e) => { if (e.key === "Enter") void runGlobalAi(); }}
@@ -856,17 +946,6 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
         </div>
       )}
 
-      {/* Partage à l'autre partie : complétion guidée ou négociation */}
-      <ShareContractPanel
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        title={model.label || fileBase}
-        variables={model.variables.map((v) => ({ id: v.id, label: v.label, value: values[v.id] ?? "" }))}
-        getMarkedText={getMarkedContractText}
-        getPlainText={getContractText}
-        createContract={saveToContratheque}
-        onShared={(r) => setSharedNego({ id: r.negotiationId, mode: r.mode })}
-      />
     </div>
   );
 }
