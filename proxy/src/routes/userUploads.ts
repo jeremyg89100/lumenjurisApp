@@ -14,23 +14,23 @@ userUploadsRouter.post("/extract-document-text", auth, (req, res) => {
 );
 
 
-userUploadsRouter.get("/api/user-uploads", auth, (req, res) => {
-    relayToNode(req, res, "/user-uploads/upload");
+userUploadsRouter.get("/", auth, (req, res) => {
+    relayToNode(req, res, "/user-uploads");
 });
 
-userUploadsRouter.post("/api/user-uploads/upload", auth, (req, res) => {
+userUploadsRouter.post("/upload", auth, (req, res) => {
     relayToNode(req, res, "/user-uploads/upload");
 
 });
 
 
-userUploadsRouter.put("/api/user-uploads/:filename", auth, (req, res) => {
+userUploadsRouter.put("/:filename", auth, (req, res) => {
     const filename = encodeURIComponent(req.params.filename as string);
     relayToNode(req, res, `/user-uploads/${filename}`);
 });
 
 
-userUploadsRouter.delete("/api/user-uploads/:filename", auth, (req, res) => {
+userUploadsRouter.delete("/:filename", auth, (req, res) => {
     const filename = encodeURIComponent(req.params.filename as string);
     relayToNode(req, res, `/user-uploads/${filename}`);
 });
@@ -38,7 +38,7 @@ userUploadsRouter.delete("/api/user-uploads/:filename", auth, (req, res) => {
 
 
 //handleUserUploadsAsset
-userUploadsRouter.get("/api/user-uploads/assets/:filename", auth, async(req, res) => {
+userUploadsRouter.get("/assets/:filename", auth, async(req, res) => {
     try {
         if (!res.locals.userId) {
             res.status(401).json({ success: false, message: "Non autorisé" });

@@ -11,15 +11,22 @@ import { JurisprudenceCase } from "../utils/aiSummarizer.js";
 export const legalTextRouter: Router = Router()
 
 
+
+
+legalTextRouter.post("/jurisprudence", auth, (req, res) => {
+    relayJsonToPython(req, res, "/jurisprudence");
+});
+
+
+
+/*
+
+ROUTE MORTE DESACTIVATION AVANT ARCHIVAGE
+
 // JSON routes — body déjà parsé par express.json
 legalTextRouter.post("/legifrance-search",  auth, (req, res) => {
   relayJsonToPython(req, res, "/legifrance-search");
 })
-
-
-legalTextRouter.post("/jurisprudence", auth, (req, res) => {
-  relayJsonToPython(req, res, "/jurisprudence");
-});
 
 
 
@@ -90,3 +97,6 @@ legalTextRouter.post("/summarize-case", auth, async(req, res) => {
         res.status(500).json({ success: false, message });
     }
 });
+
+
+*/

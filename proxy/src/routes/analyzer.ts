@@ -20,7 +20,7 @@ export const analyzerRouter: Router = Router()
 
 
 
-analyzerRouter.post("/api/analyzer/analyze-clause", auth, (req, res) => {
+analyzerRouter.post("/analyze-clause", auth, (req, res) => {
     relayJsonToPython(req, res, "/analyze-clause", withTracking("analyze_clause", logOpenAiTokens))
 });
 
@@ -59,7 +59,7 @@ analyzerRouter.post("/market-analysis", auth, async (req, res) => {
 
 
 
-analyzerRouter.post("/api/analyzer/recommend-clause", auth, async (req, res) => {
+analyzerRouter.post("/recommend-clause", auth, async (req, res) => {
     const { clause, context, model } = req.body as {
         clause?: unknown;
         context?: unknown;

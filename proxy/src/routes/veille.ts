@@ -15,6 +15,6 @@ veilleRouter.get("/debug", auth, (req, res) => {
   relayToNode(req, res, "/veille/debug");
 });
 
-veilleRouter.post("classify-veille", auth, (req, res) => {
+veilleRouter.post("/classify-veille", auth, (req, res) => {
   relayJsonToPython(req, res, "/classify-veille");
 });

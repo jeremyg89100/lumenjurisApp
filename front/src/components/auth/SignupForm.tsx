@@ -138,7 +138,7 @@ const SignupForm = ({
     if (siren && siren.trim().replace(/\D/g, "").length === 9) {
       try {
         const sirenNormalized = siren.trim().replace(/\D/g, "");
-        const res = await fetchProxy(`/api/insee/${encodeURIComponent(sirenNormalized)}`, {
+        const res = await fetchProxy(`/api/enterprise/insee/${encodeURIComponent(sirenNormalized)}`, {
           credentials: "include",
         });
         const payload = await res.json().catch(() => null);

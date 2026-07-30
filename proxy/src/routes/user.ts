@@ -6,16 +6,16 @@ export const userRouter: Router = Router()
 const BACKNODE_URL = process.env.BACKNODE_URL
 
 // Routes publiques (pas d'auth requise)
-userRouter.post("/api/user/signup", (req, res) => {
+userRouter.post("/signup", (req, res) => {
   relayToNode(req, res, "/user/create");
 });
 
 
-userRouter.post("/api/user/auth/forgotpassword", (req, res) => {
+userRouter.post("/auth/forgotpassword", (req, res) => {
   relayToNode(req, res, "/user/forgotpassword");
 });
 
-userRouter.post("/api/user/resetpassword", (req, res) => {
+userRouter.post("/resetpassword", (req, res) => {
   relayToNode(req, res, "/user/updatepassword");
 
 });

@@ -3,12 +3,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
-import { proxyAuthMiddleware } from "./src/middleware/authMiddleware.js";
-
-
 import { PORT, BACKEND_URL, BACKNODE_URL } from "./src/config.js";
-import { relayStreamToPython, relayJsonToPython, relayToNode } from "./src/relay.js";
-
 
 
 import { llmRouter } from "./src/routes/llm.js";
@@ -17,7 +12,7 @@ import { signatureRouter } from "./src/routes/signature.js";
 import { clauseRouter } from "./src/routes/clause.js";
 import { templateRouter } from "./src/routes/template.js";
 import { contractRouter } from "./src/routes/contract.js";
-import { negociationRouter } from "./src/routes/negociation.js";
+import { negotiationRouter } from "./src/routes/negociation.js";
 import { legalWatchRouter } from "./src/routes/legalWatch.js";
 import { feedbackRouter } from "./src/routes/feedback.js";
 import { userRouter } from "./src/routes/user.js";
@@ -31,6 +26,9 @@ import { veilleRouter } from "./src/routes/veille.js";
 import { openaiRouter } from "./src/routes/callopenai.js";
 import { legalTextRouter } from "./src/routes/legalText.js";
 import { aiRouter } from "./src/routes/ai.js";
+import { adminRouter } from "./src/routes/admin.js";
+
+
 const app = express();
 app.set("etag", false);
 
@@ -57,23 +55,22 @@ app.use("/api/billing", billingRouter);
 app.use("/api/signature-envelope", signatureRouter);
 app.use("/api/clause", clauseRouter);
 app.use("/api/template", templateRouter);
-app.use("/api/contract", contractRouter); addinRouter
-app.use("/api/negociation", negociationRouter)
-app.use("/api/legal-watch", legalWatchRouter)
-app.use("/api/feedback", feedbackRouter)
-app.use("/api/user", userRouter)
-app.use("/api/contract-history", contractHistoryRouter)
-app.use("/api/enterprise", enterpriseRouter)
-app.use("/api/user-uploads", userUploadsRouter)
-app.use("/api/addin", addinRouter)
-app.use("/api/analyzer", analyzerRouter)
-app.use("/api/chat-history", chatHistoryRouter)
-app.use("/api/veille", veilleRouter)
-app.use("/api/openai", openaiRouter)
-app.use("/api/legal-text", legalTextRouter)
-app.use("/api/ai", aiRouter)
-
-
+app.use("/api/contract", contractRouter);
+app.use("/api/negotiation", negotiationRouter);
+app.use("/api/legal-watch", legalWatchRouter);
+app.use("/api/feedback", feedbackRouter);
+app.use("/api/user", userRouter);
+app.use("/api/contract-history", contractHistoryRouter);
+app.use("/api/enterprise", enterpriseRouter);
+app.use("/api/user-uploads", userUploadsRouter);
+app.use("/api/addin", addinRouter);
+app.use("/api/analyzer", analyzerRouter);
+app.use("/api/chat-history", chatHistoryRouter);;
+app.use("/api/veille", veilleRouter);
+app.use("/api/openai", openaiRouter);
+app.use("/api/legal-text", legalTextRouter);
+app.use("/api/ai", aiRouter);
+app.use("/api/admin", adminRouter)
 
 
 
