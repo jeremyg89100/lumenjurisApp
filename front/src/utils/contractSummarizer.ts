@@ -33,6 +33,13 @@ export interface ContractSummuryList {
   };
 }
 
+export type ClauseItem = {
+  type?: string;
+  presente?: boolean,
+  resume? : string | null;
+  [key: string]: any;
+}
+
 export async function summarizeContract(
   content: string, fileName: string, selectedLlm: string = "gpt-4o-mini"
 ): Promise<ContractSummary> {
@@ -45,6 +52,21 @@ export async function summarizeContract(
   if (!res.ok) throw new Error(`Erreur ${res.status}`);
   const data = await res.json() as { success: boolean; data: ContractSummary };
   return data.data;
+}
+
+export async function deleteSummarizeContract(idSummary: number) {
+  const response = await fetchProxy(`/api/delete-summarize-contract/delete?idSummary=${idSummary}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  if (!response.ok ) throw new Error(`Erreur ${response.status}`);
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.message || "Echec de la suppression");
+  }
 }
 
 

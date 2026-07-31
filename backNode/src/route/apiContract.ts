@@ -200,6 +200,30 @@ router.get("/list-contract-summary", authMiddleware, async (req: Request, res: R
     }
 });
 
+router.delete("/delete", authMiddleware, async (req: Request, res: Response) => {
+    const userId = Number(req.idUser);
+    const idSummary = Number(req.query.idSummary);
+
+    if (!userId || isNaN(userId)) {
+        return res.status(401).json({success: false, message: "Utilisateur non identifié."});
+    }
+
+    if (!idSummary || isNaN(idSummary)) {
+        return res.status(401).json({success: false, message: "Identifiant du contrat introuvable."});
+    }
+
+    try {
+        const deleteContract = await svc.deleteContractSummarize(userId, idSummary );
+
+        if (!deleteContract.success) {
+            return res.status(404).json({success: false, message: "Contrat introuvable"});
+        }
+        return res.json({success:true, message: "Le contrat a bien été supprimé."});
+    } catch (error) {
+        return res.status(500).json({success: false, message: "Le contrat n'a pas pu être supprimé"});
+    }
+})
+
 router.get("/contract-summary-info", authMiddleware, async (req: Request, res: Response) => {
     const userId = Number(req.idUser);
     const idSummary = Number(req.query.idSummary);

@@ -6,8 +6,9 @@ import { contractApi } from "./api";
 import { STATUS_LABEL } from "./types";
 import { ViewTabs } from "./ViewTabs";
 import type { ContrathequeTab } from "./ViewTabs";
-import type { ContractStats, ContractListItem, ListFilters, ContractStatus } from "./types";
+import type { ContractStats, ContractListItem, ListFilters, ContractStatus, FolderDTO, TagDTO } from "./types";
 import { ConfirmationModal } from "../../ui/ConfirmationModal";
+import { Sidebar } from "./Sidebar";
 
 interface Props {
   onOpen: (id: string) => void;
@@ -31,13 +32,23 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
   const [contractTitle, setContractTitle] = useState<string | null> (null);
   const [validateModalOpen, setValidateModalOpen] = useState(false);
 
+  const [folders, setFolders] = useState<FolderDTO[]>([]);
+  const [tags, setTags] = useState<TagDTO[]>([]);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+
   const [filters, setFilters] = useState<ListFilters>({ sortBy: "endDate", sortDir: "asc", page: 1, pageSize: PAGE_SIZE });
   const [search, setSearch] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [s, list] = await Promise.all([contractApi.stats(), contractApi.list(filters)]);
+      const currentFilters = {
+        ...filters, 
+        folderId: activeFolder ?? undefined,
+        tagIds: activeTags.length > 0 ? activeTags : undefined,
+      }
+      const [s, list] = await Promise.all([contractApi.stats(), contractApi.list(currentFilters)]);
       setStats(s); setItems(list.items); setTotal(list.total);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
@@ -47,6 +58,36 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
   }, [filters]);
 
   useEffect(() => { void loadData(); }, [loadData, refreshKey]);
+
+  const handleFolderSelect = (id: string | null) => {
+    setActiveFolder(id);
+    patch({ page: 1});
+  }
+
+  const handleTagToggle = (tagId: string) => {
+  setActiveTags((prev) =>
+    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+  );
+  patch({ page: 1 });
+};
+
+  const handleCreateFolder = async (name: string, parentId: string | null) => {
+    try {
+      const newF: FolderDTO = { id: Date.now().toString(), name, parentExternalId: parentId };
+      setFolders((prev) => [...prev, newF]);
+    } catch (e) {
+      setError("Impossible de créer le dossier");
+    }
+  };
+
+  const handleCreateTag = async (label: string, color: string) => {
+    try {
+      const newT: TagDTO = { id: Date.now().toString(), label, color };
+      setTags((prev) => [...prev, newT]);
+    } catch (e) {
+      setError("Impossible de créer le tag");
+    }
+  };
 
   function patch(p: Partial<ListFilters>) { setFilters((f) => ({ ...f, ...p, page: p.page ?? 1 })); }
 
@@ -116,6 +157,21 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
+
+      <div className="flex items-start gap-6">
+        
+        {/* Panneau Latéral Gauche */}
+        <Sidebar
+          folders={folders}
+          tags={tags}
+          activeFolder={activeFolder}
+          activeTags={activeTags}
+          onFolderSelect={handleFolderSelect}
+          onTagToggle={handleTagToggle}
+          onCreateFolder={handleCreateFolder}
+          onCreateTag={handleCreateTag}
+        />
+      
 
       <div className="space-y-4">
           {/* Barre recherche + filtres */}
@@ -189,6 +245,7 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
               </div>
             </div>
           )}
+          </div>
       </div>
       <ConfirmationModal
         open={validateModalOpen}

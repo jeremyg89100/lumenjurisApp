@@ -72,6 +72,7 @@ app.use("/api/legal-text", legalTextRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/admin", adminRouter)
 app.use("/api/summarize-contract", summarizeContractRouter)
+app.use("/api/delete-summarize-contract", summarizeContractRouter);
 
 
 
