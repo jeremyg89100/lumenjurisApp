@@ -222,7 +222,7 @@ export function ComprendreContrat() {
         
         {isLoading && <p className="text-xs text-gray-500">Chargement de la liste...</p>}
 
-        <div className="flex flex-col gap-3">
+        <div className="grid md:grid-cols-2 gap-4">
           {contractsList?.map((contract: any) => (
             <div
               key={contract.idSummary}
@@ -309,105 +309,110 @@ export function ComprendreContrat() {
           )}
 
           {Array.isArray(activeSummary.points_attention) && activeSummary.points_attention.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <h4 className="font-semibold text-amber-800 mb-2">⚠️ Points d'attention</h4>
-              <ul className="list-disc list-inside space-y-1 text-sm text-amber-900">
-                {activeSummary.points_attention.map((point, index) => (
-                  <li key={index}>{typeof point === "string" ? point : JSON.stringify(point)}</li>
-                ))}
-              </ul>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h4 className="font-semibold text-amber-800 mb-2">⚠️ Points d'attention</h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-amber-900">
+                  {activeSummary.points_attention.map((point, index) => (
+                    <li key={index}>{typeof point === "string" ? point : JSON.stringify(point)}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
 
           {activeSummary.obligations && Object.keys(activeSummary.obligations).length > 0 && (
-            <div>
+            <div className="border border-color-grey p-4 rounded-lg">
               <h4 className="font-semibold text-gray-700 mb-2">📋 Obligations principales</h4>
-              <div className="space-y-2 text-sm text-gray-600">
-                {typeof activeSummary.obligations === "object" && !Array.isArray(activeSummary.obligations) ? (
-                  Object.entries(activeSummary.obligations).map(([key, val], index) => (
-                    <div key={index} className="rounded-md bg-gray-50 p-3">
-                      <span className="block font-medium text-gray-800 capitalize whitespace-pre-line">{key.replace(/_/g, " ")} : </span>
-                      {Array.isArray(val) ? (
-                        <ul className="list-disc list-inside mt-1 space-y-0.5">
-                          {val.map((item, i) => (
-                            <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>
-                          ))}
-                        </ul>
-                      ) : typeof val === "object" && val !== null ? (
-                        <div className="text-gray-700 whitespace-pre-line space-y-1 mt-1">
-                          {Object.entries(val)
-                            .filter(([_, v]) => {
-                              if (v === null || v === undefined) return false;
-                              if (typeof v === "string") return v.trim().length > 0;
-                              if (Array.isArray(v)) return v.length > 0;
-                              return true;
-                            })
-                            .map(([k, v], i) => {
-                              const formattedVal = Array.isArray(v) ? v.join(" ") : String(v);
-                              return (
-                                <div key={i} className="pl-2">
-                                  <span className="font-semibold text-gray-800 uppercase">
-                                    {i + 1}. {k.replace(/_/g, " ")} :
-                                  </span>{" "}
-                                  <span>{formattedVal}</span>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      ) : (
-                        <span>{String(val ?? "Non spécifié")}</span>
-                      )}
+
+              {/* GRILLE DÉDIÉE UNIQUEMENT AUX OBLIGATIONS (Preneur, Bailleur, etc.) */}
+              {typeof activeSummary.obligations === "object" && !Array.isArray(activeSummary.obligations) ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch text-sm text-gray-600">
+                  {Object.entries(activeSummary.obligations).map(([key, val], index) => (
+                    <div key={index} className="rounded-md bg-gray-50 p-3 border border-color-grey flex flex-col justify-between">
+                      <div>
+                        <span className="block font-medium text-gray-800 capitalize whitespace-pre-line mb-1">
+                          {key.replace(/_/g, " ")} :
+                        </span>
+                        {Array.isArray(val) ? (
+                          <ul className="list-disc list-inside space-y-0.5">
+                            {val.map((item, i) => (
+                              <li key={i}>{typeof item === "string" ? item : JSON.stringify(item)}</li>
+                            ))}
+                          </ul>
+                        ) : typeof val === "object" && val !== null ? (
+                          <div className="text-gray-700 whitespace-pre-line space-y-1">
+                            {Object.entries(val)
+                              .filter(([_, v]) => {
+                                if (v === null || v === undefined) return false;
+                                if (typeof v === "string") return v.trim().length > 0;
+                                if (Array.isArray(v)) return v.length > 0;
+                                return true;
+                              })
+                              .map(([k, v], i) => {
+                                const formattedVal = Array.isArray(v) ? v.join(" ") : String(v);
+                                return (
+                                  <div key={i} className="pl-2">
+                                    <span className="font-semibold text-gray-800 uppercase">
+                                      {i + 1}. {k.replace(/_/g, " ")} :
+                                    </span>{" "}
+                                    <span>{formattedVal}</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          <span>{String(val ?? "Non spécifié")}</span>
+                        )}
+                      </div>
                     </div>
-                  ))
-                ) : (
-                  <p>{String(activeSummary.obligations)}</p>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">{String(activeSummary.obligations)}</p>
+              )}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.isArray(activeSummary.delais_importants) && activeSummary.delais_importants.length > 0 && (
-              <div className="rounded-lg border border-gray-200 p-4">
-                <h4 className="font-semibold text-gray-800 mb-2">⏳ Délais importants</h4>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {activeSummary.delais_importants.map((delai, index) => (
-                    <li key={index}>{typeof delai === "string" ? delai : JSON.stringify(delai)}</li>
-                  ))}
-                </ul>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                {Array.isArray(activeSummary.delais_importants) && activeSummary.delais_importants.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <h4 className="font-semibold text-gray-800 mb-2">⏳ Délais importants</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                      {activeSummary.delais_importants.map((delai, index) => (
+                        <li key={index}>{typeof delai === "string" ? delai : JSON.stringify(delai)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {Array.isArray(activeSummary.clauses_particulieres) && activeSummary.clauses_particulieres.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <h4 className="font-semibold text-gray-800 mb-2">⚖️ Clauses particulières</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
+                      {activeSummary.clauses_particulieres.map((clauseItem: ClauseItem | string, index: number) => {
+                        if (typeof clauseItem === "string") {
+                          return <li key={index}>{clauseItem}</li>;
+                        }
+                        if (typeof clauseItem === "object" && clauseItem !== null) {
+                          const entries = Object.entries(clauseItem);
+                          const clauseEntry = entries.find(([key, val]) => key !== "resume" && val === true);
+                          const clauseName = clauseItem.type || (clauseEntry ? clauseEntry[0] : "Clause");
+                          const resumeText = clauseItem.resume;
+
+                          return (
+                            <li key={index}>
+                              <strong className="capitalize">{clauseName.replace(/_/g, " ")}</strong>
+                              {resumeText ? ` : ${resumeText}` : ""}
+                            </li>
+                          );
+                        }
+                        return null;
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
-            )}
-
-            {Array.isArray(activeSummary.clauses_particulieres) && activeSummary.clauses_particulieres.length > 0 && (
-              <div className="rounded-lg border border-gray-200 p-4">
-                <h4 className="font-semibold text-gray-800 mb-2">⚖️ Clauses particulières</h4>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {activeSummary.clauses_particulieres.map((clauseItem: ClauseItem | string, index: number) => {
-                    if (typeof clauseItem === "string") {
-                      return <li key={index}>{clauseItem}</li>;
-                    }
-
-                    if (typeof clauseItem === "object" && clauseItem !== null) {
-                      const entries = Object.entries(clauseItem);
-                      const clauseEntry = entries.find(([key, val]) => key !== "resume" && val === true);
-                      
-                      const clauseName = clauseItem.type || (clauseEntry ? clauseEntry[0] : "Clause");
-                      const resumeText = clauseItem.resume;
-
-                      return (
-                        <li key={index}>
-                          <strong className="capitalize">{clauseName.replace(/_/g, " ")}</strong>
-                          {resumeText ? ` : ${resumeText}` : ""}
-                        </li>
-                      );
-                    }
-
-                    return null;
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
 
           {(hasValidContent(activeSummary.conditions_financieres) || hasValidContent(activeSummary.resiliation)) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
