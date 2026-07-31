@@ -802,6 +802,29 @@ export class ContractService {
         }
     }
 
+    async deleteContractSummarize(userId: number, idSummary: number) {
+        try {
+            const contractSummary = await prisma.contractSummary.deleteMany({
+                where: {
+                    idSummary: idSummary,
+                    userId: userId
+                },
+            });
+
+            if (contractSummary.count === 0) {
+                return {
+                    success: false,
+                    message: "Contract introuvable ou vous n'avez pas les droits pour le supprimer",
+                };
+            }
+
+            return { success: true, message: "Le contrat a bien été supprimé avec succès."};
+        } catch (err) {
+            console.error("Erreur suppression du contrat : ", err);
+            throw new Error("Impossible de supprimer le résumé du contrat.");
+        }
+    }
+
     async getContentContractSummarize(userId: number, idSummary: number) {
         try {
             const contractSummary = await prisma.contractSummary.findFirst({

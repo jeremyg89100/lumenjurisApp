@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { UploadZone } from "../ContractAnalysis/UploadZone";
 import { useContractAnalysis } from "../../hooks/useContractAnalysis";
-import { ContractSummary, ContractSummuryList, summarizeContract } from "../../utils/contractSummarizer";
+import { ContractSummary, ContractSummuryList, ClauseItem, summarizeContract, deleteSummarizeContract } from "../../utils/contractSummarizer";
 import { fetchProxy } from "../../utils/fetchProxy";
+import { Button } from "@base-ui/react";
+import { AlertBanner } from "../common/AlertBanner";
+import { ConfirmationModal } from "../ui/ConfirmationModal";
 
 const formatParty = (partie: any) => {
   if (typeof partie === "string") return partie;
@@ -27,26 +30,47 @@ const hasValidContent = (obj: any) => {
 };
 
 export function ComprendreContrat() {
-  const { handleFileUpload, handleTextSubmit, isProcessing, processingPhase } = useContractAnalysis();
+  const { handleFileUpload, handleTextSubmit, isProcessing: isHookProcessing, processingPhase: hookPhase } = useContractAnalysis();
   const [summary, setSummary] = useState<ContractSummary | null>(null);
   const [selectedLlm, setSelectedLlm] = useState<string>("gpt-4o-mini");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractSummary | null>(null);
   const [contractsList, setContractsList] = useState<ContractSummuryList[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDelete, setIsDelete] = useState(false);
+  const [isDeleteError, setIsDeleteError] = useState(false);
+  const [validateModalOpen, setValidateModalOpen] = useState(false);
+  const [contractToDelete, setContractToDelete] = useState<number | null>(null);
+
+  const [isLoadingContract, setIsLoadingContract] = useState(false);
+  const [localProcessingPhase, setLocalProcessingPhase] = useState("");
+
+  const isCurrentlyProcessing = isHookProcessing || isLoadingContract;
+  const currentPhase = hookPhase || localProcessingPhase;
 
   const activeSummary = selectedContract || summary;
 
   const handleFile = async (file: File) => {
-    const extracted = await handleFileUpload(file);
-    if (!extracted?.content) return;
+    try {
+      setIsLoadingContract(true);
+      setLocalProcessingPhase("Extraction du fichier...");
 
-    const resSummary = await summarizeContract(extracted.content, extracted.fileName, selectedLlm);
-    setSummary(resSummary);
-    setSelectedContract(null);
-    setIsModalOpen(false);
+      const extracted = await handleFileUpload(file);
+      if (!extracted?.content) return;
 
-    await handleListContract();
+      setLocalProcessingPhase("Génération du résumé par l'IA...");
+      const resSummary = await summarizeContract(extracted.content, extracted.fileName, selectedLlm);
+
+      setSummary(resSummary);
+      setSelectedContract(null);
+      setIsModalOpen(false);
+      await handleListContract();
+    } catch (error) {
+      console.error("Erreur lors de l'analyse du fichier : ", error);
+    } finally {
+      setIsLoadingContract(false);
+      setLocalProcessingPhase("");
+    }
   };
 
   const handleListContract = async () => {
@@ -83,19 +107,61 @@ export function ComprendreContrat() {
     }
   };
 
+  const openDeleteModal = (idSummary: number, e:React.MouseEvent) => {
+    e.stopPropagation();
+    setContractToDelete(idSummary);
+    setValidateModalOpen(true);
+  }
+
+  const handleDeleteContract = async () => {
+    if (!contractToDelete) return;
+
+    try {
+      setIsLoading(true);
+      setIsDelete(false);
+      await deleteSummarizeContract(contractToDelete);
+
+      if (selectedContract?.idSummary === contractToDelete) {
+        setSelectedContract(null);
+        setSummary(null);
+      }
+      setIsDelete(true);
+      await handleListContract();
+    } catch (error) {
+        setIsDeleteError(true);
+        console.error("Erreur lors de la suppression du contrat : ", error);
+    } finally {
+        setIsLoading(false);
+        setValidateModalOpen(false);
+        setContractToDelete(null);
+    }
+  }
+
+
+
   const textSubmit = async (text: string, fileName: string) => {
+    try {
+    setIsLoadingContract(true);
+    setLocalProcessingPhase("Analyse du texte...");
+
     const extracted = await handleTextSubmit(text, fileName);
     if (!extracted) return;
 
     const contentToSummarize = typeof extracted === "string" ? extracted : extracted.content;
     if (!contentToSummarize) return;
 
+    setLocalProcessingPhase("Génération du résumé par l'IA...");
     const resSummary = await summarizeContract(contentToSummarize, extracted.fileName, selectedLlm);
     setSummary(resSummary);
     setSelectedContract(null);
     setIsModalOpen(false);
-    setIsLoading(false)
     await handleListContract();
+    } catch (error) {
+      console.error("Erreur lors de l'analyse du texte : ", error);
+    } finally {
+      setIsLoadingContract(false);
+      setLocalProcessingPhase("");
+    }
   };
 
   useEffect(() => {
@@ -103,6 +169,8 @@ export function ComprendreContrat() {
   }, []);
 
   return (
+
+    
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
       <div className="flex flex-col items-center justify-center p-6 text-center border-b border-gray-100">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -115,12 +183,42 @@ export function ComprendreContrat() {
           onClick={() => setIsModalOpen(true)}
           className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-blue-700 transition-colors"
         >
-          Analysé un nouveau contrat
+          Analysez un nouveau contrat
         </button>
       </div>
 
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-gray-700">Vos contrats enregistrés :</h3>
+
+        {isDeleteError && (
+        <AlertBanner
+          title="Suppression impossible"
+          variant="error"
+          detail="Impossible de supprimer votre contrat."
+          duration={8000}
+          onClose={() => setIsDeleteError(false)}
+        />
+      )}
+
+      {isDelete && (
+        <AlertBanner
+          title="Succès de la suppression"
+          variant="success"
+          detail="Votre contrat a bien été supprimé."
+          duration={8000}
+          onClose={() => setIsDelete(false)}
+        />
+      )}
+
+      <ConfirmationModal
+        open={validateModalOpen}
+        title="Supprimer le contrat"
+        description={`Souhaitez-vous supprimer ce résumé de contrat ?`}
+        confirmLabel="Valider"
+        onConfirm={handleDeleteContract}
+        onCancel={() => { setValidateModalOpen(false); setContractToDelete(null) }}
+      />
+
         
         {isLoading && <p className="text-xs text-gray-500">Chargement de la liste...</p>}
 
@@ -135,11 +233,20 @@ export function ComprendreContrat() {
                   : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
-              <p className="font-medium text-sm text-gray-800 truncate">{contract.fileName}</p>
+              <div className="flex items-center justify-between gap-4">
+                <p className="font-medium text-sm text-gray-800 truncate">{contract.fileName}</p>
+                  <Button className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white
+                  transition-colors hover:bg-red-700 hover:text-white"
+                  onClick={(e) => openDeleteModal(contract.idSummary, e)}>
+                    Supprimer
+                  </Button>
+              </div>
               <p className="text-xs text-gray-500 mt-1">
                 {new Date(contract.createdAt).toLocaleDateString()}
               </p>
+              
             </div>
+            
           ))}
         </div>
       </div>
@@ -219,7 +326,7 @@ export function ComprendreContrat() {
                 {typeof activeSummary.obligations === "object" && !Array.isArray(activeSummary.obligations) ? (
                   Object.entries(activeSummary.obligations).map(([key, val], index) => (
                     <div key={index} className="rounded-md bg-gray-50 p-3">
-                      <span className="font-medium text-gray-800 capitalize">{key.replace(/_/g, " ")} : </span>
+                      <span className="block font-medium text-gray-800 capitalize whitespace-pre-line">{key.replace(/_/g, " ")} : </span>
                       {Array.isArray(val) ? (
                         <ul className="list-disc list-inside mt-1 space-y-0.5">
                           {val.map((item, i) => (
@@ -227,12 +334,26 @@ export function ComprendreContrat() {
                           ))}
                         </ul>
                       ) : typeof val === "object" && val !== null ? (
-                        <span className="text-gray-700">
+                        <div className="text-gray-700 whitespace-pre-line space-y-1 mt-1">
                           {Object.entries(val)
-                            .filter(([_, v]) => v !== null && v !== undefined)
-                            .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
-                            .join(", ") || "Aucune obligation spécifique"}
-                        </span>
+                            .filter(([_, v]) => {
+                              if (v === null || v === undefined) return false;
+                              if (typeof v === "string") return v.trim().length > 0;
+                              if (Array.isArray(v)) return v.length > 0;
+                              return true;
+                            })
+                            .map(([k, v], i) => {
+                              const formattedVal = Array.isArray(v) ? v.join(" ") : String(v);
+                              return (
+                                <div key={i} className="pl-2">
+                                  <span className="font-semibold text-gray-800 uppercase">
+                                    {i + 1}. {k.replace(/_/g, " ")} :
+                                  </span>{" "}
+                                  <span>{formattedVal}</span>
+                                </div>
+                              );
+                            })}
+                        </div>
                       ) : (
                         <span>{String(val ?? "Non spécifié")}</span>
                       )}
@@ -257,26 +378,26 @@ export function ComprendreContrat() {
               </div>
             )}
 
-            {/* {Array.isArray(activeSummary.clauses_particulieres) && activeSummary.clauses_particulieres.length > 0 && (
+            {Array.isArray(activeSummary.clauses_particulieres) && activeSummary.clauses_particulieres.length > 0 && (
               <div className="rounded-lg border border-gray-200 p-4">
                 <h4 className="font-semibold text-gray-800 mb-2">⚖️ Clauses particulières</h4>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-                  {activeSummary.clauses_particulieres.map((clauseItem, index) => {
+                  {activeSummary.clauses_particulieres.map((clauseItem: ClauseItem | string, index: number) => {
                     if (typeof clauseItem === "string") {
                       return <li key={index}>{clauseItem}</li>;
                     }
 
                     if (typeof clauseItem === "object" && clauseItem !== null) {
                       const entries = Object.entries(clauseItem);
-                      const clauseName = entries[0]?.[0] || "Clause";
-                      const textContent = entries.find(
-                        ([_, val]) => typeof val === "string" && val.trim() !== ""
-                      )?.[1];
+                      const clauseEntry = entries.find(([key, val]) => key !== "resume" && val === true);
+                      
+                      const clauseName = clauseItem.type || (clauseEntry ? clauseEntry[0] : "Clause");
+                      const resumeText = clauseItem.resume;
 
                       return (
                         <li key={index}>
                           <strong className="capitalize">{clauseName.replace(/_/g, " ")}</strong>
-                          {textContent ? ` : ${textContent}` : ""}
+                          {resumeText ? ` : ${resumeText}` : ""}
                         </li>
                       );
                     }
@@ -285,7 +406,7 @@ export function ComprendreContrat() {
                   })}
                 </ul>
               </div>
-            )} */}
+            )}
           </div>
 
           {(hasValidContent(activeSummary.conditions_financieres) || hasValidContent(activeSummary.resiliation)) && (
@@ -362,7 +483,7 @@ export function ComprendreContrat() {
           <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
             <button
               onClick={() => setIsModalOpen(false)}
-              disabled={isProcessing}
+              disabled={isCurrentlyProcessing}
               className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 disabled:opacity-50"
             >
               ✕
@@ -380,7 +501,7 @@ export function ComprendreContrat() {
                 id="llm-select"
                 value={selectedLlm}
                 onChange={(e) => setSelectedLlm(e.target.value)}
-                disabled={isProcessing}
+                disabled={isCurrentlyProcessing}
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50"
               >
                 <option value="gpt-4o-mini">GPT-4o Mini (Rapide & Économique)</option>
@@ -391,10 +512,10 @@ export function ComprendreContrat() {
 
             <UploadZone
               onFileSelect={handleFile}
-              disabled={isProcessing}
+              disabled={isCurrentlyProcessing}
               onTextSubmit={textSubmit}
-              isProcessing={isProcessing}
-              processingPhase={processingPhase}
+              isProcessing={isCurrentlyProcessing}
+              processingPhase={currentPhase}
               analyseCredit={9999}
             />
           </div>
