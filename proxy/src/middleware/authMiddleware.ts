@@ -25,6 +25,7 @@ export function proxyAuthMiddleware( req: Request, res: Response, next: NextFunc
   if (!token) {
     // Mode dev local : laisser passer sans token (POC complément Word).
     // En production, le comportement reste inchangé (401).
+    console.log("Token absent dans le authMiddleware du proxy")
     if (process.env.NODE_ENV !== "production") {
       next();
       return;
@@ -32,6 +33,8 @@ export function proxyAuthMiddleware( req: Request, res: Response, next: NextFunc
     res.status(401).json({ success: false, message: "Unauthorized" });
     return;
   }
+
+
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload;
     res.locals.userId = payload.userId;
@@ -45,15 +48,14 @@ export function proxyAuthMiddleware( req: Request, res: Response, next: NextFunc
     res.cookie("authLumenJuris", refreshed, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      // Même domaine que le cookie d'origine, sinon le refresh recrée un
-      // cookie sur le mauvais domaine et casse la session.
       domain: process.env.COOKIE_DOMAIN || undefined,
       path: "/",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     next();
-  } catch {
+  } catch(err){
+    console.log("Une erreur est survenue lors du authMiddleware du proxy, error : ", err)
     res
       .status(401)
       .json({ success: false, message: "Token invalide ou expiré" });

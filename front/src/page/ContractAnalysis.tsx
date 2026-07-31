@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useRef } from "react";
+﻿import { useState, useEffect,  useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { UploadZone } from "../components/ContractAnalysis/UploadZone";
@@ -6,7 +6,6 @@ import {
   DocumentViewer,
   DocumentViewerRef,
 } from "../components/ContractAnalysis/DocumentViewer";
-import { AddToContrathequeButton } from "../components/ContractAnalysis/AddToContrathequeButton";
 
 // ===> ACTION 3 : CORRIGER L'IMPORT ICI
 import { EnhancedClauseDetail } from "../components/ContractAnalysis/EnhancedClauseDetail/EnhancedClauseDetail";
@@ -34,27 +33,12 @@ import type {
   ContractAnalysis as ContractAnalysisType,
   ClauseRisk,
 } from "../types";
-import type {
-  AnalysisContext,
-  EnterpriseAnalysisContext,
-} from "../types/contextualAnalysis";
-import type {
-  ApiResponse,
-  ConventionCollectiveOption,
-  EnterpriseSettings,
-} from "../types/paramSettings";
+import type { AnalysisContext} from "../types/contextualAnalysis";
 import type { AnalysisProgress } from "../types/analysisProgress";
+
 import {
-  loadAnalysisFromCache,
-  saveAnalysisToCache,
-  clearAnalysisCache,
-} from "../utils/aiAnalyser/cachedAnalysis";
-import {
-  compareByUploadTimeDesc,
   createContractHistoryId,
-  createContractHistoryPreviewItem,
   createContractHistorySnapshot,
-  deleteContractHistoryEntry,
   loadContractHistoryIndex,
   loadContractHistorySnapshot,
   saveContractHistorySnapshot,
@@ -67,15 +51,12 @@ import type {
 } from "../utils/marketAnalysis";
 
 import { fetchProxy } from "../utils/fetchProxy";
-
 import { LoadingZoneAnalyzer } from "../components/common/LoadingZoneAnalyzer";
-
 import { ClausesSidebar } from "../components/ContractAnalysis/ClausesSidebar";
 import { isFeatureEnabled } from "../config/features";
+import { useEnterpriseContext } from "../hooks/Analyzer/useEnterpriseContext";
 
-type EnterpriseGetData = EnterpriseSettings & {
-  selectedIdcc?: ConventionCollectiveOption | null;
-};
+
 
 type TemporaryHistoryEntry = {
   id: string;
@@ -112,42 +93,6 @@ function createTemporaryHistorySnapshot(entry: TemporaryHistoryEntry) {
   });
 }
 
-function cleanEnterpriseContextValue(value?: string | null): string | null {
-  const cleanedValue = value?.trim();
-  return cleanedValue ? cleanedValue : null;
-}
-
-function getSelectedConventionCollective(
-  enterprise?: EnterpriseGetData | null,
-): ConventionCollectiveOption | null {
-  if (!enterprise) return null;
-
-  if (enterprise.selectedIdcc) {
-    return enterprise.selectedIdcc;
-  }
-
-  return (
-    enterprise.idccSelections.find(
-      (selection) => selection.key === enterprise.selectedIdccKey,
-    ) ?? null
-  );
-}
-
-function mapEnterpriseToAnalysisContext(
-  enterprise?: EnterpriseGetData | null,
-): EnterpriseAnalysisContext | undefined {
-  const selectedConvention = getSelectedConventionCollective(enterprise);
-  const enterpriseContext: EnterpriseAnalysisContext = {
-    collectiveAgreement: cleanEnterpriseContextValue(selectedConvention?.name),
-    companyLegalForm: cleanEnterpriseContextValue(enterprise?.statusJuridique),
-  };
-
-  return Object.values(enterpriseContext).some(Boolean)
-    ? enterpriseContext
-    : undefined;
-}
-
-
 
 
 
@@ -167,26 +112,26 @@ export default function ContractAnalysis() {
     new Set(),
   );
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false);
-  const [analyseCredit, setAnalyseCredit] = useState<number | null>(null);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const currentHistoryIdRef = useRef<string | null>(null);
   const [historyItems, setHistoryItems] = useState<ContractHistoryItem[]>([]);
   const sidebarCollapsed = false;
 
-  useEffect(() => {
-    loadContractHistoryIndex()
-      .then(setHistoryItems)
-      .catch(() => {});
-  }, []);
-  const [temporaryHistoryEntries, setTemporaryHistoryEntries] = useState<
-    Record<string, TemporaryHistoryEntry>
-  >({});
-  const temporaryHistoryEntriesRef = useRef<
-    Record<string, TemporaryHistoryEntry>
-  >({});
-  const [enterpriseContext, setEnterpriseContext] = useState<
-    EnterpriseAnalysisContext | undefined
-  >(undefined);
+
+  //REFACTOR
+  
+  const {enterpriseContext} = useEnterpriseContext()  //Clef isLoading accessible au besoin d'UX
+
+
+
+
+  //FIN DE REFACTOR
+
+
+  const [temporaryHistoryEntries, setTemporaryHistoryEntries] = useState< Record<string, TemporaryHistoryEntry>>({});
+  const temporaryHistoryEntriesRef = useRef< Record<string, TemporaryHistoryEntry>>({});
+
+  
   const documentPreparationRef = useRef<string | null>(null);
   const confirmedNavigationAtRef = useRef(0);
 
@@ -199,61 +144,10 @@ export default function ContractAnalysis() {
     temporaryHistoryEntriesRef.current = temporaryHistoryEntries;
   }, [temporaryHistoryEntries]);
 
-  useEffect(() => {
-    const abortController = new AbortController();
 
-    const loadEnterpriseContext = async () => {
-      try {
-        const response = await fetchProxy("/api/enterprise", {
-          credentials: "include",
-          signal: abortController.signal,
-        });
-        const payload = (await response
-          .json()
-          .catch(() => null)) as ApiResponse<EnterpriseGetData> | null;
 
-        if (!response.ok || !payload?.success) {
-          setEnterpriseContext(undefined);
-          return;
-        }
 
-        setEnterpriseContext(mapEnterpriseToAnalysisContext(payload.data));
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
 
-        console.error(
-          "Impossible de charger le contexte entreprise pour l'analyse.",
-          error,
-        );
-        setEnterpriseContext(undefined);
-      }
-    };
-
-    void loadEnterpriseContext();
-
-    return () => {
-      abortController.abort();
-    };
-  }, []);
-
-  useEffect(() => {
-    fetchProxy("/api/billing/subscription", {
-      method: "GET",
-      credentials: "include",
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.data?.credits) {
-          const { creditIncluded = 0, creditAdded = 0 } = data.data.credits;
-          setAnalyseCredit(creditIncluded + creditAdded);
-        } else {
-          setAnalyseCredit(null);
-        }
-      })
-      .catch(() => setAnalyseCredit(null));
-  }, []);
 
   // Store pour les recommandations appliquées
   const { clearAllAppliedRecommendations } = useAppliedRecommendationsStore();
@@ -263,6 +157,7 @@ export default function ContractAnalysis() {
   const setAppliedRecommendations = useAppliedRecommendationsStore(
     (s) => s.setAppliedRecommendations,
   );
+
 
   // Ref pour contrôler le DocumentViewer
   const documentViewerRef = useRef<DocumentViewerRef>(null);
@@ -292,7 +187,6 @@ export default function ContractAnalysis() {
     handleTextSubmit,
     handleMarketAnalysis,
     restoreAnalysis,
-    resetAnalysis,
   } = useContractAnalysis();
 
   const { sortedClauses } = useRiskStats(contract);
@@ -307,20 +201,7 @@ export default function ContractAnalysis() {
   const displayedAnalysisProgress =
     activeTemporaryEntry?.analysisProgress ?? analysisProgress;
 
-  const visibleHistoryItems = useMemo(() => {
-    const temporaryItems = Object.values(temporaryHistoryEntries).map((entry) =>
-      createContractHistoryPreviewItem(
-        createTemporaryHistorySnapshot(entry),
-        historyItems.find((item) => item.id === entry.id),
-      ),
-    );
-    const temporaryIds = new Set(temporaryItems.map((item) => item.id));
 
-    return [
-      ...temporaryItems,
-      ...historyItems.filter((item) => !temporaryIds.has(item.id)),
-    ].sort(compareByUploadTimeDesc);
-  }, [historyItems, temporaryHistoryEntries]);
 
   const updateTemporaryHistoryEntry = (
     historyId: string,
@@ -425,55 +306,39 @@ export default function ContractAnalysis() {
     } 
 
     try {
-      const cached = loadAnalysisFromCache(
-        contentToAnalyze,
-        analysisContext,
-      );
-      let analysisResults: ClauseRisk[];
+      updateTemporaryHistoryEntry(historyId, (currentEntry) => ({
+        ...currentEntry,
+        analysisProgress: {
+          mode: "direct",
+          state: "running",
+          currentAttempt: 1,
+          totalAttempts: 3,
+          totalChunks: 1,
+          completedChunks: 0,
+          successfulChunks: 0,
+          failedChunks: 0,
+          message: "Analyse du document en cours.",
+        } satisfies AnalysisProgress,
+        processingPhase: "analysis",
+      }));
 
-      if (cached && cached.length > 0) {
-        analysisResults = cached;
-      } else {
-        updateTemporaryHistoryEntry(historyId, (currentEntry) => ({
-          ...currentEntry,
-          analysisProgress: {
-            mode: "direct",
-            state: "running",
-            currentAttempt: 1,
-            totalAttempts: 3,
-            totalChunks: 1,
-            completedChunks: 0,
-            successfulChunks: 0,
-            failedChunks: 0,
-            message: "Analyse du document en cours.",
-          } satisfies AnalysisProgress,
-          processingPhase: "analysis",
-        }));
+      const response = await fetchProxy("/api/analyzer/analyze-contract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          content: contentToAnalyze,
+          context: analysisContext,
+        }),
+      });
 
-        const response = await fetchProxy("/api/analyzer/analyze-contract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            content: contentToAnalyze,
-            context: analysisContext,
-          }),
-        });
-
-        if (!response.ok)
-          throw new Error(`Analyse échouée (${response.status})`);
-        const data = (await response.json()) as {
-          success: boolean;
-          clauses: ClauseRisk[];
-        };
-        analysisResults = data.clauses ?? [];
-
-        saveAnalysisToCache(
-          contentToAnalyze,
-          analysisResults,
-          analysisContext,
-        );
-      }
+      if (!response.ok)
+        throw new Error(`Analyse échouée (${response.status})`);
+      const data = (await response.json()) as {
+        success: boolean;
+        clauses: ClauseRisk[];
+      };
+      const analysisResults: ClauseRisk[] = data.clauses ?? [];
 
       const latestEntry = temporaryHistoryEntriesRef.current[historyId];
       if (!latestEntry) return;
@@ -526,7 +391,6 @@ export default function ContractAnalysis() {
     } catch (error) {
       console.error("Erreur analyse:", error);
       if (!temporaryHistoryEntriesRef.current[historyId]) return;
-
       updateTemporaryHistoryEntry(historyId, (currentEntry) => ({
         ...currentEntry,
         isProcessing: false,
@@ -849,25 +713,9 @@ export default function ContractAnalysis() {
     setSelectedClause(null);
   };
 
-  const resetPageState = () => {
-    documentPreparationRef.current = null;
-    temporaryHistoryEntriesRef.current = {};
-    setTemporaryHistoryEntries({});
-    setActiveHistoryId(null);
-    clearAllAppliedRecommendations();
-    resetAllPatches();
-    clearEnhancedClauseCaches();
-    resetAnalysis();
-    setSelectedClause(null);
-    setShowAnalysisForm(false);
-    setReviewedClauses(new Set());
-    setShowMarketAnalysis(false);
-  };
 
-  const handleNewAnalysis = () => {
-    if (!confirmLeavingUnfinishedAnalysis()) return;
-    resetPageState();
-  };
+
+
 
   const onFileUpload = async (file: File) => {
     const preparationKey = `file:${getFileUploadKey(file)}`;
@@ -900,7 +748,7 @@ export default function ContractAnalysis() {
         documentPreparationRef.current = null;
       }
     }
-  };
+  }; 
 
     // Déclenche automatiquement l'analyse si un fichier OU un texte est passé via navigation state
   // (ex. depuis la génération de contrats : « Réviser (risques) »).
@@ -1000,7 +848,6 @@ export default function ContractAnalysis() {
       htmlContent: liveHtmlContent
     }));
 
-    clearAnalysisCache(contract.content, currentAnalysisContext ?? undefined);
     clearAllAppliedRecommendations();
     resetAllPatches();
     clearEnhancedClauseCaches();
@@ -1143,52 +990,18 @@ export default function ContractAnalysis() {
     setActiveHistoryId(historyId);
   };
 
-  const handleDeleteHistoryItem = async (historyId: string) => {
-    const isTemporaryItem = Boolean(
-      temporaryHistoryEntriesRef.current[historyId],
-    );
-    const isDraftItem =
-      isTemporaryItem ||
-      (historyId === currentHistoryId && contract?.processed === false);
-    const confirmMessage = isDraftItem
-      ? "Abandonner cette analyse en cours ?"
-      : "Supprimer ce document de l'historique ?";
 
-    if (!window.confirm(confirmMessage)) return;
-
-    if (isTemporaryItem) {
-      removeTemporaryHistoryEntry(historyId);
-
-      if (historyId !== currentHistoryId) return;
-
-      setActiveHistoryId(null);
-      resetAllPatches();
-      clearEnhancedClauseCaches();
-      resetAnalysis();
-      setSelectedClause(null);
-      setReviewedClauses(new Set());
-      setShowAnalysisForm(false);
-      setShowMarketAnalysis(false);
-      return;
-    }
-
-    await deleteContractHistoryEntry(historyId);
-    setHistoryItems(await loadContractHistoryIndex());
-
-    if (historyId !== currentHistoryId) return;
-
-    setActiveHistoryId(null);
-    resetAllPatches();
-    clearEnhancedClauseCaches();
-    resetAnalysis();
-    setSelectedClause(null);
-    setReviewedClauses(new Set());
-    setShowAnalysisForm(false);
-    setShowMarketAnalysis(false);
-  };
 
   const clauseData = contract?.clauses.find((c) => c.id === selectedClause);
 
+
+
+
+
+
+  /*
+    RETOUR DU JSX
+  */
   return (
     <>
       <div className="-m-5 lg:-m-7 px-4 py-8 overflow-x-hidden">

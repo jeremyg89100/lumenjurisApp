@@ -28,6 +28,8 @@ import { aiRouter } from "./src/routes/ai.js";
 import { adminRouter } from "./src/routes/admin.js";
 import { summarizeContractRouter } from "./src/routes/summarizeContract.js";
 
+
+
 const app = express();
 app.set("etag", false);
 
@@ -48,6 +50,8 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json({ limit: "80mb" }));
+
+
 
 // ─── Montage des routers par domaine ───
 app.use("/api/llm", llmRouter);
