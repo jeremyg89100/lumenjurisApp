@@ -30,6 +30,9 @@ import { summarizeContractRouter } from "./src/routes/summarizeContract.js";
 
 const app = express();
 app.set("etag", false);
+// Le proxy est derriere le reverse proxy de l'hebergeur : sans ce reglage,
+// req.ip vaut 127.0.0.1 et l'IP reelle du visiteur n'est pas relayee a backNode.
+app.set("trust proxy", 1);
 
 //Cors adapté pour prod
 app.use(

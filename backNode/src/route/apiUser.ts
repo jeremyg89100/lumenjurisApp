@@ -265,8 +265,15 @@ routerUser.post(
       const { password, email } = req.body;
       const logUser = await new User().authenticate(password, email);
 
+      if (!logUser.success || !logUser.data) {
+        return res.status(401).json({
+          success: false,
+          message: "Email ou mot de passe invalide",
+        });
+      }
+
       const userStatus = await prisma.user.findUnique({
-        where: {idUser: logUser.data?.idUser},
+        where: {idUser: logUser.data.idUser},
         select: {isBanned: true},
       })
 
@@ -274,13 +281,6 @@ routerUser.post(
         return res.status(403).json({
           success: false, message: "Cet utilisateur est banni et ne peut donc pas se connecter."
         })
-      }
-
-      if (!logUser.success || !logUser.data) {
-        return res.status(401).json({
-          success: false,
-          message: "Email ou mot de passe invalide",
-        });
       }
 
       createCookieAuth(logUser.data.idUser, "USER", res);

@@ -64,8 +64,10 @@ app.use(
     credentials: true,
   }),
 );
+// Doit rester AVANT les limiteurs : sans ce reglage, req.ip vaut l'adresse du
+// proxy pour tout le monde et les quotas sont partages par tous les utilisateurs.
+app.set("trust proxy", 1);
 app.use(globalLimiter);
-app.set("trust-proxy", 1);
 // app.use(internalApiKeyMiddleware);
 
 app.use("/", routerGoogleAuth);
