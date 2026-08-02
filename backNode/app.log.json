@@ -3,3 +3,6 @@
 {"timestamp":"2026-08-02T21:22:50.709Z","level":"info","message":"Vérification du transporter SMTP"}
 {"timestamp":"2026-08-02T21:27:44.205Z","level":"info","message":"Vérification du transporter SMTP"}
 {"timestamp":"2026-08-02T21:27:45.120Z","level":"info","message":"Vérification du transporter SMTP"}
+{"timestamp":"2026-08-02T21:35:49.224Z","level":"info","message":"Email envoyé","data":{"sujet":"Réinitialisation de votre mot de passe Lumen Juris","destinataire":"geoffreypin@gmail.com","messageId":"<8041aaa8-395b-6caa-4db1-7c3715bab0d5@lumenjuris.com>","accepte":["geoffreypin@gmail.com"],"refuse":[],"reponseServeur":"250 OK id=1wqdqY-00000005bfy-3nAV","dureeMs":1246}}
+{"timestamp":"2026-08-02T21:46:17.182Z","level":"info","message":"Vérification du transporter SMTP"}
+{"timestamp":"2026-08-02T21:46:22.419Z","level":"info","message":"Vérification du transporter SMTP"}
