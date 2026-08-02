@@ -5,13 +5,61 @@ import { StripeLumenJuris } from "../../billing/stripe.service.js";
 import { prisma } from "../../prisma/singletonPrisma.js";
 import { Subscription } from "../services/classSubscription.js";
 import { Credit } from "../services/classCredit.js";
+import Stripe from "stripe"
 
 const routerBilling: Router = express.Router();
+
+
+/* === STRIPE WEBHOOK ===
+ Ultra important, c'est le webhook de stripe.
+ Lors d'une transaction avec stripe, le status de stripe sera directement envoyé sur cette route afin d'empecher
+ les manipulations.
+ On peut içi traiter tout les mises à jour des users suite à un achat/ou un echec de façon safe 
+*/
+
+const stripeService = new StripeLumenJuris();
+
+routerBilling.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
+  //Adress du webhook https://lumenjurisbackendnodejs.lumenjuris.com/billing/stripe/webhook
+  try {
+    const signature = req.headers["stripe-signature"];
+
+    const stripeClient = new Stripe(process.env.STRIPE_SK!, {
+      maxNetworkRetries: 2,
+      telemetry: process.env.NODE_ENV == "dev" ? true : false
+    });
+
+    const webhookSecret = process.env.NODE_ENV == "dev"
+      ? process.env.STRIPE_WEBHOOK_SECRET_TEST
+      : process.env.STRIPE_WEBHOOK_SECRET_PRODUCTION;
+
+    if (!webhookSecret) {
+      throw new Error("Variable d'environnement STRIPE_WEBHOOK_SECRET est absente, veuillez remplir le .env !");
+    };
+
+    if (!signature) {
+      return res.status(400).send("Missing Stripe signature");
+    };
+
+    const event = stripeClient.webhooks.constructEvent(
+      req.body,
+      signature,
+      webhookSecret
+    );
+    const handlerEvent = await stripeService.handleEvent(event);
+    res.sendStatus(200);
+
+  } catch (err) {
+    console.error(err)
+    res.status(400).send("Error server")
+  }
+})
+
 
 // Crée un customer Stripe pour l'utilisateur connecté (ou renvoie l'existant)
 routerBilling.post(
   "/customer",
-  authMiddleware, 
+  authMiddleware,
   async (req: Request, res: Response) => {
     const idUser = Number(req.idUser);
 
@@ -42,7 +90,7 @@ routerBilling.post(
     );
 
 
-    console.log("result at de la creation d'un customers stripe : \n" , result)
+    console.log("result at de la creation d'un customers stripe : \n", result)
 
     if (!result.success || !result.customerId) {
       return res.status(500).json({ success: false, message: result.message });
@@ -114,6 +162,8 @@ routerBilling.get("/plans", async (_req: Request, res: Response) => {
   }
 });
 
+
+
 // Enregistre un abonnement en BDD après confirmation du paiement Stripe
 routerBilling.post(
   "/subscription",
@@ -141,6 +191,9 @@ routerBilling.post(
   },
 );
 
+
+
+
 routerBilling.get(
   "/subscription",
   authMiddleware,
@@ -152,6 +205,9 @@ routerBilling.get(
     return res.status(result.success ? 200 : 500).json(result);
   },
 );
+
+
+
 
 // Liste des factures payées de l'utilisateur (JSON).
 routerBilling.get(
@@ -165,6 +221,9 @@ routerBilling.get(
     return res.status(result.success ? 200 : 500).json(result);
   },
 );
+
+
+
 
 // Téléchargement du PDF d'une facture (régénéré à la volée).
 routerBilling.get(
@@ -199,6 +258,9 @@ routerBilling.get(
     }
   },
 );
+
+
+
 
 // Enregistre une tentative de paiement échouée (appelé par le front quand
 // stripe.confirmCardPayment renvoie une erreur). Rattachée à l'abonnement
@@ -249,6 +311,11 @@ routerBilling.post(
   },
 );
 
+
+
+
+
+
 routerBilling.put(
   "/add-credits",
   authMiddleware,
@@ -270,40 +337,39 @@ routerBilling.put(
   },
 );
 
-routerBilling.put(
-  "/remove-credits",
-  authMiddleware,
-  async (req: Request, res: Response) => {
-    const userId = Number(req.idUser);
-    const { removeCredit } = req.body;
 
-    if (!removeCredit || typeof removeCredit !== "number" || removeCredit < 0) {
-      return res.status(500).json({
-        success: false,
-        message:
-          "Le retrait de crédit doit être défini par un nombre entier positif.",
-      });
-    }
 
-    const removedCredits = await new Credit().removeCredit(
-      userId,
-      removeCredit,
-    );
-    console.log("REMOVE CREDIT : ", removedCredits);
 
-    return res.status(removedCredits.success ? 200 : 500).json(removedCredits);
-  },
 
-  routerBilling.get(
-    "/credits",
-    authMiddleware,
-    async (req: Request, res: Response) => {
-      const userId = Number(req.idUser);
+routerBilling.put("/remove-credits", authMiddleware, async (req: Request, res: Response) => {
+  const userId = Number(req.idUser);
+  const { removeCredit } = req.body;
 
-      const result = await new Credit().getUserCredits(userId);
+  if (!removeCredit || typeof removeCredit !== "number" || removeCredit < 0) {
+    return res.status(500).json({
+      success: false,
+      message:
+        "Le retrait de crédit doit être défini par un nombre entier positif.",
+    });
+  }
 
-      return res.status(result.success ? 200 : 500).json(result);
-    },
-  ),
-);
+  const removedCredits = await new Credit().removeCredit(
+    userId,
+    removeCredit,
+  );
+  console.log("REMOVE CREDIT : ", removedCredits);
+
+  return res.status(removedCredits.success ? 200 : 500).json(removedCredits);
+})
+
+
+
+routerBilling.get("/credits", authMiddleware, async (req: Request, res: Response) => {
+  const userId = Number(req.idUser);
+
+  const result = await new Credit().getUserCredits(userId);
+
+  return res.status(result.success ? 200 : 500).json(result);
+})
+
 export default routerBilling;

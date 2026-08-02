@@ -24,12 +24,12 @@ type UserInvoiceInfo = {
   prenom: string | null;
   nom: string | null;
   enterprise: {
-    name: string | null;
-    siren: string | null;
-    address: {
-      address: string | null;
-      codePostal: string | null;
-      pays: string | null;
+  name: string | null;
+  siren: string | null;
+  address: {
+    address: string | null;
+    codePostal: string | null;
+    pays: string | null;
     } | null;
   } | null;
 };
@@ -216,10 +216,10 @@ export class Subscription {
           },
           credits: credits
             ? {
-                creditIncluded: credits.creditIncluded,
-                creditAdded: credits.creditAdded,
-                totalIncluded: subscription.plan.creditIncluded,
-              }
+              creditIncluded: credits.creditIncluded,
+              creditAdded: credits.creditAdded,
+              totalIncluded: subscription.plan.creditIncluded,
+            }
             : null,
         },
       };
