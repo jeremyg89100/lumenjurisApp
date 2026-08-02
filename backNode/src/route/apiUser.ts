@@ -149,7 +149,10 @@ routerUser.post(
       // mail un court delai pour aboutir (cas normal, on confirme l'envoi),
       // au-dela la reponse part sans lui et l'envoi se termine en arriere-plan.
       // Avant, un SMTP lent bloquait le formulaire jusqu'a 10 secondes.
-      const MAIL_ATTENTE_MS = 2500;
+      // Une poignee de main SMTP vers o2switch coute environ 1 s : au-dela de
+      // ce delai l'envoi n'a pas abouti normalement, inutile de retenir le
+      // formulaire plus longtemps.
+      const MAIL_ATTENTE_MS = 1500;
 
       const envoi = new Mailer(email)
         .sendVerifyAccount(url, `${prenom} ${nom}`)
@@ -230,7 +233,11 @@ routerUser.post("/resend-verify", forgotPasswordLimiter, async (req: Request, re
 
     const prenom = user.prenom;
     const nom = user.nom;
-    await new Mailer(user.email).sendVerifyAccount(verifyUrl, `${prenom} ${nom}`);
+    // Envoi en arriere-plan : la reponse ne depend plus de la poignee de main
+    // SMTP (environ 1 seconde vers o2switch, plus la remise du message).
+    void new Mailer(user.email)
+      .sendVerifyAccount(verifyUrl, `${prenom} ${nom}`)
+      .catch((err) => console.error("Renvoi de l'email de vérification échoué:", err));
 
     return res.status(200).json({success: true, message: "L'e-mail de vérification a bien été envoyé. "})
   } catch (error) {
@@ -695,14 +702,16 @@ routerUser.post(
         });
       }
 
-      const mailer = await new Mailer(user.email).sendTwoFactor(
-        result.code,
-        `${user.prenom ?? ""} ${user.nom ?? ""}`.trim(),
-      );
+      // Envoi en arriere-plan : le code est deja genere et enregistre, faire
+      // patienter le navigateur pendant l'echange SMTP ne le fait pas arriver
+      // plus vite et retarde l'ouverture de la saisie du code.
+      void new Mailer(user.email)
+        .sendTwoFactor(result.code, `${user.prenom ?? ""} ${user.nom ?? ""}`.trim())
+        .catch((err) => console.error("Envoi du code de double authentification échoué:", err));
 
-      return res.status(mailer.success ? 200 : 500).json({
-        success: mailer.success,
-        message: mailer.message,
+      return res.status(200).json({
+        success: true,
+        message: `Un code de vérification a été envoyé à ${user.email}.`,
         data: { enabled: false },
       });
     } catch (err) {
@@ -816,8 +825,11 @@ routerUser.post(
             "Adresse e-mail de l'utilisateur introuvable dans la base de données",
         });
       }
-      const mailer = new Mailer(targetMail);
-      await mailer.sendUserData(fullExport, firstName || undefined);
+      // Envoi en arriere-plan : l'export est deja constitue, et la piece jointe
+      // rend l'echange SMTP d'autant plus long a attendre.
+      void new Mailer(targetMail)
+        .sendUserData(fullExport, firstName || undefined)
+        .catch((err) => console.error("Envoi de l'export de données échoué:", err));
       return res.status(200).json({
         success: true,
         message: "Votre export de données a été envoyé par e-mail avec succès",
@@ -856,7 +868,10 @@ routerUser.post(
     try {
       const token = await new Token().createToken(userId, "deleteAccount");
       const url = `${process.env.HOST_FRONT}/user/deleteaccount/${token.token}`;
-      await new Mailer(email).sendDeleteAccount(url, prenom);
+      // Envoi en arriere-plan : le jeton est enregistre, le lien reste valable.
+      void new Mailer(email)
+        .sendDeleteAccount(url, prenom)
+        .catch((err) => console.error("Envoi du mail de suppression de compte échoué:", err));
 
       return res.status(200).json({
         success: true,
