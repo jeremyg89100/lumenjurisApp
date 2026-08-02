@@ -118,16 +118,39 @@ routerUser.post(
         await new Enterprise().updateByUser(idUser, enterpriseInput);
       }
 
-      const mailer = await new Mailer(email).sendVerifyAccount(
-        url,
-        `${prenom} ${nom}`,
-      );
+      // L'inscription n'attend plus la fin de l'echange SMTP : on laisse au
+      // mail un court delai pour aboutir (cas normal, on confirme l'envoi),
+      // au-dela la reponse part sans lui et l'envoi se termine en arriere-plan.
+      // Avant, un SMTP lent bloquait le formulaire jusqu'a 10 secondes.
+      const MAIL_ATTENTE_MS = 2500;
 
-      // Le compte est créé même si le SMTP est indisponible : on ne renvoie pas
-      // d'erreur (l'inscription a bien abouti) mais on cesse d'annoncer un envoi
-      // qui n'a pas eu lieu, sinon l'utilisateur attend un e-mail qui ne viendra
-      // jamais au lieu d'utiliser le renvoi depuis /verify-account.
-      if (!mailer.success) {
+      const envoi = new Mailer(email)
+        .sendVerifyAccount(url, `${prenom} ${nom}`)
+        .catch((err) => {
+          console.error("Envoi de l'email de vérification échoué:", err);
+          return { success: false as const };
+        });
+
+      const resultat = await Promise.race([
+        envoi,
+        new Promise<"en-cours">((resolve) =>
+          setTimeout(() => resolve("en-cours"), MAIL_ATTENTE_MS),
+        ),
+      ]);
+
+      // Envoi encore en cours : le compte existe, on ne fait pas patienter.
+      if (resultat === "en-cours") {
+        return res.status(200).json({
+          success: true,
+          mailSent: "pending",
+          message: `Votre compte a été créé. L'email de vérification part à l'instant vers ${email} : consultez votre boîte de réception, et vos spams.`,
+        });
+      }
+
+      // Echec avere : on cesse d'annoncer un envoi qui n'a pas eu lieu, sinon
+      // l'utilisateur attend un e-mail qui ne viendra jamais au lieu d'utiliser
+      // le renvoi depuis /verify-account.
+      if (!resultat.success) {
         return res.status(200).json({
           success: false,
           mailSent: false,
@@ -140,7 +163,7 @@ routerUser.post(
       return res.status(200).json({
         success: true,
         mailSent: true,
-        message: mailer.message,
+        message: resultat.message,
       });
     } catch (err) {
       console.error(
@@ -155,7 +178,10 @@ routerUser.post(
   },
 );
 
-routerUser.post("/resend-verify", async (req: Request, res: Response) => {
+// Route d'envoi d'e-mail sans quota : n'importe qui pouvait la marteler avec
+// l'adresse d'un tiers et inonder sa boite. Meme quota que "mot de passe
+// oublie", qui repond au meme besoin.
+routerUser.post("/resend-verify", forgotPasswordLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
 
@@ -294,11 +320,27 @@ routerUser.post(
 
       if (userStatus?.isBanned) {
         return res.status(403).json({
-          success: false, message: "Cet utilisateur est banni et ne peut donc pas se connecter."
+          success: false,
+          reason: "banned",
+          message: "Cet utilisateur est banni et ne peut donc pas se connecter."
         })
       }
 
-      createCookieAuth(logUser.data.idUser, "USER", res);
+      // Compte non valide : aucune session n'est ouverte. Sans ce controle, le
+      // cookie etait pose malgre le refus affiche par le front, et il suffisait
+      // d'aller sur /dashboard pour entrer sans avoir valide son adresse.
+      if (!logUser.data.isVerified) {
+        return res.status(403).json({
+          success: false,
+          reason: "unverified",
+          message:
+            "Votre compte n'est pas encore validé. Cliquez sur le lien reçu par email pour l'activer.",
+        });
+      }
+
+      // Le role vient du compte : le figer a "USER" retirait ses droits a un
+      // administrateur des qu'il se connectait par ce formulaire.
+      createCookieAuth(logUser.data.idUser, logUser.data.role, res);
 
       if (logUser.data.twoFactorEnabled) {
         const codeResult = await new Token().createTwoFactorCode(
@@ -306,10 +348,14 @@ routerUser.post(
         );
 
         if (codeResult.success && codeResult.code) {
-          await new Mailer(logUser.data.email).sendTwoFactor(
-            codeResult.code,
-            logUser.data.email,
-          );
+          // Envoi en arriere-plan : la reponse ne depend plus du SMTP. Le
+          // resultat n'etait de toute facon pas exploite, l'attente ne servait
+          // qu'a retarder l'ouverture de la fenetre de saisie du code.
+          void new Mailer(logUser.data.email)
+            .sendTwoFactor(codeResult.code, logUser.data.email)
+            .catch((err) =>
+              console.error("Envoi du code de double authentification échoué:", err),
+            );
         }
 
         return res.status(200).json({

@@ -93,21 +93,31 @@ const SignupForm = ({
     null,
   );
 
-  const topRef = useRef<HTMLDivElement>(null);
-  const scrollToTop = () => {
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Les messages sont rendus sous le bouton d'inscription : on amene ce bloc
+  // dans le champ de vision plutot que le haut du formulaire, sinon la reponse
+  // s'affiche hors ecran juste apres le clic.
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const scrollToFeedback = () => {
+    // Laisse React peindre l'alerte avant de la faire defiler.
+    requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    scrollToTop();
 
     if (!lastName || !email || !password) {
       setSubmitError(true);
+      scrollToFeedback();
       return;
     }
     if (acceptCgu === false) {
       setSubmitCguError(true);
+      scrollToFeedback();
       return;
     }
 
@@ -122,6 +132,7 @@ const SignupForm = ({
 
     setSubmitLoading(true);
     setSubmitPending(true);
+    scrollToFeedback();
     const trimedLastName = lastName.trim();
     const trimedFirstName = firstName.trim();
 
@@ -247,8 +258,10 @@ const SignupForm = ({
     setAcceptCgu(value);
   };
 
-  return (
-    <div ref={topRef} className="flex flex-col gap-5">
+  // Bloc de retour affiche sous le bouton d'inscription (voir plus bas dans le
+  // formulaire) : la reponse apparait la ou l'utilisateur vient de cliquer.
+  const feedback = (
+    <div ref={feedbackRef} className="flex flex-col gap-3 empty:hidden">
       {submitError && (
         <AlertBanner
           title="Champs manquants !"
@@ -284,9 +297,9 @@ const SignupForm = ({
       )}
       {submitPending && (
         <AlertBanner
-          title="Inscription réussie !"
+          title="Inscription en cours…"
           variant="info"
-          detail={`Votre compte a été créé. Un email de vérification est en cours d'envoi à ${email}. Veuillez attendre quelques secondes...`}
+          detail={`Création de votre compte et envoi de l'email de vérification à ${email}.`}
           duration={0}
           onClose={() => setSubmitPending(false)}
         />
@@ -310,7 +323,11 @@ const SignupForm = ({
           }}
         />
       )}
+    </div>
+  );
 
+  return (
+    <div className="flex flex-col gap-5">
       <form onSubmit={handleSubmit}>
         <section className="flex flex-col gap-6">
           <div className="grid gap-2">
@@ -502,6 +519,9 @@ const SignupForm = ({
               <PenBoxIcon />
               S'inscrire
             </Button>
+
+            {feedback}
+
             <div className="flex items-center gap-3">
               <div className="w-full h-px bg-gray-300"></div>
               <span className="text-gray-400">OU</span>
