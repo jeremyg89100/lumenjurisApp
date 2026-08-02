@@ -14,10 +14,13 @@ import {
 import type { BlockDef, ContractModel, VariableDef } from "../../../contractEngine/types";
 import {
   generateContractQuestions, generateContractDraft, generateContractDraftFromBrief,
-  type WizardQuestion, type ContractDraft, type BriefAttachment,
+  type WizardQuestion, type ContractDraft, type BriefAttachment, type PartyIdentity,
 } from "./contractAi";
 import { contractApi } from "../contratheque/api";
 import { extractDocumentContent } from "../../../utils/documentExtractor";
+import { CompanySearchField } from "../../common/CompanySearchField";
+import { mapCompanyToContractParty } from "../../../utils/companyLookup";
+import type { CompanyResult } from "../../../types/companySearch";
 
 function slug(s: string): string {
   const o = s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -73,6 +76,10 @@ export function ScratchWizard({ title, onReady, onBack }: {
   // Mode « Décrire le besoin »
   const [brief, setBrief] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Parties au contrat, renseignées par recherche d'entreprise (nom ou SIREN).
+  // Optionnel : sans elles le contrat sort avec des variables à compléter, avec
+  // elles il sort déjà nominatif. Commun aux deux modes de rédaction.
+  const [parties, setParties] = useState<PartyIdentity[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Garde d'annulation : chaque navigation invalide les appels IA en vol, pour
   // qu'une réponse tardive ne détourne pas l'écran courant ni n'ouvre l'éditeur
@@ -151,8 +158,16 @@ export function ScratchWizard({ title, onReady, onBack }: {
   useEffect(() => {
     opId.current += 1;
     setStep("mode"); setError(""); setBrief(""); setAttachments([]);
-    setQuestions([]); setIdx(0); setAnswers({});
+    setQuestions([]); setIdx(0); setAnswers({}); setParties([]);
   }, [title]);
+
+  /** Enregistre l'entreprise choisie pour le rôle donné (remplace la précédente). */
+  const applyParty = (role: string, result: CompanyResult, siret?: string) => {
+    const p = mapCompanyToContractParty(result, siret);
+    setParties((prev) => [...prev.filter((x) => x.role !== role), { role, ...p }]);
+  };
+
+  const partyOf = (role: string) => parties.find((p) => p.role === role);
 
   async function finish(finalAnswers: Record<string, string>) {
     const id = ++opId.current;
@@ -161,7 +176,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
     setError("");
     try {
       const qa = questions.map((q) => ({ question: q.question, answer: finalAnswers[q.id] ?? "" }));
-      const draft = await generateContractDraft(title, qa);
+      const draft = await generateContractDraft(title, qa, parties);
       if (opId.current !== id) return;
       onReady({ model: buildModel(title, draft), fileBase: slug(title) });
     } catch {
@@ -181,7 +196,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
       const docs: BriefAttachment[] = attachments
         .filter((a) => a.status === "ready" && a.text.trim())
         .map((a) => ({ name: a.file.name, text: a.text }));
-      const draft = await generateContractDraftFromBrief(title, brief, docs);
+      const draft = await generateContractDraftFromBrief(title, brief, docs, parties);
       if (opId.current !== id) return;
       onReady({ model: buildModel(title, draft), fileBase: slug(title) });
     } catch {
@@ -260,6 +275,49 @@ export function ScratchWizard({ title, onReady, onBack }: {
       <div className="rounded-card border border-line bg-white p-6 shadow-card">
         {step === "mode" && (
           <div className="space-y-3">
+            {/* Identité des parties : renseignée une fois ici, elle sert quel que
+                soit le mode de rédaction choisi ensuite. */}
+            <div className="rounded-xl border border-line bg-surface-subtle p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-ink">Les parties au contrat</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
+                  Optionnel. Renseignées ici, elles sont écrites directement dans le
+                  contrat — sinon elles resteront à compléter dans l’éditeur.
+                </p>
+              </div>
+
+              {(["Première partie", "Seconde partie"] as const).map((role) => {
+                const p = partyOf(role);
+                return (
+                  <div key={role} className="space-y-1.5">
+                    <CompanySearchField
+                      label={role}
+                      hint=""
+                      onSelect={(result, siret) => applyParty(role, result, siret)}
+                    />
+                    {p && (
+                      <div className="flex items-start gap-2 rounded-lg bg-white px-3 py-2">
+                        <span className="min-w-0 flex-1 text-xs text-ink-secondary">
+                          <span className="font-medium text-ink">{p.nom}</span>
+                          {p.forme_juridique ? ` — ${p.forme_juridique}` : ""}
+                          {p.siren ? ` · SIREN ${p.siren}` : ""}
+                          {p.ville ? ` · ${p.ville}` : ""}
+                          {p.representant ? ` · ${p.representant}` : ""}
+                        </span>
+                        <button
+                          onClick={() => setParties((prev) => prev.filter((x) => x.role !== role))}
+                          className="rounded p-0.5 text-ink-subtle hover:bg-surface-muted hover:text-danger"
+                          title="Retirer"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
             <button
               onClick={goBrief}
               className="w-full rounded-xl border border-line bg-white p-4 text-left transition-all hover:border-brand/50 hover:bg-brand-light/40 group"
