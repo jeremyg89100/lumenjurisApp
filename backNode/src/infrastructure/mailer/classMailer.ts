@@ -122,6 +122,8 @@ export class Mailer {
     mailOptions: SendMailOptions,
     successMessage?: string,
   ): Promise<MailResult> {
+    const debut = Date.now();
+
     try {
       const sending = await transporter.sendMail(mailOptions);
 
@@ -130,6 +132,20 @@ export class Mailer {
           `Échec lors de l'envoi de l'email "${mailOptions.subject}" : messageId indisponible.`,
         );
       }
+
+      // Les envois partent en arrière-plan : sans trace du succès, un e-mail
+      // qui n'arrive pas ne permet pas de distinguer un envoi jamais tenté d'un
+      // message accepté par le serveur puis perdu en route (spam, file
+      // d'attente de l'hébergeur). `accepted`/`rejected` viennent du serveur.
+      logger.info("Email envoyé", {
+        sujet: mailOptions.subject,
+        destinataire: this.email,
+        messageId: sending.messageId,
+        accepte: sending.accepted,
+        refuse: sending.rejected,
+        reponseServeur: sending.response,
+        dureeMs: Date.now() - debut,
+      });
 
       return { success: true, message: successMessage };
     } catch (err) {
