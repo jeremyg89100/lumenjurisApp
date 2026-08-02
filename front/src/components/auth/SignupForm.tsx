@@ -27,8 +27,6 @@ interface SignupFormProps {
   setEmail: React.Dispatch<React.SetStateAction<string>>;
   password: string;
   setPassword: React.Dispatch<React.SetStateAction<string>>;
-  siren: string;
-  setSiren: React.Dispatch<React.SetStateAction<string>>;
   acceptCgu: boolean;
   setAcceptCgu: React.Dispatch<React.SetStateAction<boolean>>;
   confirmPassword: string;
@@ -41,14 +39,11 @@ const PROXY_URL: string =
 /**
  * Formulaire d'inscription gérant deux flux de création de compte :
  *
- * 1. **Email / mot de passe** — pipeline en deux étapes :
- *    - (Optionnel) Lookup INSEE via `GET /api/enterprise/insee/:siren` pour pré-remplir
- *      les données entreprise. L'appel est best-effort : un échec ne bloque pas
- *      l'inscription, le compte est créé sans données entreprise.
- *    - `POST /api/user/signup` avec nom, prénom, email, mot de passe, CGU et,
- *      si disponible, les données entreprise issues de l'INSEE.
- *    - En cas de succès, affiche une alerte de confirmation avec l'adresse email
- *      utilisée, puis remet tous les champs à zéro.
+ * 1. **Email / mot de passe** — `POST /api/user/signup` avec nom, prénom, email,
+ *    mot de passe et CGU. Les données entreprise ne sont plus demandées ici :
+ *    elles sont renseignées depuis le profil une fois le compte actif.
+ *    En cas de succès, affiche une alerte de confirmation avec l'adresse email
+ *    utilisée, puis remet tous les champs à zéro.
  *
  * 2. **Google OAuth** — redirige `window.location` vers `PROXY_URL/api/google`.
  *
@@ -60,8 +55,6 @@ const PROXY_URL: string =
  * @param setEmail     Setter du champ email.
  * @param password     Valeur contrôlée du champ mot de passe (obligatoire).
  * @param setPassword  Setter du champ mot de passe.
- * @param siren        Valeur contrôlée du champ SIREN (optionnel, 9 chiffres).
- * @param setSiren     Setter du champ SIREN.
  * @param acceptCgu    `true` si l'utilisateur a coché les CGU (obligatoire pour soumettre).
  * @param setAcceptCgu Setter de l'état d'acceptation des CGU.
  */
@@ -74,8 +67,6 @@ const SignupForm = ({
   setEmail,
   password,
   setPassword,
-  siren,
-  setSiren,
   acceptCgu,
   setAcceptCgu,
   confirmPassword,
@@ -134,23 +125,6 @@ const SignupForm = ({
     const trimedLastName = lastName.trim();
     const trimedFirstName = firstName.trim();
 
-    let enterpriseData: object | null = null;
-    if (siren && siren.trim().replace(/\D/g, "").length === 9) {
-      try {
-        const sirenNormalized = siren.trim().replace(/\D/g, "");
-        const res = await fetchProxy(`/api/enterprise/insee/${encodeURIComponent(sirenNormalized)}`, {
-          credentials: "include",
-        });
-        const payload = await res.json().catch(() => null);
-        console.log(payload.data);
-        if (res.ok && payload?.success && payload.data) {
-          enterpriseData = payload.data;
-        }
-      } catch {
-        // INSEE lookup best-effort, on continue sans données entreprise
-      }
-    }
-
     try {
       const signupResponse = await fetchProxy("/api/user/signup", {
         method: "POST",
@@ -161,7 +135,6 @@ const SignupForm = ({
           prenom: trimedFirstName,
           password,
           cgu: acceptCgu,
-          ...(enterpriseData ? { enterprise: enterpriseData } : {}),
         }),
         credentials: "include",
       });
@@ -173,6 +146,13 @@ const SignupForm = ({
         setServerError(true);
         setServerErrorMessage(data.message);
         throw new Error(`BackNode Auth Error : ${signupResponse.status}`);
+      } else if (data?.mailSent === false) {
+        // Compte créé mais e-mail non parti : on affiche le message du serveur
+        // plutôt qu'une confirmation d'envoi, pour que l'utilisateur sache
+        // qu'il doit passer par le renvoi.
+        setSubmitPending(false);
+        setServerError(true);
+        setServerErrorMessage(data.message);
       } else {
         setSubmitPending(false);
         setSubmitSuccess(true);
@@ -262,11 +242,6 @@ const SignupForm = ({
     }
   };
 
-  const handleChangeSiren = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSiren(value);
-  };
-
   const handleCheckCgu = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.checked;
     setAcceptCgu(value);
@@ -331,7 +306,6 @@ const SignupForm = ({
             setEmail("");
             setPassword("");
             setConfirmPassword("");
-            setSiren("");
             setAcceptCgu(false);
           }}
         />
@@ -471,22 +445,6 @@ const SignupForm = ({
                     : undefined
                 }
               ></FieldError>
-            </Field>
-          </div>
-
-          <div className="grid gap-2">
-            <Field>
-              <FieldLabel htmlFor="siren">Siren</FieldLabel>
-              <FieldDescription className="text-gray-500">
-                Saisissez le numéro Siren de votre société
-              </FieldDescription>
-              <Input
-                id="siren"
-                type="text"
-                placeholder="552 178 639"
-                value={siren}
-                onChange={handleChangeSiren}
-              />
             </Field>
           </div>
 

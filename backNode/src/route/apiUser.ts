@@ -123,8 +123,23 @@ routerUser.post(
         `${prenom} ${nom}`,
       );
 
+      // Le compte est créé même si le SMTP est indisponible : on ne renvoie pas
+      // d'erreur (l'inscription a bien abouti) mais on cesse d'annoncer un envoi
+      // qui n'a pas eu lieu, sinon l'utilisateur attend un e-mail qui ne viendra
+      // jamais au lieu d'utiliser le renvoi depuis /verify-account.
+      if (!mailer.success) {
+        return res.status(200).json({
+          success: false,
+          mailSent: false,
+          message:
+            "Votre compte a bien été créé, mais l'e-mail de vérification n'a pas pu être envoyé. " +
+            "Utilisez le lien de renvoi depuis la page de vérification, ou contactez contact@lumenjuris.com.",
+        });
+      }
+
       return res.status(200).json({
-        success: mailer.success,
+        success: true,
+        mailSent: true,
         message: mailer.message,
       });
     } catch (err) {
