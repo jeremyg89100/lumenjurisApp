@@ -21,7 +21,7 @@ export function LumenJurisLogo({
       viewBox="22 20 200 36"
       width={width}
       height={height}
-      aria-label="LumenJuris"
+      aria-label="Lumen Juris"
       role="img"
     >
       {/* Cercle extérieur */}

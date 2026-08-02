@@ -79,7 +79,7 @@ const LoginForm = ({
   const [twoFactorEmail, setTwoFactorEmail] = useState("");
   const [verificationError, setVerificationError] = useState(false);
   const verificationErrorMessage =
-    "Pour valider votre compte veuillez cliquer sur le lien qui vous a été envoyé par email.";
+    "Pour valider votre compte veuillez cliquer sur le lien qui vous a été envoyé par e-mail.";
 
   const [showRateLimitModal, setShowRateLimitModal] = useState(false);
 
@@ -247,16 +247,16 @@ const LoginForm = ({
         <AlertBanner
           title="Champs manquants !"
           variant="error"
-          detail="Vérifiez votre adresse email et votre mot de passe."
+          detail="Vérifiez votre adresse e-mail et votre mot de passe."
           duration={8000}
           onClose={() => setSubmitError(false)}
         />
       )}
       {submitForgotError && (
         <AlertBanner
-          title="Email manquant !"
+          title="E-mail manquant !"
           variant="error"
-          detail="Pour réinitialiser votre mot de passe veuillez renseigner votre adresse email."
+          detail="Pour réinitialiser votre mot de passe veuillez renseigner votre adresse e-mail."
           duration={8000}
           onClose={() => {
             setForgotPassword(true);
@@ -267,7 +267,7 @@ const LoginForm = ({
 
       {showRateLimitModal && (
         <AlertBanner
-          title="Trop de requête !"
+          title="Trop de requêtes !"
           variant="error"
           detail="Vous avez demandé à réinitialiser votre mot de passe de trop nombreuses fois, veuillez attendre 15 minutes."
           duration={12000}
@@ -320,7 +320,7 @@ const LoginForm = ({
       { emailSent &&  (
         <section className="flex flex-col gap-2">
           <AlertBanner
-            title="Email envoyé !"
+            title="E-mail envoyé !"
             variant="success"
             detail="Si un compte est associé à cette adresse, vous recevrez un lien de réinitialisation dans quelques instants."
             duration={12000}
@@ -343,13 +343,13 @@ const LoginForm = ({
             <section className="flex flex-col gap-6">
               <Field>
                 <FieldDescription className="text-gray-500">
-                  Saisissez l'adresse email associée à votre compte. Vous
+                  Saisissez l'adresse e-mail associée à votre compte. Vous
                   recevrez un lien pour créer un nouveau mot de passe.
                 </FieldDescription>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Votre email de connexion"
+                  placeholder="Votre e-mail de connexion"
                   value={email}
                   onChange={handleChangeEmail}
                 />
@@ -376,11 +376,11 @@ const LoginForm = ({
           <section className="flex flex-col gap-6">
             <div className="grid gap-2">
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="email">E-mail</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Saisissez votre email de connexion"
+                  placeholder="Saisissez votre e-mail de connexion"
                   value={email}
                   onChange={handleChangeEmail}
                 />
@@ -389,7 +389,7 @@ const LoginForm = ({
 
             <div className="grid gap-2">
               <Field className="max-w-sm">
-                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
                 <InputGroup>
                   <InputGroupInput
                     id="password"

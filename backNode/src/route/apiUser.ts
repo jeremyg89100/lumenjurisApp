@@ -12,7 +12,7 @@ import { Subscription } from "../services/classSubscription.js";
 import { normalizeAccountParameters } from "../utils/normalizeAccountParameters.js";
 import { normalizePreferenceUI } from "../utils/normalizePreferenceUI.js";
 import { getUserFullExport } from "../services/getUserData.js";
-import { readLog, writeLog} from "./apiFeedback.js";
+import { readLog, writeLog } from "./apiFeedback.js";
 
 import {
   loginLimiter,
@@ -23,16 +23,16 @@ const routerUser: Router = express.Router();
 
 type TokenValidationResult =
   | {
-      valid: true;
-      tokenEntry: {
-        idToken: number;
-        userId: number;
-        token: string;
-        type: string;
-        status: string;
-        expiresAt: Date;
-      };
-    }
+    valid: true;
+    tokenEntry: {
+      idToken: number;
+      userId: number;
+      token: string;
+      type: string;
+      status: string;
+      expiresAt: Date;
+    };
+  }
   | { valid: false; reason: "invalid" | "already-used" | "expired" };
 
 async function validateToken(
@@ -145,7 +145,7 @@ routerUser.post("/resend-verify", async (req: Request, res: Response) => {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({error: "E-mail requis"});
+      return res.status(400).json({ error: "E-mail requis" });
     }
 
     const user = await prisma.user.findUnique({
@@ -153,7 +153,7 @@ routerUser.post("/resend-verify", async (req: Request, res: Response) => {
     });
 
     if (!user || user.isVerified) {
-      return res.status(200).json({success: true});
+      return res.status(200).json({ success: true });
     }
 
     const token = await new Token().createToken(user.idUser, "verifyAccount");
@@ -164,10 +164,10 @@ routerUser.post("/resend-verify", async (req: Request, res: Response) => {
     const nom = user.nom;
     await new Mailer(user.email).sendVerifyAccount(verifyUrl, `${prenom} ${nom}`);
 
-    return res.status(200).json({success: true, message: "L'e-mail de vérification a bien été envoyé. "})
+    return res.status(200).json({ success: true, message: "L'e-mail de vérification a bien été envoyé. " })
   } catch (error) {
     console.error(error);
-    return res.status(500).json({error: "Le mail de vérification n'a pas pu être envoyé."})
+    return res.status(500).json({ error: "L'e-mail de vérification n'a pas pu être envoyé." })
   }
 })
 
@@ -254,74 +254,77 @@ routerUser.post(
 
 /**
  * Endpoint utilisateur pour s'authentifier.
- * Necessite email et password accesseible dans req.body
+ * Necessite email et password accessible dans req.body
  */
+routerUser.post("/auth/login", loginLimiter, async (req: Request, res: Response) => {
+  try {
+    const { password, email } = req.body;
+    const logUser = await new User().authenticate(password, email);
 
-routerUser.post(
-  "/auth/login",
-  loginLimiter,
-  async (req: Request, res: Response) => {
-    try {
-      const { password, email } = req.body;
-      const logUser = await new User().authenticate(password, email);
-
-      const userStatus = await prisma.user.findUnique({
-        where: {idUser: logUser.data?.idUser},
-        select: {isBanned: true},
+    if (!logUser || logUser.data == undefined) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilisateur inconnu."
       })
+    }
 
-      if (userStatus?.isBanned) {
-        return res.status(403).json({
-          success: false, message: "Cet utilisateur est banni et ne peut donc pas se connecter."
-        })
-      }
+    const userStatus = await prisma.user.findUnique({
+      where: { idUser: logUser.data.idUser },
+      select: { isBanned: true },
+    })
 
-      if (!logUser.success || !logUser.data) {
-        return res.status(401).json({
-          success: false,
-          message: "Email ou mot de passe invalide",
-        });
-      }
+    if (userStatus?.isBanned) {
+      return res.status(403).json({
+        success: false, message: "Cet utilisateur est banni et ne peut donc pas se connecter."
+      })
+    }
 
-      createCookieAuth(logUser.data.idUser, "USER", res);
+    if (!logUser.success || !logUser.data) {
+      return res.status(401).json({
+        success: false,
+        message: "E-mail ou mot de passe invalide",
+      });
+    }
 
-      if (logUser.data.twoFactorEnabled) {
-        const codeResult = await new Token().createTwoFactorCode(
-          logUser.data.idUser,
+    createCookieAuth(logUser.data.idUser, "USER", res);
+
+    if (logUser.data.twoFactorEnabled) {
+      const codeResult = await new Token().createTwoFactorCode(
+        logUser.data.idUser,
+      );
+
+      if (codeResult.success && codeResult.code) {
+        await new Mailer(logUser.data.email).sendTwoFactor(
+          codeResult.code,
+          logUser.data.email,
         );
-
-        if (codeResult.success && codeResult.code) {
-          await new Mailer(logUser.data.email).sendTwoFactor(
-            codeResult.code,
-            logUser.data.email,
-          );
-        }
-
-        return res.status(200).json({
-          success: true,
-          twoFactorRequired: true,
-          message: `Un code de vérification a été envoyé à ${logUser.data.email}.`,
-          data: logUser.data,
-        });
       }
 
       return res.status(200).json({
         success: true,
-        twoFactorRequired: false,
-        message: logUser.message,
+        twoFactorRequired: true,
+        message: `Un code de vérification a été envoyé à ${logUser.data.email}.`,
         data: logUser.data,
       });
-    } catch (err) {
-      console.error(
-        `Une erreur est survenue lors de la connexion d'un utilisateur : \n ${err}`,
-      );
-      return res.status(500).json({
-        success: false,
-        message:
-          "Une erreur est survenue lors de la connexion d'un utilisateur",
-      });
     }
-  },
+
+    return res.status(200).json({
+      success: true,
+      twoFactorRequired: false,
+      message: logUser.message,
+      data: logUser.data,
+    });
+  } catch (err) {
+    console.error(
+      `Une erreur est survenue lors de la connexion d'un utilisateur : \n ${err}`,
+    );
+    return res.status(500).json({
+      success: false,
+      message:
+        "Une erreur est survenue lors de la connexion d'un utilisateur",
+    });
+  }
+},
 );
 
 /**
@@ -767,7 +770,7 @@ routerUser.post(
 
       return res.status(200).json({
         success: true,
-        message: "Le mail de suppression de compte a bien été envoyé",
+        message: "L'e-mail de suppression de compte a bien été envoyé",
       });
     } catch (error) {
       console.error(
@@ -783,7 +786,7 @@ routerUser.post(
 );
 
 routerUser.post("/confirm-delete", async (req: Request, res: Response) => {
-  const { token, reason} = req.body;
+  const { token, reason } = req.body;
 
   if (!token) {
     return res.status(400).json({ success: false, message: "Token manquant" });
@@ -803,19 +806,19 @@ routerUser.post("/confirm-delete", async (req: Request, res: Response) => {
 
     if (reason?.trim()) {
       try {
-      const entries = readLog();
-      entries.unshift({
-        id: crypto.randomUUID(),
-        date: new Date().toISOString(),
-        comment: reason.trim().slice(0, 1000),
-        context: "suppression_compte",
-        page: "/user/deleteaccount",
-        userId: String(tokenEntry.userId),
-      })
-      writeLog(entries);
+        const entries = readLog();
+        entries.unshift({
+          id: crypto.randomUUID(),
+          date: new Date().toISOString(),
+          comment: reason.trim().slice(0, 1000),
+          context: "suppression_compte",
+          page: "/user/deleteaccount",
+          userId: String(tokenEntry.userId),
+        })
+        writeLog(entries);
       } catch (err) {
         console.error("Erreur de réception indiquant la raison de la suppression de compte");
-        return res.status(500).json({success: false, message : "Une erreur est survenue"});
+        return res.status(500).json({ success: false, message: "Une erreur est survenue" });
       }
     }
 
@@ -850,7 +853,7 @@ routerUser.post(
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Un email est requis pour réinitialiser votre mot de passe",
+        message: "Un e-mail est requis pour réinitialiser votre mot de passe",
       });
     }
 
@@ -881,7 +884,7 @@ routerUser.post(
       return res.status(200).json({
         success: true,
         message:
-          "Si cet email est associé à un compte, vous recevrez un lien de réinitialisation.",
+          "Si cet e-mail est associé à un compte, vous recevrez un lien de réinitialisation.",
       });
     } catch (error) {
       console.error("Erreur lors de la demande de réinitialisation:", error);

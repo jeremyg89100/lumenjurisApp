@@ -180,7 +180,7 @@ export function TwoFactorCodeModal({
               <AlertBanner
                 title="E-mail envoyé !"
                 variant="success"
-                detail="Un nouveau code de vérification vous a été envoyé par mail."
+                detail="Un nouveau code de vérification vous a été envoyé par e-mail."
                 duration={8000}
                 onClose={() => setMailSuccess(false)}
               />
@@ -188,9 +188,9 @@ export function TwoFactorCodeModal({
 
             {sendMailError && (
               <AlertBanner
-                title="Erreur de l'envoi du mail !"
+                title="Erreur de l'envoi de l'e-mail !"
                 variant="error"
-                detail="Un nouveau code de vérification n'a pas pu être envoyé par mail. Veuillez réessayer."
+                detail="Un nouveau code de vérification n'a pas pu être envoyé par e-mail. Veuillez réessayer."
                 duration={8000}
                 onClose={() => setMailError(false)}
               />
@@ -244,7 +244,7 @@ export function TwoFactorCodeModal({
               disabled={isLoading}
               className="bg-lumenjuris text-white hover:bg-lumenjuris/90"
             >
-              {isLoading ? "Envoi en cours..." : "Renvoyer un mail"}
+              {isLoading ? "Envoi en cours..." : "Renvoyer un e-mail"}
             </Button>
 
             <Button

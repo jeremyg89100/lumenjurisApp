@@ -19,13 +19,13 @@ export function Veille() {
 
   const tabs: Array<{ key: VeilleTabKey; label: string; badge?: number }> = [
     { key: "alerts", label: "Alertes", badge: unreadCount },
-    { key: "news", label: "Actualités juridiques" },
+    { key: "news", label: "Actualités" },
     { key: "settings", label: "Paramètres" },
   ];
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <h1 className="text-2xl font-bold text-ink tracking-tight">Veille</h1>
+      <h1 className="text-2xl font-bold text-ink tracking-tight">Actualité juridique</h1>
 
       {/* Onglets */}
       <div className="flex items-center gap-1 border-b border-line">

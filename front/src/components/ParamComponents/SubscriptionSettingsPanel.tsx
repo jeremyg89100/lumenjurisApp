@@ -129,7 +129,7 @@ export function SubscriptionSettingsPanel() {
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Abonnement</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Gérez votre formule d'abonnement LumenJuris.
+            Gérez votre formule d'abonnement Lumen Juris.
           </p>
         </div>
         <div className="h-24 animate-pulse rounded-2xl bg-gray-100" />
@@ -142,7 +142,7 @@ export function SubscriptionSettingsPanel() {
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Abonnement</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Gérez votre formule d'abonnement LumenJuris.
+          Gérez votre formule d'abonnement Lumen Juris.
         </p>
       </div>
 
@@ -153,7 +153,7 @@ export function SubscriptionSettingsPanel() {
             Aucun abonnement actif
           </p>
           <p className="mt-1 text-sm text-gray-500">
-            Souscrivez à un abonnement LumenJuris pour accéder à toutes les
+            Souscrivez à un abonnement Lumen Juris pour accéder à toutes les
             fonctionnalités.
           </p>
           <Button

@@ -174,7 +174,7 @@ export function SignerPage() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#354F99]">
           <Scale className="h-4 w-4 text-white" />
         </div>
-        <span className="text-sm font-bold text-gray-900">LumenJuris</span>
+        <span className="text-sm font-bold text-gray-900">Lumen Juris</span>
         <span className="text-gray-300 mx-1">·</span>
         <span className="text-sm text-gray-500 truncate max-w-xs">Signature — {documentName}</span>
       </header>

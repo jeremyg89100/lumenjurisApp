@@ -10,14 +10,14 @@ export const globalLimiter = rateLimit({
     ...commonOption,
     windowMs: 60 * 60 * 1000,
     limit: process.env.NODE_ENV === "dev" ? 10000 : 600,
-    message: "Trop de tentative de communication, veuillez réessayez plus tard "
+    message: "Trop de tentatives de communication, veuillez réessayer plus tard."
 })
 
 export const loginLimiter = rateLimit({
     ...commonOption,
     windowMs: 1000 * 60 * 15,
     limit: process.env.NODE_ENV === "dev" ? 10000 : 7,
-    message: "Trop de tentative de connexion, veuillez réessayez plus tard"
+    message: "Trop de tentatives de connexion, veuillez réessayer plus tard."
 })
 
 
@@ -46,5 +46,5 @@ export const feedBackLimiter = rateLimit({
     ...commonOption,
     windowMs: 1000 * 60 * 60 * 1,
     limit: process.env.NODE_ENV === "dev" ? 10000 : 20,
-    message: "Envoie de feedback trop important, veuillez réessayez plus tard"
+    message: "Envoi de feedback trop important, veuillez réessayer plus tard."
 })

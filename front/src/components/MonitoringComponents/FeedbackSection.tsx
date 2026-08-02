@@ -668,7 +668,7 @@ function UserDetailsPanel({ data }: { data: UserDetails }) {
 
       {/* Statistiques */}
       <PanelSection icon={<FileText className="w-4 h-4" />} title="Statistiques">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatTile label="Contrats" value={data._count.contracts} />
           <StatTile label="Signatures" value={data._count.signatureEnvelopes} />
           <StatTile label="Analyses" value={data._count.contractHistory} />

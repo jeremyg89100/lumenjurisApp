@@ -3,7 +3,7 @@ export const templateExportData = (username?: string) => {
         <tr>
             <td style="padding:30px; font-family: Arial, sans-serif; color:#1f2937;">
 
-                <h2 style="margin-top:0; margin-bottom:10px;">Bonjour <strong>${username || "Abonné"}</strong>.</h2>
+                <h2 style="margin-top:0; margin-bottom:10px;">Bonjour <strong>${username || "Abonné"}</strong>,</h2>
 
                 <p style="font-size:14px; line-height:1.6;">
                     Conformément à votre demande, nous avons préparé l'export complet des données associées à votre compte Lumen Juris.<br/>

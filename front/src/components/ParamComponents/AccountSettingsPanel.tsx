@@ -157,7 +157,7 @@ export function AccountSettingsPanel({
       setSuccessMessage(
         passwordDialogMode === "change"
           ? "Votre mot de passe a bien été modifié."
-          : "Votre mot de passe JustiClause a bien été créé.",
+          : "Votre mot de passe Lumen Juris a bien été créé.",
       );
       if (passwordDialogMode === "add") {
         onPasswordAdded();
@@ -208,12 +208,12 @@ export function AccountSettingsPanel({
   const passwordDialogTitle =
     passwordDialogMode === "change"
       ? "Changer mon mot de passe"
-      : "Définir un mot de passe LumenJuris";
+      : "Définir un mot de passe Lumen Juris";
 
   const passwordDialogDescription =
     passwordDialogMode === "change"
-      ? "Saisissez votre nouveau mot de passe de connexion à LumenJuris."
-      : "Créez un mot de passe pour vous connecter à LumenJuris directement avec votre adresse email Google, sans passer par la connexion Google.";
+      ? "Saisissez votre nouveau mot de passe de connexion à Lumen Juris."
+      : "Créez un mot de passe pour vous connecter à Lumen Juris directement avec votre adresse e-mail Google, sans passer par la connexion Google.";
 
   return (
     <div className="flex flex-1 flex-col">
@@ -301,7 +301,7 @@ export function AccountSettingsPanel({
                   }
                 />
               </SettingsField>
-              <SettingsField label="Email">
+              <SettingsField label="E-mail">
                 <Input
                   type="email"
                   value={profile.email}
@@ -336,7 +336,7 @@ export function AccountSettingsPanel({
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <SettingsDisplayField label="Prénom" value={profile.prenom} />
               <SettingsDisplayField label="Nom" value={profile.nom} />
-              <SettingsDisplayField label="Email" value={profile.email} />
+              <SettingsDisplayField label="E-mail" value={profile.email} />
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <Button
@@ -522,15 +522,15 @@ export function AccountSettingsPanel({
                 </p>
                 <p className="text-sm text-gray-500">
                   {hasAddedPassword
-                    ? "Vous pouvez vous connecter à LumenJuris via Google ou avec votre mot de passe LumenJuris."
-                    : "Votre compte LumenJuris est lié à votre compte Google. Vous pouvez également créer un mot de passe propre à LumenJuris — il ne modifie pas votre mot de passe Google."}
+                    ? "Vous pouvez vous connecter à Lumen Juris via Google ou avec votre mot de passe Lumen Juris."
+                    : "Votre compte Lumen Juris est lié à votre compte Google. Vous pouvez également créer un mot de passe propre à Lumen Juris — il ne modifie pas votre mot de passe Google."}
                 </p>
                 {!hasAddedPassword && (
                   <Button
                     className="max-w-64 text-gray-400 bg-lumenjuris-sidebar mt-2 hover:bg-lumenjuris-sidebar/80 hover:text-white"
                     onClick={() => setPasswordDialogMode("add")}
                   >
-                    Créer un mot de passe LumenJuris
+                    Créer un mot de passe Lumen Juris
                   </Button>
                   // <button
                   //   type="button"

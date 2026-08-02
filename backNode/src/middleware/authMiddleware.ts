@@ -31,7 +31,7 @@ export async function authMiddleware(
     if (user.isBanned) {
       return res.status(403).json({
         success: false,
-        message: "Votre compte a été suspendu. Contactez l'administrateur .",
+        message: "Votre compte a été suspendu. Contactez l'administrateur.",
         banned: true,
       });
     }

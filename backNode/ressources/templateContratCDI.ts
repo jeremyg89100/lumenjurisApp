@@ -87,7 +87,7 @@ Entre les soussignés :
 
 La société ${enterpriseData.RAISON_SOCIAL},
 située à ${enterpriseData.ADRESS_ENTERPRISE},
-immatriculée à l’Urssaf/MSA sous le numéro ${enterpriseData.ADRESS_ENTERPRISE},
+immatriculée à l’Urssaf/MSA sous le numéro ${enterpriseData.URSAAF_SIREN},
 
 représentée par ${signataireData.SIGNATAIRE_FIRSTNAME + " " + signataireData.SIGNATAIRE_LASTNAME},
 agissant en qualité de ${signataireData.SIGNATAIRE_FUNCTION},

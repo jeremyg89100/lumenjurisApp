@@ -250,9 +250,9 @@ export function LegalWatchSettings() {
 
       {isAlertError && (
         <AlertBanner
-          title="La demande a échouée"
+          title="La demande a échoué"
           variant="error"
-          detail="L'envoi de la demande d'ajout de convention collective a échouée, veuillez réessayer."
+          detail="L'envoi de la demande d'ajout de convention collective a échoué, veuillez réessayer."
           duration={8000}
           onClose={() => setIsAlertError(false)}
         />

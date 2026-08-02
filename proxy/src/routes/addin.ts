@@ -22,7 +22,7 @@ addinRouter.post("/login", async (req, res) => {
         if (!email || !password) {
             res
                 .status(400)
-                .json({ success: false, message: "Email et mot de passe requis." });
+                .json({ success: false, message: "E-mail et mot de passe requis." });
             return;
         }
         const r = await fetch(`${BACKNODE_URL}/user/auth/login`, {

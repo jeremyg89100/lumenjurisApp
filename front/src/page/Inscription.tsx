@@ -38,8 +38,8 @@ export function Inscription() {
     <>
       <MainHeader />
 
-      <div className="bg-lumenjuris-background min-h-[calc(100vh-64px)] w-screen">
-        <div className="w-[420px] mx-auto pt-12">
+      <div className="bg-lumenjuris-background min-h-[calc(100vh-64px)] w-full">
+        <div className="w-full max-w-[420px] mx-auto px-4 pt-12">
           <div className="w-full border border-border px-4 py-7 rounded-xl flex flex-col gap-5 bg-background">
             <section className="w-full flex items-center justify-between">
               <div className="w-44 flex flex-col items-center gap-1">

@@ -97,7 +97,7 @@ export function PlaceStep(props: Props) {
           <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             Les deux zones sont placées. Vous pouvez les déplacer, en ajouter, ou passer à
-            l'étape suivante pour signer puis envoyer l'email au cocontractant.
+            l'étape suivante pour signer puis envoyer l'e-mail au cocontractant.
           </div>
         )}
         <div className="bg-gray-50 rounded-xl p-4">

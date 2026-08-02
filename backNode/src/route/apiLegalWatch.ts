@@ -17,13 +17,32 @@ import { report } from "process"
 const routerLegalWatch: Router = express.Router()
 const svc = new LegalWatchService()
 
-/** Garde des jobs : rôle éditeur OU clé interne (cron). */
+/**
+ * Garde des jobs : autorise un appel interne (cron) OU un éditeur authentifié.
+ *
+ * Le proxy attache TOUJOURS `x-internal-api-key` aux requêtes qu'il relaie
+ * (voir relayToNode). La clé interne seule ne prouve donc pas qu'il s'agit du
+ * cron : elle est aussi présente sur le trafic d'un simple utilisateur. On
+ * distingue les deux cas par la présence d'une identité utilisateur :
+ *
+ *  - cron : clé interne présente ET aucun `x-user-id`  → appel système, on passe.
+ *  - utilisateur : `x-user-id` présent (requête relayée) → on exige un rôle
+ *    éditeur (ADMIN ou JURISTE), sinon 403. Un Lecteur est ainsi refusé.
+ */
 function jobGuard(req: Request, res: Response, next: NextFunction) {
     const internalKey = req.headers["x-internal-api-key"] as string | undefined
-    if (process.env.INTERNAL_API_KEY && internalKey === process.env.INTERNAL_API_KEY) {
+    const hasValidInternalKey =
+        Boolean(process.env.INTERNAL_API_KEY) && internalKey === process.env.INTERNAL_API_KEY
+    const hasUserIdentity = Boolean(req.headers["x-user-id"])
+
+    // Appel interne pur (cron) : clé interne valide et aucune identité utilisateur.
+    if (hasValidInternalKey && !hasUserIdentity) {
         req.idUser = req.idUser ?? "0"
         return next()
     }
+
+    // Sinon : requête utilisateur relayée par le proxy. On authentifie et on
+    // vérifie le rôle — la clé interne portée par le proxy ne suffit pas.
     return authMiddleware(req, res, () => {
         if (req.role !== "ADMIN" && req.role !== "JURISTE") {
             return res.status(403).json({ success: false, message: "Action réservée aux éditeurs." })
@@ -96,7 +115,7 @@ routerLegalWatch.post("/legal-concept", authMiddleware, async(req: Request, res:
 
     } catch (err) {
         console.error("[legal-watch] convention error: ", err);
-        return res.status(500).json({success: false, message: "L'ajout de la convention a échouée"});
+        return res.status(500).json({success: false, message: "L'ajout de la convention a échoué"});
     }
 })
 

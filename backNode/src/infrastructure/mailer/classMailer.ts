@@ -91,7 +91,7 @@ export class Mailer {
 
     return {
       success: false,
-      message: "Une erreur serveur est survenue lors de l'envoi d'un email.",
+      message: "Une erreur serveur est survenue lors de l'envoi d'un e-mail.",
       error: err,
     };
   }
@@ -145,7 +145,7 @@ export class Mailer {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td width="34" style="width:34px; padding-right:10px;" valign="middle">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="26" height="26" aria-label="LumenJuris" role="img" style="display:block;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="26" height="26" aria-label="Lumen Juris" role="img" style="display:block;">
                   <circle cx="16" cy="16" r="13" fill="none" stroke="#5B9DF5" stroke-width="2"></circle>
                   <circle cx="16" cy="16" r="4.5" fill="#5B9DF5"></circle>
                 </svg>

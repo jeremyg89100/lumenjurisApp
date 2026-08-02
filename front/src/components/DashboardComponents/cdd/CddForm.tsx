@@ -237,7 +237,7 @@ export function CddForm({ onBack }: { onBack: () => void }) {
             <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
               <CompanySearchField onSelect={applyCompany} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Dénomination" value={fields.emp_denomination} onChange={(v) => set("emp_denomination", v)} required />
               <Field label="Forme juridique" value={fields.emp_forme_juridique} onChange={(v) => set("emp_forme_juridique", v)} placeholder="SAS, SARL…" />
               <Field label="SIREN" value={fields.emp_siren} onChange={(v) => set("emp_siren", v)} />
@@ -254,9 +254,9 @@ export function CddForm({ onBack }: { onBack: () => void }) {
 
         {/* 2 — Salarié */}
         {step === 1 && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Civilité" value={fields.sal_civilite} onChange={(v) => set("sal_civilite", v)} placeholder="M., Mme" />
-            <div />
+            <div className="hidden sm:block" />
             <Field label="Prénom" value={fields.sal_prenom} onChange={(v) => set("sal_prenom", v)} />
             <Field label="Nom" value={fields.sal_nom} onChange={(v) => set("sal_nom", v)} required />
             <Field label="Adresse" value={fields.sal_adresse} onChange={(v) => set("sal_adresse", v)} />
@@ -286,12 +286,12 @@ export function CddForm({ onBack }: { onBack: () => void }) {
             </label>
             <Area label="Description précise du motif" value={fields.motif_detail} onChange={(v) => set("motif_detail", v)} placeholder="Circonstances précises justifiant le recours au CDD" required />
             {fields.cas_recours === "remplacement" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Salarié remplacé" value={fields.remplace_nom} onChange={(v) => set("remplace_nom", v)} required />
                 <Field label="Qualification du remplacé" value={fields.remplace_qualification} onChange={(v) => set("remplace_qualification", v)} required />
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Intitulé du poste" value={fields.poste_intitule} onChange={(v) => set("poste_intitule", v)} required />
               <Field label="Qualification professionnelle" value={fields.poste_qualification} onChange={(v) => set("poste_qualification", v)} required />
               <Field label="Classification / coefficient" value={fields.poste_classification} onChange={(v) => set("poste_classification", v)} />
@@ -314,7 +314,7 @@ export function CddForm({ onBack }: { onBack: () => void }) {
                 <option value="imprecis">Terme imprécis (durée minimale)</option>
               </select>
             </label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Date de début" type="date" value={fields.date_debut} onChange={(v) => set("date_debut", v)} required />
               {fields.terme_type === "precis" ? (
                 <Field label="Date de fin" type="date" value={fields.date_fin} onChange={(v) => set("date_fin", v)} required />
@@ -348,12 +348,12 @@ export function CddForm({ onBack }: { onBack: () => void }) {
         {/* 5 — Rémunération & temps */}
         {step === 4 && (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Rémunération brute" value={fields.remuneration_brut_mensuel} onChange={(v) => set("remuneration_brut_mensuel", v)} placeholder="2 500" required />
               <Field label="Périodicité" value={fields.remuneration_periodicite} onChange={(v) => set("remuneration_periodicite", v)} placeholder="mensuelle" />
             </div>
             <Area label="Primes, accessoires et avantages" value={fields.primes_avantages} onChange={(v) => set("primes_avantages", v)} placeholder="13e mois, tickets restaurant, prime d'ancienneté…" />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Temps de travail</span>
                 <select
@@ -377,7 +377,7 @@ export function CddForm({ onBack }: { onBack: () => void }) {
         {step === 5 && (
           <div className="flex flex-col gap-4">
             <Field label="Convention collective applicable" value={fields.convention_collective} onChange={(v) => set("convention_collective", v)} placeholder="Ex. Syntec (IDCC 1486)" required />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Caisse de retraite complémentaire" value={fields.caisse_retraite} onChange={(v) => set("caisse_retraite", v)} required />
               <Field label="Organisme de prévoyance" value={fields.organisme_prevoyance} onChange={(v) => set("organisme_prevoyance", v)} required />
             </div>
@@ -390,7 +390,7 @@ export function CddForm({ onBack }: { onBack: () => void }) {
                 <CheckRow label="Clause de mobilité" checked={fields.clause_mobilite} onChange={(v) => set("clause_mobilite", v)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Lieu de signature" value={fields.lieu_signature} onChange={(v) => set("lieu_signature", v)} />
               <Field label="Date de signature" type="date" value={fields.date_signature} onChange={(v) => set("date_signature", v)} />
             </div>

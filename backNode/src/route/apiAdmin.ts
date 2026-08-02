@@ -641,7 +641,7 @@ router.get("/fiscalite/factures-csv", authMiddleware, requireAdmin, async (req: 
         const factures = await findPaidFacturesOfMonth(year, month)
 
         const header = [
-            "N° facture", "Date", "Client", "Email", "Plan",
+            "N° facture", "Date", "Client", "E-mail", "Plan",
             "Montant HT (€)", "TVA 20% (€)", "Montant TTC (€)",
         ]
         const lines = [header.map(csvCell).join(";")]

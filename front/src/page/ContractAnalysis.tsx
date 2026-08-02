@@ -2,7 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { UploadZone } from "../components/ContractAnalysis/UploadZone";
-import { DocumentViewer, DocumentViewerRef} from "../components/ContractAnalysis/DocumentViewer";
+import { DocumentViewer, DocumentViewerRef } from "../components/ContractAnalysis/DocumentViewer";
 
 
 
@@ -323,23 +323,20 @@ export default function ContractAnalysis() {
 
 
 
-  const { handleShareReport, loadSharedData } = useShareUrl(
-    contract,
-    reviewedClauses,
-    (_, loadedReviewedClauses) => {
-      setReviewedClauses(new Set(loadedReviewedClauses));
-    },
-  );
+  const { handleShareReport, loadSharedData } = useShareUrl(contract, reviewedClauses, (_, loadedReviewedClauses) => {
+    setReviewedClauses(new Set(loadedReviewedClauses));
+  });
 
-  useEffect(() => {
-    loadSharedData();
-  }, [loadSharedData]);
+  useEffect(() => { loadSharedData() }, [loadSharedData]);
 
   useEffect(() => {
     if (contract?.content && originalText !== contract.content) {
       setOriginalText(contract.content);
     }
   }, [contract?.content, originalText, setOriginalText]);
+
+
+
 
   useEffect(() => {
     const activeHistoryId = currentHistoryIdRef.current;
@@ -369,6 +366,8 @@ export default function ContractAnalysis() {
     patches,
     reviewedClauses,
   ]);
+
+
 
   const hasTemporaryUnfinishedAnalysis = Object.values(
     temporaryHistoryEntries,
@@ -407,9 +406,10 @@ export default function ContractAnalysis() {
     };
   }, [shouldWarnBeforeLeaving]);
 
+
+
   useEffect(() => {
     if (!shouldWarnBeforeLeaving) return;
-
     const handleDocumentLinkClick = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -448,6 +448,8 @@ export default function ContractAnalysis() {
       document.removeEventListener("click", handleDocumentLinkClick, true);
     };
   }, [shouldWarnBeforeLeaving]);
+
+
 
   const handleClauseClick = (clauseId: string) => {
     setSelectedClause(clauseId);
@@ -534,6 +536,9 @@ export default function ContractAnalysis() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+
+
   const onTextSubmit = async (text: string, fileName: string) => {
     const preparationKey = `text:${fileName}:${text.length}`;
 
@@ -567,6 +572,10 @@ export default function ContractAnalysis() {
     }
   };
 
+
+
+
+
   const onStandardAnalysis = () => {
     const analysisHistoryId = currentHistoryIdRef.current;
     if (!analysisHistoryId || !contract) return;
@@ -585,10 +594,7 @@ export default function ContractAnalysis() {
 
 
 
-
-
-
-
+  //Redemarrage d'une analyse en cas de crash
   const handleForceRelaunchAnalysis = () => {
     const analysisHistoryId = currentHistoryIdRef.current;
     if (!analysisHistoryId || !contract) return;
@@ -646,6 +652,8 @@ export default function ContractAnalysis() {
     );
   };
 
+
+  //Ouverture de la modale de l'analyse de marché 
   const handleMarketAnalysisClick = async () => {
     try {
       if (marketAnalysis) {
@@ -659,6 +667,10 @@ export default function ContractAnalysis() {
     }
   };
 
+
+
+
+  //Ouveerture d'un contract depuis la bdd qui a déjà été analysé
   const handleOpenHistoryItem = async (historyId: string) => {
     if (historyId === currentHistoryId) return;
 
@@ -714,7 +726,10 @@ export default function ContractAnalysis() {
       return;
     }
 
+
+
     const snapshot = await loadContractHistorySnapshot(historyId);
+
     if (!snapshot) {
       setHistoryItems(await loadContractHistoryIndex());
       return;
@@ -749,6 +764,9 @@ export default function ContractAnalysis() {
     });
     setActiveHistoryId(historyId);
   };
+
+
+
 
 
   const clauseData = contract?.clauses.find((c) => c.id === selectedClause);
@@ -811,8 +829,8 @@ export default function ContractAnalysis() {
             <div
               className={
                 sidebarCollapsed
-                  ? "w-full px-3 flex gap-x-6"
-                  : "max-w-7xl mx-auto flex gap-x-6"
+                  ? "w-full px-3 flex flex-col md:flex-row gap-6"
+                  : "max-w-7xl mx-auto flex flex-col md:flex-row gap-6"
               }
             >
               <div id="clauses-section" className="mb-6">
@@ -862,7 +880,7 @@ export default function ContractAnalysis() {
                 </div>
               </div>
               {isFeatureEnabled("ENABLE_CLAUSES_SIDEBAR") && (
-                <div className="hidden md:block w-80 border-gray-200 flex-shrink-0">
+                <div className="w-full md:w-80 border-gray-200 flex-shrink-0">
                   <ClausesSidebar
                     clauses={sortedClauses}
                     onClauseClick={(clause) => handleClauseClick(clause.id)}

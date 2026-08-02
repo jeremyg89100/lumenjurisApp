@@ -66,7 +66,12 @@ app.use(
 );
 app.use(globalLimiter);
 app.set("trust-proxy", 1);
-// app.use(internalApiKeyMiddleware);
+// Frontière de sécurité : backNode n'accepte QUE les requêtes portant la clé
+// interne (posée par le proxy et le cron). Sans elle, un appel direct pourrait
+// injecter lui-même `x-user-id`/`x-user-role` et usurper un rôle. Les routes
+// OAuth Google et /health, atteintes directement par le navigateur, sont
+// exemptées dans le middleware.
+app.use(internalApiKeyMiddleware);
 
 app.use("/", routerGoogleAuth);
 app.use("/llm", routerLlm);

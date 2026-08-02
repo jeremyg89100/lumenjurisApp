@@ -260,7 +260,7 @@ routerBilling.put(
       return res.status(500).json({
         success: false,
         message:
-          "L'ajout de crédit doit-être défini par un nombre entier positif.",
+          "L'ajout de crédit doit être défini par un nombre entier positif.",
       });
     }
 
@@ -281,7 +281,7 @@ routerBilling.put(
       return res.status(500).json({
         success: false,
         message:
-          "Le retrait de crédit doit-être défini par un nombre entier positif.",
+          "Le retrait de crédit doit être défini par un nombre entier positif.",
       });
     }
 

@@ -68,7 +68,7 @@ export function Dashboard() {
       {/* Bienvenue */}
       <div>
         <h1 className="text-3xl font-bold text-ink tracking-tight">
-          Bienvenue{firstName ? ` ${firstName}` : ""} sur LumenJuris <span aria-hidden>👋</span>
+          Bienvenue{firstName ? ` ${firstName}` : ""} sur Lumen Juris <span aria-hidden>👋</span>
         </h1>
         <p className="text-base text-ink-muted mt-2">
           Gérez le cycle de vie de vos contrats en toute simplicité.

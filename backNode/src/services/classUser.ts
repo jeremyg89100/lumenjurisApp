@@ -44,7 +44,7 @@ export class User {
     console.error(`Erreur dans la fonction ${fn} :\n`, err);
 
     const constraintMap: Record<string, string> = {
-      User_email_key: "Cet email est déjà utilisé.",
+      User_email_key: "Cet e-mail est déjà utilisé.",
     };
 
     if (e?.code === "P2002") {
@@ -123,10 +123,7 @@ export class User {
     }
   }
 
-  async authenticate(
-    password: string,
-    email: string,
-  ): Promise<ReturnData<UserAuthData>> {
+  async authenticate(password: string, email: string): Promise<ReturnData<UserAuthData>> {
     try {
       const findUser = await prisma.user.findUnique({
         where: { email },
@@ -135,7 +132,7 @@ export class User {
       if (!findUser?.password) {
         return {
           success: false,
-          message: "Email ou mot de passe invalide",
+          message: "E-mail ou mot de passe invalide",
         };
       }
 
@@ -145,7 +142,7 @@ export class User {
         success: isValid ? true : false,
         message: isValid
           ? "Connexion réussie"
-          : "Email ou mot de passe invalide",
+          : "E-mail ou mot de passe invalide",
         data: {
           idUser: findUser.idUser,
           email: findUser.email,
@@ -159,10 +156,7 @@ export class User {
     }
   }
 
-  async update(
-    idUser: number,
-    dataUpdated: DataUpdatedDTO,
-  ): Promise<ReturnData> {
+  async update(idUser: number, dataUpdated: DataUpdatedDTO ): Promise<ReturnData> {
     try {
       const nextData = { ...dataUpdated };
 

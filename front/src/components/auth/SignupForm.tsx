@@ -177,7 +177,7 @@ const SignupForm = ({
         setSubmitPending(false);
         setSubmitSuccess(true);
         setSuccessMessage(
-          `Votre compte a été créé. Un email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception et vos spams.`,
+          `Votre compte a été créé. Un e-mail de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception et vos spams.`,
         );
       }
     } catch (error) {
@@ -221,7 +221,7 @@ const SignupForm = ({
     const emailRegex =
       /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
     if (value.length > 0 && !emailRegex.test(value)) {
-      setEmailError("L'adresse email n'est pas valide");
+      setEmailError("L'adresse e-mail n'est pas valide");
     } else {
       setEmailError("");
     }
@@ -311,7 +311,7 @@ const SignupForm = ({
         <AlertBanner
           title="Inscription réussie !"
           variant="info"
-          detail={`Votre compte a été créé. Un email de vérification est en cours d'envoi à ${email}. Veuillez attendre quelques secondes...`}
+          detail={`Votre compte a été créé. Un e-mail de vérification est en cours d'envoi à ${email}. Veuillez attendre quelques secondes...`}
           duration={0}
           onClose={() => setSubmitPending(false)}
         />
