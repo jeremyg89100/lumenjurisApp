@@ -74,17 +74,37 @@ routerUser.post(
     try {
       const { email, nom, prenom, password, cgu, enterprise } = req.body;
 
-      if (!password) {
+      // Les controles du formulaire ne protegent que le formulaire : la route
+      // reste appelable directement. Sans ces verifications, une adresse vide
+      // ou un mot de passe trop court partaient en erreur Prisma, renvoyee a
+      // l'utilisateur sous la forme d'un "une erreur est survenue" opaque.
+      if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Une adresse email valide est requise.",
+        });
+      }
+
+      if (!password || typeof password !== "string" || password.length < 8) {
         return res.status(400).json({
           success: false,
           message:
-            "Un mot de passe est requis pour la création d'un compte utilisateur.",
+            "Un mot de passe d'au moins 8 caractères est requis pour la création d'un compte.",
+        });
+      }
+
+      if (cgu !== true) {
+        return res.status(400).json({
+          success: false,
+          message: "Les conditions générales d'utilisation doivent être acceptées.",
         });
       }
 
       const user = new User();
       const createdUser = await user.create({
-        email,
+        // Trim seulement : passer l'adresse en minuscules ici la desaccorderait
+        // de la connexion, qui cherche l'email tel qu'il est saisi.
+        email: email.trim(),
         nom,
         prenom,
         password,
@@ -92,10 +112,17 @@ routerUser.post(
       });
 
       if (!createdUser.success || !createdUser.data) {
-        return res.status(500).json({
+        // Adresse deja inscrite : le cas le plus frequent, et le seul que
+        // l'utilisateur peut corriger lui-meme. Il etait masque par un message
+        // generique en 500, qui laissait croire a une panne du serveur.
+        const dejaInscrit = createdUser.message === "Cet email est déjà utilisé.";
+
+        return res.status(dejaInscrit ? 409 : 500).json({
           success: false,
-          message:
-            "Une erreur est survenue avec le serveur, nous n'avons pas pu créer votre compte utilisateur.",
+          reason: dejaInscrit ? "email-existant" : "serveur",
+          message: dejaInscrit
+            ? "Un compte existe déjà avec cette adresse email. Connectez-vous, ou utilisez « Mot de passe oublié ? » si vous ne vous en souvenez plus."
+            : "Une erreur est survenue avec le serveur, nous n'avons pas pu créer votre compte utilisateur.",
         });
       }
 
@@ -304,7 +331,12 @@ routerUser.post(
   async (req: Request, res: Response) => {
     try {
       const { password, email } = req.body;
-      const logUser = await new User().authenticate(password, email);
+      // Meme normalisation qu'a l'inscription : une adresse collee avec une
+      // espace de trop ne doit pas passer pour un identifiant different.
+      const logUser = await new User().authenticate(
+        password,
+        typeof email === "string" ? email.trim() : email,
+      );
 
       if (!logUser.success || !logUser.data) {
         return res.status(401).json({

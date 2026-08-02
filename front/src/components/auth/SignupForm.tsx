@@ -150,29 +150,53 @@ const SignupForm = ({
         credentials: "include",
       });
 
-      const data = await signupResponse.json();
+      // Une reponse non-JSON (page d'erreur, proxy coupe) ne doit pas partir en
+      // exception : sans ce garde-fou l'utilisateur ne voyait qu'un message
+      // generique de creation impossible.
+      const data = await signupResponse.json().catch(() => null);
 
       if (!signupResponse.ok) {
         setSubmitPending(false);
         setServerError(true);
-        setServerErrorMessage(data.message);
-        throw new Error(`BackNode Auth Error : ${signupResponse.status}`);
-      } else if (data?.mailSent === false) {
+        // Le limiteur d'inscriptions repond dans "error", les autres routes
+        // dans "message" : sans les deux, la banniere s'affichait vide.
+        setServerErrorMessage(
+          data?.message ||
+            data?.error ||
+            (signupResponse.status === 429
+              ? "Trop de tentatives d'inscription. Réessayez dans une heure."
+              : "Une erreur s'est produite, nous n'avons pas pu créer votre compte..."),
+        );
+        // Le bouton doit redevenir cliquable : l'utilisateur a une correction a
+        // faire (adresse deja prise, mot de passe trop court) et doit pouvoir
+        // resoumettre sans avoir a fermer la banniere au prealable.
+        setSubmitLoading(false);
+        scrollToFeedback();
+        return;
+      }
+
+      if (data?.mailSent === false) {
         // Compte créé mais e-mail non parti : on affiche le message du serveur
         // plutôt qu'une confirmation d'envoi, pour que l'utilisateur sache
         // qu'il doit passer par le renvoi.
         setSubmitPending(false);
         setServerError(true);
         setServerErrorMessage(data.message);
+        setSubmitLoading(false);
       } else {
         setSubmitPending(false);
         setSubmitSuccess(true);
+        // Le serveur distingue l'envoi confirme de l'envoi encore en cours :
+        // on reprend son message plutot que d'affirmer un envoi abouti.
         setSuccessMessage(
-          `Votre compte a été créé. Un email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception et vos spams.`,
+          data?.message ||
+            `Votre compte a été créé. Un email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception et vos spams.`,
         );
       }
+      scrollToFeedback();
     } catch (error) {
       setSubmitPending(false);
+      setSubmitLoading(false);
       setServerError(true);
       setServerErrorMessage(
         "Une erreur s'est produite, nous n'avons pas pu créer votre compte...",
