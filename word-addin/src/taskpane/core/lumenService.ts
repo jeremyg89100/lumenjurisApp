@@ -8,8 +8,8 @@ import { AnalysisContext, ClauseAI, ClauseRisk, JurisprudenceCase, Recommendatio
  *  - POST /api/addin/login       → JWT (Bearer) pour le complément
  *  - POST /api/analyzer/analyze-contract  → ClauseRisk[] (analyse IA du proxy)
  *  - POST /api/analyzer/recommend-clause  → recommandations alternatives
- *  - POST /api/jurisprudence     → recherche hybride (backend Python)
- *  - POST /api/openai-chat-5     → détail clause (issues/advice) et questions
+ *  - POST /api/legal-text/jurisprudence   → recherche hybride (backend Python)
+ *  - POST /api/openai/openai-chat-5       → détail clause (issues/advice) et questions
  *
  * Auth : l'iframe Word ne reçoit pas le cookie httpOnly `authLumenJuris`,
  * le proxy accepte donc aussi `Authorization: Bearer <jwt>` (voir
@@ -178,7 +178,7 @@ function buildJurisprudenceContext(clause: ClauseRisk): string {
 export async function fetchJurisprudence(clause: ClauseRisk): Promise<JurisprudenceCase[]> {
   const queries = buildJurisprudenceQueries(clause);
   if (queries.length === 0) return [];
-  const data = await post<Record<string, unknown>[]>("/api/jurisprudence", {
+  const data = await post<Record<string, unknown>[]>("/api/legal-text/jurisprudence", {
     queries,
     context: buildJurisprudenceContext(clause),
   });
@@ -206,7 +206,7 @@ const CLAUSE_AI_MODEL = "gpt-5.4-nano";
 async function chat5(prompt: string, reasoning: "none" | "low" = "none"): Promise<string> {
   // reasoning "none" = réglage de la plateforme pour gpt-5.4-nano
   // (ex. ClauseReformulator) : même qualité de sortie, latence réduite.
-  const data = await post<{ content?: string }>("/api/openai-chat-5", {
+  const data = await post<{ content?: string }>("/api/openai/openai-chat-5", {
     prompt,
     reasoning,
     verbosity: "low",

@@ -117,6 +117,47 @@ version en mémoire :
 Un `404` sur une adresse inventée ne veut rien dire : n'utiliser que les
 adresses ci-dessus, qui sont celles réellement appelées par l'interface.
 
+## Cas particulier : le complément Word
+
+Le complément Word est servi par le **même site que l'interface** : il vit dans
+le sous-dossier `word-addin/` de `~/lumenjurisFront`. C'est une erreur fréquente
+de le déposer ailleurs (dans `lumenjuris.com`, le site vitrine WordPress, par
+exemple). Le dossier cible est bien celui-ci :
+
+    ~/lumenjurisFront/word-addin/
+
+Construire, puis envoyer sans les fichiers `.map` (ils exposent le code source) :
+
+    cd word-addin && npm run build
+    tar --exclude='*.map' -czf - -C dist . | $SSHC 'tar -xzf - -C ~/lumenjurisFront/word-addin'
+
+Vérification obligatoire **depuis l'extérieur**, car c'est ce que teste
+Microsoft — jamais depuis le disque du serveur :
+
+    curl -s -o /dev/null -w "%{http_code} %{size_download}\n" https://beta.lumenjuris.com/word-addin/taskpane.js
+    curl -s https://beta.lumenjuris.com/word-addin/manifest.xml | grep -E "<Id>|<Version>|<ProviderName>"
+
+Trois points que Microsoft a déjà refusés une fois, à revérifier avant chaque
+soumission :
+
+- `<ProviderName>` doit être **identique** au « Provider Name » saisi dans les
+  métadonnées Partner Center (actuellement `Geoffrey Pin`) ;
+- `<Id>` doit être un identifiant unique, jamais utilisé par une autre
+  soumission ;
+- le premier écran doit présenter la valeur du complément (deux lignes minimum)
+  et non ouvrir directement le formulaire d'analyse — c'est le rôle de
+  `src/taskpane/components/LoginScreen.tsx`.
+
+Enfin, les adresses appelées par le complément doivent exister côté serveur.
+Les tester une par une avant de soumettre (404 = adresse disparue) :
+
+    for r in /api/addin/login /api/analyzer/analyze-contract /api/analyzer/detect-contract \
+             /api/analyzer/recommend-clause /api/legal-text/jurisprudence /api/openai/openai-chat-5; do
+      echo -n "$r "
+      curl -s -o /dev/null -w "%{http_code}\n" -X POST "https://proxy.lumenjuris.com$r" \
+        -H "Content-Type: application/json" -d '{}'
+    done
+
 ## Revenir en arrière
 
 En une commande, à partir d'une sauvegarde de l'étape 3 (remplacer la date) :
