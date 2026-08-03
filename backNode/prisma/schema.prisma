@@ -399,18 +399,19 @@ model Plan {
   idPlan Int @id @default(autoincrement())
 
   name String
+  price          Int
+  interval       String
+
+  creditsIncluded Json
 
   stripeProductId String
   stripePriceId   String
-  creditsIncluded Json
-
-  price          Int
-  interval       String
-  creditIncluded Int
 
   //relation
   subscription Subscription[]
+  @@unique([name, interval])
 }
+
 
 /// Facture générée pour un abonnement, associée à une transaction Stripe.
 /// `status` : "PAID" (paiement réussi) ou "FAILED" (tentative échouée, montant non encaissé).

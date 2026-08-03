@@ -1,6 +1,5 @@
 import Stripe from 'stripe';
-import { prisma } from './singletonPrisma.js';
-
+import { prisma } from "./singletonPrisma.js"
 
 
 export class StripeLumenJuris {
@@ -110,19 +109,6 @@ export class StripeLumenJuris {
             return {
                 success: false,
                 message: "Une erreur est survenue lors de la creation d'un payment intent"
-            }
-        }
-    }
-
-
-    async confirmPaymentIntent() {
-        try {
-
-        } catch (err) {
-            console.error(`Une erreur est survenue lors de la confirmation du payment intent, error :\n ${err}`)
-            return {
-                success: false,
-                message: "Une erreur est survenue lors de la confirmation du payment intent"
             }
         }
     }
