@@ -229,6 +229,10 @@ export async function fetchClauseDetail(clause: ClauseRisk): Promise<ClauseAI> {
 Analyse la clause suivante:
 """${clause.content}"""
 
+LANGUE — IMPÉRATIF : rédige TOUS les textes de ta réponse dans la langue de la
+clause ci-dessus. Si la clause est en anglais, réponds en anglais. Le droit
+applicable reste le droit français : seule la langue de rédaction s'adapte.
+
 STYLE DES "issues" (problèmes) — IMPÉRATIF :
 - 2 problèmes MAXIMUM (1 seul si un seul risque réel), classés du plus grave au moins grave.
 - Une phrase courte chacun (20 mots max), qui va droit au risque concret.
@@ -268,6 +272,15 @@ Contexte : cette clause a été identifiée comme à risque (${clause.type}) pou
 
 Question du juriste : ${question}
 
-Réponds de façon concise, structurée et opérationnelle, en droit français, sans inventer de jurisprudence ni d'article de loi.`;
+Réponds de façon concise, structurée et opérationnelle, en droit français, sans inventer de jurisprudence ni d'article de loi.
+
+LANGUE — IMPÉRATIF : rédige ta réponse dans la langue de la clause ci-dessus.
+Si la clause est en anglais, réponds en anglais. Le droit applicable reste le
+droit français : seule la langue de rédaction s'adapte.
+
+FORMAT — le volet Word est étroit, la réponse doit se lire d'un coup d'œil :
+- 180 mots maximum.
+- Pas de titres de niveau 1 ou 2, pas de séparateurs horizontaux.
+- Va droit au fait, sans préambule ni relance finale proposant d'autres questions.`;
   return chat5(prompt, "low");
 }
