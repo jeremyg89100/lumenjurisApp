@@ -264,6 +264,10 @@ export async function generateContractDraftFromBrief(
       : "") +
     blocParties(parties) +
     EXIGENCE_LICEITE + EXIGENCE_RGPD + FORMAT_JSON_CONTRAT;
-  const out = await callOpenAi52(prompt, "high", "medium", "gpt-5.2");
+  // Profondeur "medium" et non "high" : la redaction depuis une consigne libre
+  // attendait nettement plus longtemps que le parcours par questions, pour un
+  // resultat comparable — ce dernier redige deja en "medium". Le gain de temps
+  // est immediat ; a reevaluer si la qualite des contrats produits baisse.
+  const out = await callOpenAi52(prompt, "medium", "medium", "gpt-5.2");
   return parseDraft(out, title);
 }

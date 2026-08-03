@@ -158,22 +158,13 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
         </div>
       )}
 
-      <div className="flex items-start gap-6">
-        
-        {/* Panneau Latéral Gauche */}
-        <Sidebar
-          folders={folders}
-          tags={tags}
-          activeFolder={activeFolder}
-          activeTags={activeTags}
-          onFolderSelect={handleFolderSelect}
-          onTagToggle={handleTagToggle}
-          onCreateFolder={handleCreateFolder}
-          onCreateTag={handleCreateTag}
-        />
-      
-
-      <div className="space-y-4">
+      {/* Le panneau latéral « Dossiers / Tags » n'est plus affiché : présenté ainsi,
+          sans dossier ni tag existant, il n'était pas compréhensible et occupait de
+          la place au détriment de la liste des contrats. Le composant Sidebar et
+          toute la logique associée (création, filtrage) restent en place : il suffit
+          de le re-rendre ici pour le rétablir. */}
+      <div className="w-full">
+        <div className="space-y-4">
           {/* Barre recherche + filtres */}
           <div className="flex flex-col md:flex-row gap-2.5">
             <form

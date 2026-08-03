@@ -49,7 +49,11 @@ function buildModel(title: string, draft: ContractDraft): ContractModel {
   };
 }
 
-type Step = "mode" | "brief" | "loading" | "asking" | "generating" | "error";
+// "parties" arrive juste avant la redaction : les identites sont injectees dans
+// le contrat genere, elles doivent donc etre connues avant l'appel a l'IA. Les
+// demander sur le premier ecran obligeait a les saisir avant meme de savoir quel
+// contrat on voulait.
+type Step = "mode" | "brief" | "loading" | "asking" | "parties" | "generating" | "error";
 
 interface Attachment {
   file: File;
@@ -87,6 +91,8 @@ export function ScratchWizard({ title, onReady, onBack }: {
   const opId = useRef(0);
   // Étape d'où la rédaction a été lancée (retour pendant « generating »).
   const origin = useRef<"brief" | "asking">("brief");
+  // Reponses du questionnaire mises de cote pendant l'ecran des parties.
+  const pendingAnswers = useRef<Record<string, string> | null>(null);
   // Dernière URL écrite par le wizard : la synchro ignore nos propres écritures
   // et ne réagit qu'aux navigations du navigateur (Précédent / Suivant).
   const lastUrl = useRef("");
@@ -169,9 +175,31 @@ export function ScratchWizard({ title, onReady, onBack }: {
 
   const partyOf = (role: string) => parties.find((p) => p.role === role);
 
-  async function finish(finalAnswers: Record<string, string>) {
-    const id = ++opId.current;
+  /** Fin du questionnaire : on passe par l'ecran des parties avant de rediger. */
+  function finish(finalAnswers: Record<string, string>) {
+    pendingAnswers.current = finalAnswers;
     origin.current = "asking";
+    setError("");
+    setStep("parties");
+  }
+
+  /** Fin de la consigne libre : meme detour par l'ecran des parties. */
+  function finishBrief() {
+    if (!brief.trim()) return;
+    pendingAnswers.current = null;
+    origin.current = "brief";
+    setError("");
+    setStep("parties");
+  }
+
+  /** Lance la redaction, une fois les parties connues (ou volontairement omises). */
+  function runGeneration() {
+    if (origin.current === "asking") void runGuided(pendingAnswers.current ?? {});
+    else void runBrief();
+  }
+
+  async function runGuided(finalAnswers: Record<string, string>) {
+    const id = ++opId.current;
     setStep("generating");
     setError("");
     try {
@@ -182,14 +210,12 @@ export function ScratchWizard({ title, onReady, onBack }: {
     } catch {
       if (opId.current !== id) return;
       setError("Échec de la rédaction. Réessayez.");
-      setStep("asking");
+      setStep("parties");
     }
   }
 
-  async function finishBrief() {
-    if (!brief.trim()) return;
+  async function runBrief() {
     const id = ++opId.current;
-    origin.current = "brief";
     setStep("generating");
     setError("");
     try {
@@ -202,7 +228,7 @@ export function ScratchWizard({ title, onReady, onBack }: {
     } catch {
       if (opId.current !== id) return;
       setError("Échec de la rédaction. Réessayez.");
-      setStep("brief");
+      setStep("parties");
     }
   }
 
@@ -256,6 +282,12 @@ export function ScratchWizard({ title, onReady, onBack }: {
     if (step === "generating") {
       // Revient à l'étape d'origine sans rien perdre (brief, réponses, pièces).
       setStep(origin.current); setError("");
+    } else if (step === "parties") {
+      // Retour à ce qu'on était en train de faire : la consigne, ou la dernière
+      // question du questionnaire. Les parties déjà saisies sont conservées.
+      setError("");
+      if (origin.current === "asking" && questions.length > 0) goAsk(questions.length - 1);
+      else setStep("brief");
     } else if (step === "asking" && idx > 0) {
       // Question précédente — jamais un saut au tout début.
       goAsk(idx - 1);
@@ -275,49 +307,6 @@ export function ScratchWizard({ title, onReady, onBack }: {
       <div className="rounded-card border border-line bg-white p-6 shadow-card">
         {step === "mode" && (
           <div className="space-y-3">
-            {/* Identité des parties : renseignée une fois ici, elle sert quel que
-                soit le mode de rédaction choisi ensuite. */}
-            <div className="rounded-xl border border-line bg-surface-subtle p-4 space-y-3">
-              <div>
-                <p className="text-sm font-semibold text-ink">Les parties au contrat</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
-                  Optionnel. Renseignées ici, elles sont écrites directement dans le
-                  contrat — sinon elles resteront à compléter dans l’éditeur.
-                </p>
-              </div>
-
-              {(["Première partie", "Seconde partie"] as const).map((role) => {
-                const p = partyOf(role);
-                return (
-                  <div key={role} className="space-y-1.5">
-                    <CompanySearchField
-                      label={role}
-                      hint=""
-                      onSelect={(result, siret) => applyParty(role, result, siret)}
-                    />
-                    {p && (
-                      <div className="flex items-start gap-2 rounded-lg bg-white px-3 py-2">
-                        <span className="min-w-0 flex-1 text-xs text-ink-secondary">
-                          <span className="font-medium text-ink">{p.nom}</span>
-                          {p.forme_juridique ? ` — ${p.forme_juridique}` : ""}
-                          {p.siren ? ` · SIREN ${p.siren}` : ""}
-                          {p.ville ? ` · ${p.ville}` : ""}
-                          {p.representant ? ` · ${p.representant}` : ""}
-                        </span>
-                        <button
-                          onClick={() => setParties((prev) => prev.filter((x) => x.role !== role))}
-                          className="rounded p-0.5 text-ink-subtle hover:bg-surface-muted hover:text-danger"
-                          title="Retirer"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
             <button
               onClick={goBrief}
               className="w-full rounded-xl border border-line bg-white p-4 text-left transition-all hover:border-brand/50 hover:bg-brand-light/40 group"
@@ -414,6 +403,69 @@ export function ScratchWizard({ title, onReady, onBack }: {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-card transition-all hover:bg-brand-hover disabled:opacity-50"
               >
                 {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Rédiger le contrat
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "parties" && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-base font-semibold text-ink">Les parties au contrat</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                Optionnel. Renseignées ici, elles sont écrites directement dans le
+                contrat — sinon elles resteront à compléter dans l’éditeur.
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-line bg-surface-subtle p-4">
+              {(["Première partie", "Seconde partie"] as const).map((role) => {
+                const p = partyOf(role);
+                return (
+                  <div key={role} className="space-y-1.5">
+                    <CompanySearchField
+                      label={role}
+                      hint=""
+                      onSelect={(result, siret) => applyParty(role, result, siret)}
+                    />
+                    {p && (
+                      <div className="flex items-start gap-2 rounded-lg bg-white px-3 py-2">
+                        <span className="min-w-0 flex-1 text-xs text-ink-secondary">
+                          <span className="font-medium text-ink">{p.nom}</span>
+                          {p.forme_juridique ? ` — ${p.forme_juridique}` : ""}
+                          {p.siren ? ` · SIREN ${p.siren}` : ""}
+                          {p.ville ? ` · ${p.ville}` : ""}
+                          {p.representant ? ` · ${p.representant}` : ""}
+                        </span>
+                        <button
+                          onClick={() => setParties((prev) => prev.filter((x) => x.role !== role))}
+                          className="rounded p-0.5 text-ink-subtle hover:bg-surface-muted hover:text-danger"
+                          title="Retirer"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {error && <p className="text-sm text-danger">{error}</p>}
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={runGeneration}
+                className="text-sm text-ink-muted underline-offset-2 hover:text-brand hover:underline"
+              >
+                Compléter plus tard
+              </button>
+              <button
+                onClick={runGeneration}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-card transition-all hover:bg-brand-hover"
+              >
+                <Sparkles className="h-4 w-4" />
                 Rédiger le contrat
               </button>
             </div>
