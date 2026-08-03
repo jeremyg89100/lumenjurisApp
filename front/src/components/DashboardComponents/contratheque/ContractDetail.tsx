@@ -11,6 +11,7 @@ import { negotiationApi } from "../negotiation/api";
 import { fmtDate, daysUntil, RENEWAL_LABEL } from "./types";
 import type { ContractDetail as Detail, ValidationStatus } from "./types";
 import { ConfirmationModal } from "../../ui/ConfirmationModal";
+import { VersionCompare } from "./VersionCompare";
 
 interface Props {
   contractId: string;
@@ -167,6 +168,11 @@ export function ContractDetail({ contractId, canDelete, onBack, onDeleted }: Pro
         {/* Colonne droite : infos clés + métadonnées (validées en avant, manquantes en bas) */}
         <div className="space-y-4">
           <SummaryCard data={data} urgent={urgent} days={d} />
+          <VersionCompare
+            data={data}
+            canEdit={!editing}
+            onChanged={load}
+          />
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Métadonnées extraites</p>
             <MetadataPanel fields={data.metadataFields} onValidate={handleValidate} />

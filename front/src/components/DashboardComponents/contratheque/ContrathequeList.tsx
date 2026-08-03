@@ -48,14 +48,18 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
         folderId: activeFolder ?? undefined,
         tagIds: activeTags.length > 0 ? activeTags : undefined,
       }
-      const [s, list] = await Promise.all([contractApi.stats(), contractApi.list(currentFilters)]);
-      setStats(s); setItems(list.items); setTotal(list.total);
+      const [s, list, fetchedFolders, fedtchedTags] = await Promise.all([contractApi.stats(), contractApi.list(currentFilters), contractApi.listFolders(), contractApi.listTags()]);
+      setStats(s); 
+      setItems(list.items); 
+      setTotal(list.total); 
+      setFolders(fetchedFolders); 
+      setTags(fedtchedTags);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, activeFolder, activeTags]);
 
   useEffect(() => { void loadData(); }, [loadData, refreshKey]);
 
@@ -73,8 +77,8 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
 
   const handleCreateFolder = async (name: string, parentId: string | null) => {
     try {
-      const newF: FolderDTO = { id: Date.now().toString(), name, parentExternalId: parentId };
-      setFolders((prev) => [...prev, newF]);
+      await contractApi.createFolder(name, parentId);
+      await loadData();
     } catch (e) {
       setError("Impossible de créer le dossier");
     }
@@ -82,8 +86,8 @@ export function ContrathequeList({ onOpen, onImport, tab, onTab, canDelete, refr
 
   const handleCreateTag = async (label: string, color: string) => {
     try {
-      const newT: TagDTO = { id: Date.now().toString(), label, color };
-      setTags((prev) => [...prev, newT]);
+      await contractApi.createTag(label, color);
+      await loadData();
     } catch (e) {
       setError("Impossible de créer le tag");
     }
