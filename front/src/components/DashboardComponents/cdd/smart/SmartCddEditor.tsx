@@ -20,6 +20,7 @@ import { createInitialState } from "../../../../contractEngine/state";
 import { splitSegments } from "../../../../contractEngine/segments";
 import { Variable } from "./VariableNode";
 import { CompanySearchField } from "../../../common/CompanySearchField";
+import { PartyPrefill } from "../../../common/PartyPrefill";
 import { mapCompanyToContractParty, formatConventionFromCompany } from "../../../../utils/companyLookup";
 import type { CompanyResult } from "../../../../types/companySearch";
 import ReactMarkdown from "react-markdown";
@@ -714,12 +715,11 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
             </ul>
           </div>
 
-          {/* Pré-remplissage employeur (SIRET / nom) — seulement si le modèle a un employeur */}
-          {hasEmployer && !shareOpen && (
-            <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <CompanySearchField onSelect={applyCompany} label="Pré-remplir l'employeur" hint="" />
-            </div>
-          )}
+          {/* Pré-remplissage des parties par recherche d'entreprise, ici, au moment
+              où l'on remplit les champs du contrat. Générique : fonctionne aussi
+              bien sur les modèles à champs fixes (emp_*) que sur les contrats
+              générés de zéro, dont les noms de champs sont produits par l'IA. */}
+          {!shareOpen && <PartyPrefill variables={model.variables} setVar={setVar} />}
         </aside>
 
         {/* Colonne éditeur */}
