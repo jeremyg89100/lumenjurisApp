@@ -1,5 +1,5 @@
 import { prisma } from "../../prisma/singletonPrisma.js";
-import { SubscriptionStatus } from "@prisma/client";
+import { Prisma, SubscriptionStatus, PlanName, PlanInterval } from "@prisma/client";
 import { Mailer } from "../infrastructure/mailer/classMailer.js";
 import { generateInvoicePDF } from "../infrastructure/pdf/invoicePDF.js";
 
@@ -13,7 +13,7 @@ export type ReturnDataSubscription<T = any> = {
   data?: T;
 };
 
-function buildInvoiceNumber(idFacture: number, date: Date): string {
+export function buildInvoiceNumber(idFacture: number, date: Date): string {
   const yyyymmdd = date.toISOString().slice(0, 10).replace(/-/g, "");
   return `LJ-${yyyymmdd}-${String(idFacture).padStart(4, "0")}`;
 }
@@ -35,7 +35,7 @@ type UserInvoiceInfo = {
 };
 
 /** Select Prisma partagé par les deux chemins de facturation (email + download). */
-const USER_INVOICE_SELECT = {
+export const USER_INVOICE_SELECT = {
   email: true,
   prenom: true,
   nom: true,
@@ -55,7 +55,7 @@ const USER_INVOICE_SELECT = {
  * fallback sur le nom/prénom de la personne (ou l'email en dernier recours).
  * L'adresse n'est ajoutée que si au moins une ligne est connue.
  */
-function buildCustomerInvoiceInfo(user: UserInvoiceInfo): {
+export function buildCustomerInvoiceInfo(user: UserInvoiceInfo): {
   customerName: string;
   customerEmail: string;
   customerAddress?: string;
@@ -93,7 +93,7 @@ export class Subscription {
   ): Promise<ReturnData> {
     try {
       const plan = await prisma.plan.findFirst({
-        where: { name: planName, interval },
+        where: { name: planName as PlanName, interval: interval as PlanInterval },
       });
 
       if (!plan) {
@@ -114,7 +114,7 @@ export class Subscription {
 
       const now = new Date();
       const expiresAt =
-        interval === "year"
+        interval === PlanInterval.yearly
           ? new Date(new Date(now).setFullYear(now.getFullYear() + 1))
           : new Date(new Date(now).setMonth(now.getMonth() + 1));
 
@@ -147,11 +147,10 @@ export class Subscription {
         where: { userId },
         create: {
           userId,
-          creditIncluded: plan.creditIncluded,
-          creditAdded: 0,
+          quotas: plan.creditsIncluded as Prisma.InputJsonValue,
         },
         update: {
-          creditIncluded: plan.creditIncluded,
+          quotas: plan.creditsIncluded as Prisma.InputJsonValue,
         },
       });
 
@@ -216,9 +215,10 @@ export class Subscription {
           },
           credits: credits
             ? {
-              creditIncluded: credits.creditIncluded,
-              creditAdded: credits.creditAdded,
-              totalIncluded: subscription.plan.creditIncluded,
+              // Quotas restants de l'utilisateur (structure par feature)
+              quotas: credits.quotas,
+              // Quotas pleins du plan (référence pour calculer la conso côté front)
+              planQuotas: subscription.plan.creditsIncluded,
             }
             : null,
         },
@@ -361,7 +361,7 @@ export class Subscription {
       if (existingSubscription) return;
 
       const plan = await prisma.plan.findFirst({
-        where: { name: "Freemium", interval: "month" },
+        where: { name: PlanName.Freemium, interval: PlanInterval.monthly },
       });
       if (!plan) {
         console.error("Plan Freemium introuvable en BDD");
@@ -384,8 +384,7 @@ export class Subscription {
       await prisma.userCredit.create({
         data: {
           userId,
-          creditIncluded: plan.creditIncluded,
-          creditAdded: 0,
+          quotas: plan.creditsIncluded as Prisma.InputJsonValue,
         },
       });
 

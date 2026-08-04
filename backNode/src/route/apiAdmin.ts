@@ -86,7 +86,7 @@ router.get("/revenue", authMiddleware, requireAdmin, async (_req: Request, res: 
         // MRR : somme des plans actifs normalisée au mois (annuel → price / 12).
         const activeSubs = subscriptions.filter((s) => s.status === "ACTIVE")
         const monthlyOf = (subs: typeof activeSubs) =>
-            subs.reduce((sum, s) => sum + (s.plan.interval === "year" ? s.plan.price / 12 : s.plan.price), 0)
+            subs.reduce((sum, s) => sum + (s.plan.interval === "yearly" ? s.plan.price / 12 : s.plan.price), 0)
         const mrr = Math.round(monthlyOf(activeSubs))
         // Prévision : abonnements actifs encore valides au début du mois prochain
         // (scénario "aucun renouvellement, aucune nouvelle souscription").
@@ -327,7 +327,7 @@ router.get("/users/:idUser/details", authMiddleware, requireAdmin, async (req: R
                         status: true,
                         startAt: true,
                         expiresAt: true,
-                        plan: { select: { name: true, price: true, interval: true, creditIncluded: true } },
+                        plan: { select: { name: true, price: true, interval: true, creditsIncluded: true } },
                         facture: { select: { price: true }, where: { status: "PAID" } },
                     },
                 },
@@ -339,7 +339,7 @@ router.get("/users/:idUser/details", authMiddleware, requireAdmin, async (req: R
                         address: { select: { address: true, codePostal: true, pays: true } },
                     },
                 },
-                userCredit: { select: { creditIncluded: true, creditAdded: true } },
+                userCredit: { select: { quotas: true } },
                 _count: {
                     select: { contracts: true, signatureEnvelopes: true, contractHistory: true },
                 },
@@ -414,7 +414,7 @@ router.get("/overview", authMiddleware, requireAdmin, async (_req: Request, res:
                 _sum: { totalCostUsd: true },
             }).then((r) => Number(r._sum.totalCostUsd ?? 0)),
 
-            // Crédits restants par utilisateur (avec infos user + plan)
+            // Quotas restants par utilisateur (avec infos user + plan)
             prisma.userCredit.findMany({
                 include: {
                     user: {
@@ -424,12 +424,12 @@ router.get("/overview", authMiddleware, requireAdmin, async (_req: Request, res:
                             nom: true,
                             prenom: true,
                             subscription: {
-                                select: { plan: { select: { creditIncluded: true } } },
+                                select: { plan: { select: { creditsIncluded: true } } },
                             },
                         },
                     },
                 },
-                orderBy: [{ creditIncluded: "asc" }, { creditAdded: "asc" }],
+                orderBy: { idUserCredit: "asc" },
             }),
         ])
 
@@ -440,10 +440,10 @@ router.get("/overview", authMiddleware, requireAdmin, async (_req: Request, res:
             email: c.user.email,
             nom: c.user.nom,
             prenom: c.user.prenom,
-            creditIncluded: c.creditIncluded,
-            creditAdded: c.creditAdded,
-            total: c.creditIncluded + c.creditAdded,
-            planCredit: c.user.subscription?.plan.creditIncluded ?? 0,
+            // Quotas restants de l'utilisateur (structure par feature)
+            quotas: c.quotas,
+            // Quotas pleins du plan (référence pour la conso)
+            planQuotas: c.user.subscription?.plan.creditsIncluded ?? null,
         }))
 
         return res.json({

@@ -3,7 +3,6 @@ import type { Request, Response } from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import path from "path";
-import { User } from "./src/services/classUser.js";
 import routerGoogleAuth from "./src/route/authGoogle.js";
 import routerLlm from "./src/route/apiLlm.js";
 import routerUser from "./src/route/apiUser.js";
@@ -25,7 +24,6 @@ import routerLegalWatch from "./src/route/apiLegalWatch.js";
 import routerFeatureEvent from "./src/route/apiFeatureEvent.js";
 import cors from "cors";
 import { seedBootstrapUsers } from "./src/services/bootstrapUsers.js";
-import { seedPlans } from "./src/services/planSeeder.js";
 import { Mailer } from "./src/infrastructure/mailer/classMailer.js";
 import { globalLimiter } from "./src/securite/limiter.js";
 import { authMiddleware } from "./src/middleware/authMiddleware.js";
@@ -33,7 +31,7 @@ import { prisma } from "./prisma/singletonPrisma.js";
 import fs from "fs";
 import { internalApiKeyMiddleware } from "./src/middleware/internalApiKeyMiddleware.js";
 
-
+import { seedPlans } from "./prisma/seedPlans.js";
 /**
  * Préparation du serveur nodejs/express pour ce backend
  * Ici sera traité toute les opérations avec la base de données
@@ -50,19 +48,26 @@ const app = express();
 //SECURITE
 app.set("etag", false);
 const port = process.env.PORT || 3020;
+
+//Declaration webhook stripe avant express json
+app.post(
+  "/billing/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  routerBilling
+);
+
 app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === "dev"
-        ? ["http://localhost:5173", "http://localhost:3020", HOST_PROXY]
-        : HOST_PROXY,
-    credentials: true,
-  }),
+app.use(cors({
+  origin:
+    process.env.NODE_ENV === "dev"
+      ? ["http://localhost:5173", "http://localhost:3020", HOST_PROXY]
+      : HOST_PROXY,
+  credentials: true,
+}),
 );
 app.use(globalLimiter);
 app.set("trust-proxy", 1);
@@ -99,6 +104,10 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+
+
+
+
 app.get("/userassets/:filename", authMiddleware, async (req, res) => {
   try {
     const filename = req.params.filename as string;
@@ -130,21 +139,20 @@ app.get("/userassets/:filename", authMiddleware, async (req, res) => {
 
 
 app.listen(port, async () => {
-  console.log(`Serveur backend nodejs running on port ${port}`);
-  
   try {
-    await seedBootstrapUsers();
+    //Initialisation des seed de plan. 
+    void await seedPlans()
+
+    //Initialisation des utilisateurs de developpement
+    void await seedBootstrapUsers();
+
+    //Initialisation du transporteur pour s'assurer qu'il soit bien ok au démarrage
     void Mailer.initTransporter();
+    console.log(`Serveur backend nodejs running on port ${port}`);
   } catch (err) {
     console.error(
-      "Erreur lors de l'initialisation des utilisateurs de bootstrap:",
+      "Une erreur est survenue lors de demarage du serveur backNode, error :",
       err,
     );
   }
-  try {
-    await seedPlans();
-  } catch (err) {
-    console.error("Erreur lors du seeding des plans:", err);
-  }
-  //await sandbox()
 });

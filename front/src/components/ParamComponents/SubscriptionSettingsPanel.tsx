@@ -14,7 +14,7 @@ import { fetchProxy } from "../../utils/fetchProxy";
 import { CreditsPanel } from "../SubscriptionComponents/CreditsPanel";
 import { formatPrice } from "../../utils/format/formatPrice";
 import { formatDate } from "../../utils/format/formatDate";
-import { CreditBar } from "../common/CreditBar";
+import { QuotasDisplay } from "../common/QuotasDisplay";
 import type {
   SubscriptionData,
   SubscriptionStatus,
@@ -237,19 +237,7 @@ export function SubscriptionSettingsPanel() {
             </Dialog>
           </div>
 
-          <div className="space-y-3">
-            <CreditBar
-              label="Crédits inclus"
-              used={credits.totalIncluded - credits.creditIncluded}
-              total={credits.totalIncluded}
-            />
-
-            <CreditBar
-              label="Crédits ajoutés"
-              used={0}
-              total={credits.creditAdded}
-            />
-          </div>
+          <QuotasDisplay quotas={credits.quotas} planQuotas={credits.planQuotas} />
         </div>
       )}
 

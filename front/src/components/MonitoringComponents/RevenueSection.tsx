@@ -28,7 +28,7 @@ import { fetchProxy } from "../../utils/fetchProxy";
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type RevenueUser = { idUser: number; email: string; nom: string | null; prenom: string | null };
-type Plan = { idPlan: number; name: string; price: number; interval: string; creditIncluded: number };
+type Plan = { idPlan: number; name: string; price: number; interval: string };
 type Facture = { idFacture: number; price: number; stripeInvoiceId: string; status: string; createdAt: string };
 type Subscription = {
   idSubscription: number;

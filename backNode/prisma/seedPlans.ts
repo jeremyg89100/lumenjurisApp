@@ -1,5 +1,6 @@
 import { prisma } from "./singletonPrisma.js";
-import { Prisma } from "@prisma/client";
+import { Prisma, PlanInterval, PlanName } from "@prisma/client";
+
 /**
  * Création de tout les plans d'abonnement dans la base de données
  * 
@@ -12,8 +13,6 @@ import { Prisma } from "@prisma/client";
  * -Pro yearly
  */
 
-
-type Interval = "yearly" | "monthly"
 
 type Quota = { unlimited: true } | { unlimited: false, value: number }
 type MeteredFeature = { enabled: false } | { enabled: true, limit: number }
@@ -39,9 +38,9 @@ interface CreditPlan {
 }
 
 type PlanSeed = {
-    name: string;
+    name: PlanName;
     price: number;
-    interval: Interval;
+    interval: PlanInterval;
     creditsIncluded: CreditPlan;
     stripeProductId: string;
     stripePriceId: string;
@@ -50,9 +49,9 @@ type PlanSeed = {
 const PLANS_SEED = [
     //FREEMIUM
     {
-        name: "Freemium",
+        name: PlanName.Freemium,
         price: 0,
-        interval: "monthly",
+        interval: PlanInterval.monthly,
         creditsIncluded: {
             analyzer: {
                 unlimited: false,
@@ -77,9 +76,9 @@ const PLANS_SEED = [
 
     //BETA Gratuit, offre pour les beta testeur accès illimité
     {
-        name: "Betatesteur",
+        name: PlanName.Betatesteur,
         price: 0,
-        interval: "monthly",
+        interval: PlanInterval.monthly,
         creditsIncluded: {
             analyzer: { unlimited: true },
             signatureEnhanced: { enabled: true, limit: 30 },
@@ -94,12 +93,11 @@ const PLANS_SEED = [
         stripeProductId: "",
         stripePriceId: "",
     },
-
-    //STARTER mois:49€ | année:468€(39€/mois)
+    
     {
-        name: "Starter_mensuel",
+        name: PlanName.Starter_mensuel,
         price: 49_00,
-        interval: "monthly",
+        interval: PlanInterval.monthly,
         creditsIncluded: {
             analyzer: {
                 unlimited: false,
@@ -121,9 +119,9 @@ const PLANS_SEED = [
         stripePriceId: "price_1Tzx1pHjiTZrRhmvwc77AaOP",
     },
     {
-        name: "Starter_annuel",
+        name: PlanName.Starter_annuel,
         price: 468_00,
-        interval: "yearly",
+        interval: PlanInterval.yearly,
         creditsIncluded: {
             analyzer: {
                 unlimited: false,
@@ -145,9 +143,9 @@ const PLANS_SEED = [
 
     //PRO mois:119€ | année:1188€(99€/mois)
     {
-        name: "Pro_mensuel",
+        name: PlanName.Pro_mensuel,
         price: 119_00,
-        interval: "monthly",
+        interval: PlanInterval.monthly,
         creditsIncluded: {
             analyzer: { unlimited: true },
             signatureEnhanced: { enabled: true, limit: 10 },
@@ -164,9 +162,9 @@ const PLANS_SEED = [
         stripePriceId: "price_1Tzx4LHjiTZrRhmvGvNeGbJj",
     },
     {
-        name: "Pro_annuel",
+        name: PlanName.Pro_annuel,
         price: 1_188_00,
-        interval: "yearly",
+        interval: PlanInterval.yearly,
         creditsIncluded: {
             analyzer: { unlimited: true },
             signatureEnhanced: { enabled: true, limit: 10 },
@@ -188,24 +186,28 @@ const PLANS_SEED = [
 
 //Integration des plans dans la bdd
 export async function seedPlans(): Promise<void> {
-    for (const plan of PLANS_SEED) {
-        await prisma.plan.upsert({
-            where: {
-                name_interval: {
-                    name: plan.name,
-                    interval: plan.interval,
-                }
-            },
-            create: {
-                ...plan,
-                creditsIncluded: plan.creditsIncluded as Prisma.InputJsonValue,
-            },
-            update: {
-                ...plan,
-                creditsIncluded: plan.creditsIncluded as Prisma.InputJsonValue
-            }
-        });
-    }
+    try {
 
-    console.log("Plans ready.");
+        for (const plan of PLANS_SEED) {
+            await prisma.plan.upsert({
+                where: {
+                    name_interval: {
+                        name: plan.name,
+                        interval: plan.interval,
+                    }
+                },
+                create: {
+                    ...plan,
+                    creditsIncluded: plan.creditsIncluded as Prisma.InputJsonValue,
+                },
+                update: {
+                    ...plan,
+                    creditsIncluded: plan.creditsIncluded as Prisma.InputJsonValue
+                }
+            });
+        }
+        console.log("Les seeds de Plan sont injecté avec succès.");
+    } catch (err) {
+        console.error("Une erreur est survenue lors de l'initialisation des seeds \"Plan\", error :  ", err)
+    }
 }

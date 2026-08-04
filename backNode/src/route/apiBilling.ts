@@ -7,7 +7,10 @@ import { Subscription } from "../services/classSubscription.js";
 import { Credit } from "../services/classCredit.js";
 import Stripe from "stripe"
 
+
 const routerBilling: Router = express.Router();
+
+const stripeService = new StripeLumenJuris();
 
 
 /* === STRIPE WEBHOOK ===
@@ -16,12 +19,10 @@ const routerBilling: Router = express.Router();
  les manipulations.
  On peut içi traiter tout les mises à jour des users suite à un achat/ou un echec de façon safe 
 */
-
-const stripeService = new StripeLumenJuris();
-
-routerBilling.post("/stripe/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
+routerBilling.post("/stripe/webhook", async (req: Request, res: Response) => {
   //Adress du webhook https://lumenjurisbackendnodejs.lumenjuris.com/billing/stripe/webhook
   try {
+    console.log(Buffer.isBuffer(req.body));
     const signature = req.headers["stripe-signature"];
 
     const stripeClient = new Stripe(process.env.STRIPE_SK!, {
@@ -46,21 +47,32 @@ routerBilling.post("/stripe/webhook", express.raw({ type: "application/json" }),
       signature,
       webhookSecret
     );
+
     const handlerEvent = await stripeService.handleEvent(event);
-    res.sendStatus(200);
+
+
+    //Gestion d'erreur côté serveur à stripe
+    if (handlerEvent && handlerEvent.success === false) {
+      return res.status(500).send("Webhook handler failed");
+    }
+
+    return res.sendStatus(200);
 
   } catch (err) {
+    // Erreur avant le traitement métier (signature invalide, secret manquant...).
+    // On renvoie un 400 : l'event est malformé, inutile que Stripe le rejoue.
     console.error(err)
-    res.status(400).send("Error server")
+    return res.status(400).send("Error server")
   }
 })
 
 
+
+
+
+
 // Crée un customer Stripe pour l'utilisateur connecté (ou renvoie l'existant)
-routerBilling.post(
-  "/customer",
-  authMiddleware,
-  async (req: Request, res: Response) => {
+routerBilling.post("/customer",authMiddleware, async (req: Request, res: Response) => {
     const idUser = Number(req.idUser);
 
     const user = await prisma.user.findUnique({
@@ -107,11 +119,10 @@ routerBilling.post(
   },
 );
 
+
+
 // Retourne le ClientSecret
-routerBilling.post(
-  "/payment-intent",
-  authMiddleware,
-  async (req: Request, res: Response) => {
+routerBilling.post( "/payment-intent", authMiddleware, async (req: Request, res: Response) => {
     const idUser = Number(req.idUser);
     const { amount, automaticPayment = true } = req.body;
 
@@ -149,6 +160,8 @@ routerBilling.post(
   },
 );
 
+
+
 // Retourne tous les plans disponibles
 routerBilling.get("/plans", async (_req: Request, res: Response) => {
   try {
@@ -165,10 +178,7 @@ routerBilling.get("/plans", async (_req: Request, res: Response) => {
 
 
 // Enregistre un abonnement en BDD après confirmation du paiement Stripe
-routerBilling.post(
-  "/subscription",
-  authMiddleware,
-  async (req: Request, res: Response) => {
+routerBilling.post( "/subscription", authMiddleware, async (req: Request, res: Response) => {
     const idUser = Number(req.idUser);
     const { planName, interval, amount, stripePaymentIntentId } = req.body;
 
@@ -316,51 +326,62 @@ routerBilling.post(
 
 
 
+// Ajoute un bonus à un quota consommable (feature ciblée).
 routerBilling.put(
   "/add-credits",
   authMiddleware,
   async (req: Request, res: Response) => {
     const userId = Number(req.idUser);
-    const { addCredit } = req.body;
+    const { feature, amount } = req.body;
 
-    if (!addCredit || typeof addCredit !== "number" || addCredit < 0) {
-      return res.status(500).json({
+    if (typeof feature !== "string" || !feature) {
+      return res.status(400).json({
         success: false,
-        message:
-          "L'ajout de crédit doit être défini par un nombre entier positif.",
+        message: "La feature ciblée est requise.",
+      });
+    }
+    if (typeof amount !== "number" || !Number.isInteger(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Le montant doit être un entier positif.",
       });
     }
 
-    const addedCredits = await new Credit().addCredit(userId, addCredit);
+    const addedCredits = await new Credit().addQuota(userId, feature, amount);
 
-    return res.status(addedCredits.success ? 200 : 500).json(addedCredits);
+    return res.status(addedCredits.success ? 200 : 400).json(addedCredits);
   },
 );
 
 
 
 
-
+// Consomme une ou plusieurs unités d'un quota (feature ciblée).
 routerBilling.put("/remove-credits", authMiddleware, async (req: Request, res: Response) => {
   const userId = Number(req.idUser);
-  const { removeCredit } = req.body;
+  const { feature, amount = 1 } = req.body;
 
-  if (!removeCredit || typeof removeCredit !== "number" || removeCredit < 0) {
-    return res.status(500).json({
+  if (typeof feature !== "string" || !feature) {
+    return res.status(400).json({
       success: false,
-      message:
-        "Le retrait de crédit doit être défini par un nombre entier positif.",
+      message: "La feature ciblée est requise.",
+    });
+  }
+  if (typeof amount !== "number" || !Number.isInteger(amount) || amount <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Le montant doit être un entier positif.",
     });
   }
 
-  const removedCredits = await new Credit().removeCredit(
-    userId,
-    removeCredit,
-  );
-  console.log("REMOVE CREDIT : ", removedCredits);
+  const removedCredits = await new Credit().consumeQuota(userId, feature, amount);
 
-  return res.status(removedCredits.success ? 200 : 500).json(removedCredits);
+  return res.status(removedCredits.success ? 200 : 400).json(removedCredits);
 })
+
+
+
+
 
 
 

@@ -19,6 +19,21 @@ enum Role {
   LECTEUR // lecture seule
 }
 
+enum TokenState {
+  ACTIVE
+  EXPIRED
+  USED
+}
+
+enum EnvelopeStatus {
+  DRAFT
+  SENT
+  PARTIALLY_SIGNED
+  SIGNED
+  DECLINED
+  EXPIRED
+}
+
 enum AuthProvider {
   GOOGLE
 }
@@ -40,19 +55,19 @@ enum CreditTransactionType {
   EXPIRE
 }
 
-enum TokenState {
-  ACTIVE
-  EXPIRED
-  USED
+// --- PLAN ----
+enum PlanName {
+  Freemium
+  Betatesteur
+  Starter_mensuel
+  Starter_annuel
+  Pro_mensuel
+  Pro_annuel
 }
 
-enum EnvelopeStatus {
-  DRAFT
-  SENT
-  PARTIALLY_SIGNED
-  SIGNED
-  DECLINED
-  EXPIRED
+enum PlanInterval {
+  monthly
+  yearly
 }
 
 // ─── CONTRATHÈQUE ───
@@ -326,12 +341,14 @@ model ContractHistory {
 
 // --- CREDIT ET PAYMENT ---
 
-/// Crédits disponibles d'un utilisateur : `creditIncluded` vient du plan, `creditAdded` sont des bonus.
-/// Décrémentés à chaque appel IA — épuisement (tous à 0) bloque les fonctionnalités payantes.
+/// Quotas restants d'un utilisateur pour la période en cours.
+/// `quotas` est une copie vivante de `Plan.creditsIncluded` (même structure JSON) :
+/// réinitialisée à chaque paiement Stripe, puis décrémentée à chaque usage pour les
+/// valeurs numériques (analyzer, signatureEnhanced, contrathequeLimit). Les features
+/// booléennes servent uniquement de droit d'accès (pas de décrément).
 model UserCredit {
-  idUserCredit   Int @id @default(autoincrement())
-  creditIncluded Int
-  creditAdded    Int
+  idUserCredit Int  @id @default(autoincrement())
+  quotas       Json
 
   //relation
 
@@ -339,8 +356,15 @@ model UserCredit {
   user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
 }
 
+/// Journal des mouvements de quotas *à valeur finie* (analyzer, signatureEnhanced,
+/// contrathequeLimit). `feature` précise le quota concerné ; `amount` est le delta
+/// (+ à l'attribution, - à la consommation) et `balanceAfter` le restant après coup.
+/// Les features booléennes (enabled on/off) ne sont PAS journalisées ici : ce sont
+/// des droits d'accès liés au plan, pas des mouvements de crédit.
 model CreditTransaction {
   id Int @id @default(autoincrement())
+
+  feature String
 
   amount Int
 
@@ -356,6 +380,20 @@ model CreditTransaction {
 
   userId Int
   user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([feature])
+}
+
+/// Journal des events Stripe déjà traités (idempotence du webhook).
+/// Stripe livre chaque event *at-least-once* : le même `eventId` peut arriver
+/// plusieurs fois (timeout, rejeu). La contrainte @unique sur `eventId` garantit
+/// qu'un doublon est détecté et ignoré au lieu d'être rejoué en base.
+model ProcessedStripeEvent {
+  idProcessed Int      @id @default(autoincrement())
+  eventId     String   @unique
+  type        String
+  processedAt DateTime @default(now())
 }
 
 // --- SUIVI D'USAGE DES FONCTIONNALITÉS ---
@@ -395,12 +433,13 @@ model Subscription {
 }
 
 /// Définition d'un plan tarifaire : nom, prix, intervalle de facturation et crédits inclus.
+
 model Plan {
   idPlan Int @id @default(autoincrement())
 
-  name String
-  price          Int
-  interval       String
+  name     PlanName
+  price    Int
+  interval PlanInterval
 
   creditsIncluded Json
 
@@ -409,9 +448,9 @@ model Plan {
 
   //relation
   subscription Subscription[]
+
   @@unique([name, interval])
 }
-
 
 /// Facture générée pour un abonnement, associée à une transaction Stripe.
 /// `status` : "PAID" (paiement réussi) ou "FAILED" (tentative échouée, montant non encaissé).
