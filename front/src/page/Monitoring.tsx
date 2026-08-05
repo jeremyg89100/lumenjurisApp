@@ -10,8 +10,9 @@ import { ActivitySection } from "../components/MonitoringComponents/ActivitySect
 import { OverviewSection } from "../components/MonitoringComponents/OverviewSection";
 import { LegalWatchSection } from "../components/MonitoringComponents/LegalWatchSection";
 import { FiscaliteSection } from "../components/MonitoringComponents/FiscaliteSection";
+import { Logger } from "../components/MonitoringComponents/Logger";
 
-type Tab = "overview" | "llm" | "feedbacks" | "users" | "revenue" | "activity" | "legalWatch";
+type Tab = "overview" | "llm" | "feedbacks" | "users" | "revenue" | "activity" | "legalWatch" | "fiscalite" | "logger";
 
 
 const TABS: { id: Tab; label: string; icon: React.ElementType; description: string }[] = [
@@ -23,6 +24,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; description: stri
   { id: "activity", label: "Activité", icon: Activity, description: "Usage des fonctionnalités IA" },
   { id: "legalWatch", label: "Legal Watch", icon: Library , description: "Ajout de conventions collectives"},
   { id: "fiscalite", label: "Fiscalité", icon: Landmark, description: "TVA et factures par mois" },
+  {id: "logger", label: "Logger", icon: MessageSquare, description: "Logs des utilisateurs"}
 ];
 
 const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
@@ -34,6 +36,7 @@ const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
   activity: { title: "Activité des fonctionnalités", sub: "Usage de chaque fonctionnalité IA par période" },
   legalWatch: { title: "Legal Watch", sub: "Ajout de conventions collectives"},
   fiscalite: { title: "Fiscalité", sub: "Récapitulatif TVA mensuel et export des factures" },
+  logger: {title: "Logger", sub: "Logs des utilisateurs"}
 };
 
 export const Monitoring = () => {
@@ -92,6 +95,7 @@ export const Monitoring = () => {
             {activeTab === "activity" && <ActivitySection />}
             {activeTab === "legalWatch" && <LegalWatchSection />}
             {activeTab === "fiscalite" && <FiscaliteSection />}
+            {activeTab === "logger" &&< Logger />}
           </div>
 
         </div>

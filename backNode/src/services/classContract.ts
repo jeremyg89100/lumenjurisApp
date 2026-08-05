@@ -522,7 +522,7 @@ export class ContractService {
     async addAmendment(userId: number, externalId: string, data: { title: string; summary?: string; signatureDate?: string | null; effectiveDate?: string | null; documentFilePath?: string | null }): Promise<{ id: string } | null> {
         const contract = await prisma.contract.findFirst({ where: { userId, externalId } })
         if (!contract) return null
-        const amendmentExternalId = crypto.randomUUID()
+        const amendmentExternalId = crypto.randomUUID();
         await prisma.amendment.create({
             data: {
                 externalId: amendmentExternalId, title: data.title, summary: data.summary ?? null,

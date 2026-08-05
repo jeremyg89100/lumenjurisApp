@@ -1,0 +1,10 @@
+[
+  {
+    "id": "6bef89bb-e5ac-43e9-b6d9-dc80a04e20e5",
+    "date": "2026-08-05T11:39:03.626Z",
+    "comment": "Erreur HTTP 500 (Internal Server Error) \nDurée : 3ms.\nDétails : r is not defined",
+    "context": "[Auto-Log SERVER_ERROR] POST /contract/d280ed3b-28e8-49cf-84c5-b928ae8a31ae/amendment",
+    "page": "/contract/d280ed3b-28e8-49cf-84c5-b928ae8a31ae/amendment",
+    "userId": "2"
+  }
+]
