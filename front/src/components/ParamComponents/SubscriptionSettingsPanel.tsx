@@ -49,6 +49,8 @@ export function SubscriptionSettingsPanel() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   const fetchSubscription = useCallback(() => {
     fetchProxy("/api/billing/subscription", {
@@ -114,8 +116,35 @@ export function SubscriptionSettingsPanel() {
     fetchSubscription();
   };
 
+  // Ouvre le Stripe Customer Portal (gestion de l'abonnement en self-service).
+  const handleManageBilling = async () => {
+    setPortalError(null);
+    setPortalLoading(true);
+    try {
+      const res = await fetchProxy("/api/billing/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        window.location.href = data.url; // redirection vers le portail Stripe
+        return;
+      }
+      setPortalError(
+        typeof data?.message === "string"
+          ? data.message
+          : "Impossible d'ouvrir le portail. Réessayez.",
+      );
+    } catch (e) {
+      console.error(e);
+      setPortalError("Une erreur est survenue. Réessayez.");
+    }
+    setPortalLoading(false);
+  };
+
   const isActive = subscription?.status === "ACTIVE";
-  const isAnnual = subscription?.interval === "year";
+  const isAnnual = subscription?.interval === "yearly";
   const priceLabel = isAnnual ? "paiement unique" : "mois";
 
   const expiresAtLabel = (() => {
@@ -203,6 +232,23 @@ export function SubscriptionSettingsPanel() {
               </p>
             </div>
           </div>
+
+          {subscription.canManageBilling && (
+            <div className="border-t border-gray-100 px-5 py-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={portalLoading}
+                onClick={handleManageBilling}
+                className="w-full hover:bg-gray-100"
+              >
+                {portalLoading ? "Ouverture…" : "Gérer mon abonnement"}
+              </Button>
+              {portalError && (
+                <p className="mt-2 text-xs text-red-600">{portalError}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

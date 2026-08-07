@@ -2,6 +2,7 @@ import SignupForm from "../components/auth/SignupForm";
 import LoginForm from "../components/auth/LoginForm";
 import MainHeader from "../components/MainHeader/MainHeader";
 import { useUserStore } from "../store/userStore";
+import { PENDING_CHECKOUT_KEY } from "../utils/planMapping";
 
 // UI //
 import { Button } from "../components/ui/Button";
@@ -32,9 +33,17 @@ export function Inscription() {
     );
   }
 
-  return authStatus === "authenticated" ? (
-    <Navigate to="/dashboard" replace />
-  ) : (
+  // Si un plan a été choisi avant l'inscription, on renvoie l'utilisateur
+  // fraîchement connecté vers la page des offres pour y reprendre le paiement.
+  if (authStatus === "authenticated") {
+    const hasPendingCheckout = !!sessionStorage.getItem(PENDING_CHECKOUT_KEY);
+    return (
+      <Navigate to={hasPendingCheckout ? "/souscription" : "/dashboard"} replace />
+    );
+  }
+
+  // À ce stade, l'utilisateur n'est pas authentifié : on affiche le formulaire.
+  return (
     <>
       <MainHeader />
 

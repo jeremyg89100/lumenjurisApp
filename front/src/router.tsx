@@ -26,6 +26,8 @@ import { Sandbox } from "./page/Sandbox";
 import { ParamCompte } from "./page/ParamCompte";
 import { Monitoring } from "./page/Monitoring";
 import { Subscription } from "./page/Subscription";
+import { SubscriptionSuccess } from "./components/SubscriptionComponents/SubscriptionSuccess";
+import { SubscriptionFailed } from "./components/SubscriptionComponents/SubscriptionFailed";
 import { ConfirmDeleteAccountPage } from "./page/DeleteAccount";
 
 import { ScrollToTop } from "./components/common/ScrollToTop";
@@ -148,6 +150,10 @@ export function App() {
 
         {/* Route pour les formulaire et l'achat d'un plan */}
         <Route path="/souscription" element={<Subscription />} />
+
+        {/* Pages de retour Stripe Checkout (URLs configurées côté backend) */}
+        <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+        <Route path="/subscription/failed" element={<SubscriptionFailed />} />
 
 
 

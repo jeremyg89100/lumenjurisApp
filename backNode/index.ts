@@ -32,6 +32,7 @@ import fs from "fs";
 import { internalApiKeyMiddleware } from "./src/middleware/internalApiKeyMiddleware.js";
 
 import { seedPlans } from "./prisma/seedPlans.js";
+import { StripeLumenJuris } from "./billing/stripe.service.js";
 /**
  * Préparation du serveur nodejs/express pour ce backend
  * Ici sera traité toute les opérations avec la base de données
@@ -49,11 +50,12 @@ const app = express();
 app.set("etag", false);
 const port = process.env.PORT || 3020;
 
-//Declaration webhook stripe avant express json
-app.post(
+//NE PAS DEPLACER CETTE ROUTE
+//Le reste de la route est gérer dans le controller billing mais celle-ci est déclarer avant express.json()
+//Pour conserver le corp non parse (indispensable pour la signature de stripe!)
+app.use(
   "/billing/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  routerBilling
+  express.raw({ type: "application/json" })
 );
 
 app.use(express.json({ limit: "20mb" }));
@@ -69,7 +71,12 @@ app.use(cors({
   credentials: true,
 }),
 );
-app.use(globalLimiter);
+// Rate-limiter global, SAUF le webhook Stripe : Stripe peut envoyer des rafales
+// d'events (renouvellements groupés) et un 429 déclencherait des rejeux inutiles.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/billing/stripe/webhook")) return next();
+  return globalLimiter(req, res, next);
+});
 app.set("trust-proxy", 1);
 // Frontière de sécurité : backNode n'accepte QUE les requêtes portant la clé
 // interne (posée par le proxy et le cron). Sans elle, un appel direct pourrait
@@ -148,6 +155,15 @@ app.listen(port, async () => {
 
     //Initialisation du transporteur pour s'assurer qu'il soit bien ok au démarrage
     void Mailer.initTransporter();
+
+    // Purge des events Stripe traités (idempotence) : au démarrage puis 1×/jour,
+    // pour éviter que la table ProcessedStripeEvent grossisse indéfiniment.
+    void StripeLumenJuris.purgeOldProcessedEvents();
+    setInterval(
+      () => void StripeLumenJuris.purgeOldProcessedEvents(),
+      24 * 60 * 60 * 1000,
+    );
+
     console.log(`Serveur backend nodejs running on port ${port}`);
   } catch (err) {
     console.error(

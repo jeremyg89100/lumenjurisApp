@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
 import { Button } from "../ui/Button";
 import { cn } from "../../utils/shadcnUtils/cn";
 
 import { useUserStore } from "../../store/userStore";
-import { BillingStripePanel } from "./BillingStripePanel";
 import type { BillingInterval } from "../../types/subscriptionData";
+import { toCheckoutPlanName, PENDING_CHECKOUT_KEY } from "../../utils/planMapping";
+import { fetchProxy } from "../../utils/fetchProxy";
 
+//type PlanName = "Freemium" | "Betatesteur" | "Starter_mensuel" | "Starter_annuel" | "Pro_mensuel" | "Pro_annuel"
 
 type Plan = {
   name: string;
@@ -92,117 +94,111 @@ const PLANS: Plan[] = [
   },
 ];
 
-type SelectedPlan = {
-  name: string;
-  price: number;
-  interval: BillingInterval;
-};
-
 /**
- * Panneau de sélection et de souscription aux offres LumenJuris.
- * Gère trois états d'affichage successifs :
+ * Panneau de sélection des offres LumenJuris + démarrage du paiement Stripe.
  *
- * 1. **Grille des plans** — affiche les trois offres (Starter, Pro, Enterprise)
- *    avec un toggle mensuel / annuel (-20 %). Le plan "Pro" est mis en avant
- *    (`highlight`). "Enterprise" déclenche un `mailto:` au lieu d'un paiement.
- *    Une FAQ statique est affichée en bas de page.
+ * Workflow :
+ * 1. **Grille des plans** — affiche les offres (Free, Starter, Pro, Enterprise)
+ *    avec un toggle mensuel / annuel (-20 %). "Pro" est mis en avant
+ *    (`highlight`), "Enterprise" déclenche un `mailto:`, "Free" envoie vers
+ *    l'inscription. Une FAQ statique est affichée en bas de page.
  *
- * 2. **Paiement** (`selectedPlan !== null`) — remplace la grille par
- *    `BillingStripePanel` en mode `"plan"`. Le bouton "Retour" remet
- *    `selectedPlan` à `null` et revient à la grille.
+ * 2. **Démarrage du paiement** — au clic sur un plan payant, on appelle
+ *    `POST /billing/create-checkout` (via `startCheckout`) puis on redirige le
+ *    navigateur vers la page Stripe Checkout hébergée (`window.location.href`).
+ *    Utilisateur non connecté : le plan est mémorisé, on passe par l'inscription,
+ *    puis `startCheckout` est relancé automatiquement au retour (`useEffect`).
  *
- * 3. **Confirmation** (`paymentSuccess`) — remplace tout par un écran de succès
- *    avec un bouton de retour vers `/dashboard`.
+ * 3. **Retour** — Stripe redirige vers `/subscription/success` ou
+ *    `/subscription/failed`. L'abonnement est réellement activé côté webhook
+ *    (stripe.service : onCheckoutCompleted / onPaymentSucceeded), pas ici.
  *
- * **Prix** : stockés en euros dans `PLANS` (`monthly` / `yearly`),
- * convertis en centimes (`× 100`) avant d'être passés à `BillingStripePanel` (le montant doit-être transmis en centimes à Stripe).
+ * NB : le nom d'offre affiché ("Starter", "Pro") est traduit en `PlanName`
+ * backend par `toCheckoutPlanName`.
  */
 export function PlansPanel() {
   const [yearly, setYearly] = useState(true);
-  const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  // Nom d'offre (ex: "Pro") en cours de redirection vers Stripe, pour l'état du bouton.
+  const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
   const userData = useUserStore((s) => s.userData);
 
-  useEffect(() => {
-    const state = location.state as { plan?: SelectedPlan } | null;
-    if (state?.plan) {
-      setSelectedPlan(state.plan);
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, []);
+  const interval: BillingInterval = yearly ? "yearly" : "monthly";
 
-  const interval: BillingInterval = yearly ? "year" : "month";
+  /**
+   * Démarre un paiement : demande une session Stripe Checkout au backend puis
+   * redirige vers la page hébergée par Stripe. L'activation de l'abonnement se
+   * fait ensuite côté webhook (voir SubscriptionSuccess).
+   */
+  const startCheckout = useCallback(
+    async (uiName: string, billingInterval: BillingInterval) => {
+      const planName = toCheckoutPlanName(uiName, billingInterval);
+      // Free / Enterprise ne passent pas par Checkout — garde-fou.
+      if (!planName) return;
+
+      setCheckoutError(null);
+      setCheckoutLoadingPlan(uiName);
+      try {
+        const res = await fetchProxy("/api/billing/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ planName }),
+        });
+        const data = await res.json();
+        const url = data?.data?.url;
+        if (data.success && url) {
+          window.location.href = url; // redirection vers Stripe Checkout
+          return;
+        }
+        // Message précis renvoyé par le backend (ex : abonnement déjà actif),
+        // sinon message générique.
+        setCheckoutError(
+          typeof data?.message === "string"
+            ? data.message
+            : "Impossible de démarrer le paiement. Réessayez.",
+        );
+      } catch (err) {
+        console.error("Erreur create-checkout:", err);
+        setCheckoutError("Une erreur est survenue. Réessayez.");
+      }
+      setCheckoutLoadingPlan(null);
+    },
+    [],
+  );
+
+  // Reprise après inscription : un plan mémorisé (sessionStorage) avant la
+  // création du compte relance directement le checkout au retour sur la page.
+  useEffect(() => {
+    const pending = sessionStorage.getItem(PENDING_CHECKOUT_KEY);
+    if (!pending) return;
+    sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+    try {
+      const plan = JSON.parse(pending) as { name: string; interval: BillingInterval };
+      startCheckout(plan.name, plan.interval);
+    } catch {
+      // Valeur corrompue — on ignore.
+    }
+  }, [startCheckout]);
 
   const handlePlanSelect = (plan: Plan) => {
+    // Non connecté : on mémorise le plan choisi (persistant à travers l'inscription)
+    // puis on envoie vers l'inscription. Au retour authentifié, le checkout reprend.
     if (!userData) {
-      const priceEuros = yearly ? plan.yearly : plan.monthly;
-      navigate("/inscription", {
-        state: {
-          plan: { name: plan.name, price: priceEuros * 100, interval },
-        },
-      });
+      sessionStorage.setItem(
+        PENDING_CHECKOUT_KEY,
+        JSON.stringify({ name: plan.name, interval }),
+      );
+      navigate("/inscription");
       return;
     }
-    const priceEuros = yearly ? plan.yearly : plan.monthly;
-    setSelectedPlan({
-      name: plan.name,
-      price: priceEuros * 100,
-      interval,
-    });
+    // Connecté : on lance directement le paiement Stripe Checkout.
+    startCheckout(plan.name, interval);
   };
 
-  if (paymentSuccess) {
-    return (
-      <div className="mx-auto max-w-6xl rounded-md bg-white px-4 py-6">
-        <div className="flex flex-col items-center rounded-2xl border border-green-200 bg-green-50 px-6 py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <Check className="h-7 w-7 text-green-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900">
-            Abonnement activé !
-          </h2>
-          <p className="mt-2 max-w-sm text-sm text-gray-500">
-            Votre paiement a été accepté. Vous avez maintenant accès à toutes
-            les fonctionnalités Lumen Juris.
-          </p>
-          <Button
-            type="button"
-            className="mt-6 bg-lumenjuris text-white hover:bg-lumenjuris/90"
-            onClick={() => {
-              setPaymentSuccess(false);
-              setSelectedPlan(null);
-              navigate("/dashboard");
-            }}
-          >
-            Aller sur mon tableau de bord
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
-  if (selectedPlan) {
-    return (
-      <div className="mx-auto max-w-lg rounded-md bg-white px-6 py-6">
-        <BillingStripePanel
-          planName={selectedPlan.name}
-          price={selectedPlan.price}
-          interval={selectedPlan.interval}
-          onBack={() => setSelectedPlan(null)}
-          onSuccess={() => {
-            setPaymentSuccess(true);
-          }}
-        />
-      </div>
-    );
-  }
-
-
-
-
-  // RETOUR DU JSX  
+  // RETOUR DU JSX
 
 
   return (
@@ -259,6 +255,12 @@ export function PlansPanel() {
         </div>
       </div>
 
+      {checkoutError && (
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {checkoutError}
+        </div>
+      )}
+
       {/* ── Grille des 3 offres principales ── */}
       <div className="mt-12 grid items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {PLANS.filter((plan) => !plan.contactOnly).map((plan) => {
@@ -313,6 +315,7 @@ export function PlansPanel() {
 
               <Button
                 variant={plan.highlight ? "default" : "outline"}
+                disabled={checkoutLoadingPlan === plan.name}
                 className={cn(
                   "mt-6 w-full",
                   plan.highlight
@@ -327,7 +330,7 @@ export function PlansPanel() {
                   }
                 }}
               >
-                {plan.cta}
+                {checkoutLoadingPlan === plan.name ? "Redirection…" : plan.cta}
               </Button>
 
               <ul className="mt-6 space-y-3 text-sm">

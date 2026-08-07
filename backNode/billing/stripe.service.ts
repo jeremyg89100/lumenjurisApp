@@ -9,6 +9,15 @@ import {
     USER_INVOICE_SELECT,
 } from "../src/services/classSubscription.js"
 
+/**
+ * Erreur "à rejouer" : levée quand un event Stripe arrive trop tôt (avant que
+ * les données dont il dépend soient en base, ex. paiement reçu avant que
+ * checkout.session.completed ait lié l'abonnement). Ce n'est pas un bug : on
+ * renvoie un 500 pour que Stripe rejoue l'event, sans polluer les logs d'erreur.
+ */
+class WebhookRetryError extends Error {}
+
+
 export class StripeLumenJuris {
 
 
@@ -20,13 +29,12 @@ export class StripeLumenJuris {
     async createCustomer(email: string, name: string) {
         try {
             const params: Stripe.CustomerCreateParams = {
-                description: 'test customer',
+                description: "Client Lumen Juris",
                 email,
                 name
             }
 
             const customer: Stripe.Customer = await this.stripeClient.customers.create(params)
-            console.log(customer)
             const id = customer.id
             return {
                 success: !!id,
@@ -39,6 +47,26 @@ export class StripeLumenJuris {
                 success: false,
                 message: "Une erreur est survenue lors de la création d'un customer stripe"
             }
+        }
+    }
+
+
+
+    /**
+     * Purge de la table eventStripe après 30 jours. 
+     * Les Events stripes sont redéclaché dans un interval de 3 jours max environ.
+     * On laisse 30 jours en dur mais c'est variable.
+     */
+    static async purgeOldProcessedEvents(olderThanDays = 30) {
+        try {
+            const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+            const deleted = await prisma.processedStripeEvent.deleteMany({
+                where: { processedAt: { lt: cutoff } },
+            });
+            return { success: true, deleted: deleted.count };
+        } catch (err) {
+            console.error("Erreur lors de la purge des ProcessedStripeEvent :", err);
+            return { success: false };
         }
     }
 
@@ -100,7 +128,7 @@ export class StripeLumenJuris {
      *  - si l'event a déjà été traité -> la création de la marque lève P2002 (contrainte
      *    @unique) -> on l'ignore proprement sans retoucher la base.
      * Chaque handler (onCheckoutCompleted, onPaymentSucceeded...) passe par ici et reçoit
-     * le client transactionnel `tx` à utiliser pour toutes ses écritures.
+     * le client transactionnel `tx` à utiliser pour toutes les écritures de prisma.
      */
     private async processOnce(
         event: Stripe.Event,
@@ -122,6 +150,15 @@ export class StripeLumenJuris {
                 console.log("Event Stripe déjà traité, doublon ignoré :", event.id);
                 return { success: true, message: "Event déjà traité (doublon ignoré)" };
             }
+            // Event arrivé trop tôt : ce n'est pas une erreur, Stripe le rejouera.
+            if (err instanceof WebhookRetryError) {
+                console.log(
+                    "Event Stripe en attente, sera rejoué par Stripe :",
+                    event.id,
+                    err.message,
+                );
+                return { success: false };
+            }
             console.error("Echec du traitement de l'event Stripe :", event.id, err);
             return { success: false };
         }
@@ -136,9 +173,7 @@ export class StripeLumenJuris {
      *  - feature désactivée (enabled: false) -> ignorée ;
      *  - features booléennes (droits d'accès) -> jamais retournées.
      */
-    private extractFiniteQuotas(
-        creditsIncluded: Prisma.JsonValue,
-    ): { feature: string; amount: number }[] {
+    private extractFiniteQuotas(creditsIncluded: Prisma.JsonValue): { feature: string; amount: number }[] {
         // Structure attendue (miroir de CreditPlan dans seedPlans.ts)
         type NumericQuota = { unlimited: true } | { unlimited: false; value: number };
         type MeteredQuota = { enabled: false } | { enabled: true; limit: number };
@@ -164,7 +199,7 @@ export class StripeLumenJuris {
     }
 
 
-    /** Traduit le statut Stripe vers enum prisma SubscriptionStatus. */
+    /** Converti le statut Stripe(string) en enum prisma SubscriptionStatus. */
     private mapStripeSubscriptionStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
         switch (status) {
             case "active":
@@ -179,6 +214,8 @@ export class StripeLumenJuris {
         }
     }
 
+
+
     /**
      * Date de fin de période courante. Depuis l'API v2206, elle n'est plus à la
      * racine de la subscription mais portée par chaque item.
@@ -188,7 +225,7 @@ export class StripeLumenJuris {
         return typeof periodEnd === "number" ? new Date(periodEnd * 1000) : null;
     }
 
-    /** priceId Stripe courant de la subscription (1er item). Sert à retrouver le plan. */
+    //Récupère le priceId de Stripe de la subscription. Ce qui permettra de retrouver le bon plan
     private readSubscriptionPriceId(subscription: Stripe.Subscription): string | null {
         return subscription.items?.data?.[0]?.price?.id ?? null;
     }
@@ -207,7 +244,6 @@ export class StripeLumenJuris {
 
             })
 
-            console.log(paymentIntent)
             const id = paymentIntent.id
             return {
                 success: !!id,
@@ -229,7 +265,8 @@ export class StripeLumenJuris {
 
 
 
-    // Stripe création d'une subscription qui se renouvelle
+    // Stripe création d'une subscription qui se renouvelle -> Initinialisé par le front, c'est ensuite stripe qui 
+    // reprend la charge et envera un webhook pour valider le process
     async createCheckout(userId: number, planName: PlanName) {
         const successUrl = `${process.env.HOST_FRONT}/subscription/success`
         const cancelUrl = `${process.env.HOST_FRONT}/subscription/failed`
@@ -244,6 +281,33 @@ export class StripeLumenJuris {
                 stripeCustomerId: true
             }
         })
+
+        if (!user) {
+            return {
+                success: false,
+                status: 404,
+                message: "Utilisateur introuvable."
+            }
+        }
+
+        // Garde anti-doublon : on refuse un nouveau checkout si l'utilisateur a déjà
+        // un abonnement PAYANT actif (vrai abonnement Stripe en cours). Sinon Stripe
+        // créerait une 2e subscription qui facturerait en parallèle de l'ancienne.
+        // L'upgrade depuis Freemium (pas de stripeSubscriptionId) reste autorisé.
+        const existingSubscription = await prisma.subscription.findUnique({
+            where: { userId },
+            select: { status: true, stripeSubscriptionId: true }
+        })
+        if (
+            existingSubscription?.status === SubscriptionStatus.ACTIVE &&
+            existingSubscription.stripeSubscriptionId
+        ) {
+            return {
+                success: false,
+                status: 409,
+                message: "Vous avez déjà un abonnement actif. Annulez-le avant d'en souscrire un nouveau."
+            }
+        }
 
         //recherche du plan dans la bdd
         const plan = await prisma.plan.findFirst({
@@ -266,7 +330,19 @@ export class StripeLumenJuris {
             }
         }
 
-        const customerId = user?.stripeCustomerId ?? (await this.createCustomer(user?.email!, user?.nom!)).customerId
+        // Réutilise le customer existant, sinon en crée un ET le persiste tout de
+        // suite : sans ça, chaque checkout abandonné recréerait un customer Stripe
+        // (le webhook ne l'enregistre qu'en cas de paiement abouti).
+        let customerId = user?.stripeCustomerId ?? undefined;
+        if (!customerId) {
+            customerId = (await this.createCustomer(user.email, user.nom ? user.nom : user.prenom ?? "Non défini")).customerId;
+            if (customerId) {
+                await prisma.user.update({
+                    where: { idUser: userId },
+                    data: { stripeCustomerId: customerId },
+                });
+            }
+        }
 
 
         const checkout = await this.stripeClient.checkout.sessions.create({
@@ -283,7 +359,16 @@ export class StripeLumenJuris {
             metadata: {
                 userId: userId.toString(),
                 planName,
-                idPlan: plan.idPlan,
+                idPlan: plan.idPlan, //Envoyé pour le récupérer et retrouver le plan correspondant dans notre BDD
+            },
+            // On recopie les identifiants sur la subscription elle-même : ainsi les
+            // events qui n'ont pas les metadata de la session (subscription.*,
+            // invoice.*) peuvent aussi retrouver l'utilisateur et le plan.
+            subscription_data: {
+                metadata: {
+                    userId: userId.toString(),
+                    idPlan: plan.idPlan.toString(),
+                }
             }
         })
 
@@ -301,7 +386,35 @@ export class StripeLumenJuris {
             data: dataCheckout,
             url: dataCheckout.url
         }
+    }
 
+
+    // Crée une session Stripe Customer Portal : page hébergée par Stripe où le
+    // client gère son abonnement (changement de plan, moyen de paiement,
+    // annulation, factures). Les changements reviennent via les webhooks
+    // customer.subscription.updated / deleted.
+    async createPortalSession(userId: number) {
+        const user = await prisma.user.findUnique({
+            where: { idUser: userId },
+            select: { stripeCustomerId: true }
+        })
+
+        // Sans customer Stripe (ex : utilisateur Freemium n'ayant jamais payé),
+        // il n'y a rien à gérer dans le portail.
+        if (!user?.stripeCustomerId) {
+            return {
+                success: false,
+                status: 400,
+                message: "Aucun compte de facturation Stripe pour cet utilisateur."
+            }
+        }
+
+        const session = await this.stripeClient.billingPortal.sessions.create({
+            customer: user.stripeCustomerId,
+            return_url: `${process.env.HOST_FRONT}/mon-compte`
+        })
+
+        return { success: true, url: session.url }
     }
 
 
@@ -399,9 +512,7 @@ export class StripeLumenJuris {
                 },
             });
 
-            console.log(
-                `Checkout complété : abonnement activé pour userId=${userId}, idPlan=${idPlan}`,
-            );
+            console.log(`Checkout complété : abonnement activé pour userId=${userId}, idPlan=${idPlan}`)
         });
     }
 
@@ -418,6 +529,8 @@ export class StripeLumenJuris {
                 data: InvoiceData;
             }
             | undefined;
+
+
 
         const result = await this.processOnce(event, async (tx) => {
             const invoice = event.data.object as Stripe.Invoice;
@@ -443,14 +556,15 @@ export class StripeLumenJuris {
                 include: { plan: true },
             });
             if (!subscription) {
-                throw new Error(
-                    `Abonnement introuvable pour stripeSubscriptionId=${stripeSubscriptionId}`,
-                );
+                // Le paiement est arrivé avant que checkout.session.completed ait lié
+                // l'abonnement à ce stripeSubscriptionId. On rejoue plus tard : sinon
+                // on réinitialiserait les quotas sur le mauvais plan (Freemium).
+                throw new WebhookRetryError(`Abonnement pas encore lié pour stripeSubscriptionId=${stripeSubscriptionId}`)
             }
 
-            const userId = subscription.userId;
-            const plan = subscription.plan;
 
+
+            const { userId, plan } = subscription;
             // Réinitialiser les quotas de la période : copie fraîche du plan.
             // Vaut pour le premier paiement ET les renouvellements (mêmes règles).
             await tx.userCredit.upsert({
@@ -630,9 +744,7 @@ export class StripeLumenJuris {
                 },
             });
 
-            console.log(
-                `subscription.updated synchronisée : ${subscription.id} (annulation différée: ${subscription.cancel_at_period_end})`,
-            );
+            console.log(`subscription.updated synchronisée : ${subscription.id} (annulation différée: ${subscription.cancel_at_period_end})`);
         });
     }
 
@@ -691,43 +803,56 @@ export class StripeLumenJuris {
                 },
             });
 
-            console.log(
-                `subscription.deleted : userId=${local.userId} repassé en Freemium.`,
-            );
+            console.log(`subscription.deleted : userId=${local.userId} repassé en Freemium.`);
         });
     }
 
 
     // Paiement refusé : on trace l'échec mais on NE rétrograde PAS.
-    // Stripe retente automatiquement les jours suivants ; c'est
-    // customer.subscription.deleted qui déclenchera le retour au Freemium.
+    // Stripe retente automatiquement les jours suivants 
+    // -> du coup c'est customer.subscription.deleted qui déclenchera le retour au Freemium.
     private async onPaymentFailed(event: Stripe.Event) {
-        return this.processOnce(event, async (tx) => {
+        // Rempli DANS la transaction, envoyé APRÈS le commit (effet externe non annulable).
+        // Il reste undefined si doublon, échec hors abonnement, ou abonnement local introuvable -> aucun email envoyé.
+        let failureEmail:
+            | {
+                email: string;
+                username?: string;
+                planName: string;
+                amountCents: number;
+            }
+            | undefined;
+
+        const result = await this.processOnce(event, async (tx) => {
             const invoice = event.data.object as Stripe.Invoice;
 
             const subscriptionDetails = invoice.parent?.subscription_details;
             const stripeSubscriptionId = subscriptionDetails
                 ? typeof subscriptionDetails.subscription === "string"
                     ? subscriptionDetails.subscription
-                    : subscriptionDetails.subscription?.id ?? null
-                : null;
+                    : subscriptionDetails.subscription?.id ?? null : null;
 
             // Échec hors abonnement -> rien à tracer côté abonnement
             if (!stripeSubscriptionId) {
                 console.log("invoice.payment_failed sans subscription, ignoré :", invoice.id);
-                return;
+                return
             }
 
             const subscription = await tx.subscription.findFirst({
                 where: { stripeSubscriptionId },
-                select: { idSubscription: true, userId: true },
+                select: {
+                    idSubscription: true,
+                    userId: true,
+                    plan: { select: { name: true } },
+                    user: { select: { email: true, prenom: true } },
+                },
             });
             if (!subscription) {
                 console.log(
                     "invoice.payment_failed : abonnement local introuvable, ignoré :",
                     stripeSubscriptionId,
                 );
-                return;
+                return
             }
 
             // Tracer la tentative échouée (montant dû, non encaissé).
@@ -741,14 +866,36 @@ export class StripeLumenJuris {
                 },
             });
 
-            // TODO (à venir) : envoyer un email d'information à l'utilisateur
-            // (nécessite un nouveau template Mailer, ex: sendPaymentFailed). Effet
-            // externe -> à déclencher APRÈS le commit, comme sendInvoice.
+            // Préparer l'email d'information (envoyé après le commit).
+            failureEmail = {
+                email: subscription.user.email,
+                username: subscription.user.prenom ?? undefined,
+                planName: subscription.plan.name,
+                amountCents: amountDueCents,
+            };
 
-            console.log(
-                `invoice.payment_failed tracée pour userId=${subscription.userId} (pas de rétrogradation).`,
-            );
+            console.log(`invoice.payment_failed tracée pour userId=${subscription.userId} (pas de rétrogradation).`);
         });
+
+        // Effet externe non annulable : hors transaction, seulement si le travail a
+        // réellement tourné (pas un doublon) et si l'abonnement a été trouvé.
+        if (result.success && failureEmail) {
+            new Mailer(failureEmail.email)
+                .sendPaymentFailed({
+                    username: failureEmail.username,
+                    planName: failureEmail.planName,
+                    amountCents: failureEmail.amountCents,
+                    manageBillingUrl: `${process.env.HOST_FRONT}/mon-compte`,
+                })
+                .catch((error) =>
+                    console.error(
+                        "Erreur lors de l'envoi de l'email d'échec de paiement (webhook):",
+                        error,
+                    ),
+                );
+        }
+
+        return result;
     }
 
 

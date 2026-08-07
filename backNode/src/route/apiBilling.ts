@@ -7,6 +7,8 @@ import { Subscription } from "../services/classSubscription.js";
 import { Credit } from "../services/classCredit.js";
 import Stripe from "stripe"
 
+import { isPlanName } from "../utils/typeGuard.js";
+import { PlanName } from "@prisma/client";
 
 const routerBilling: Router = express.Router();
 
@@ -22,7 +24,6 @@ const stripeService = new StripeLumenJuris();
 routerBilling.post("/stripe/webhook", async (req: Request, res: Response) => {
   //Adress du webhook https://lumenjurisbackendnodejs.lumenjuris.com/billing/stripe/webhook
   try {
-    console.log(Buffer.isBuffer(req.body));
     const signature = req.headers["stripe-signature"];
 
     const stripeClient = new Stripe(process.env.STRIPE_SK!, {
@@ -59,105 +60,180 @@ routerBilling.post("/stripe/webhook", async (req: Request, res: Response) => {
     return res.sendStatus(200);
 
   } catch (err) {
-    // Erreur avant le traitement métier (signature invalide, secret manquant...).
-    // On renvoie un 400 : l'event est malformé, inutile que Stripe le rejoue.
     console.error(err)
     return res.status(400).send("Error server")
   }
 })
 
 
+routerBilling.post("/create-checkout", authMiddleware, async (req, res) => {
+  try {
+    if (!req.idUser) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié."
+      })
+    }
 
+    if (!isPlanName(req.body.planName)) {
+      return res.status(400).json({
+        success: false,
+        error: "Bad Request",
+        message: `Le plan name ${req.body.planName} ne fait pas partie des listes de plans proposés.`
+      })
+    }
+
+
+    if(req.body.planName == PlanName.Freemium || req.body.planName == PlanName.Betatesteur){
+      return res.status(400).json({
+        success:false,
+        error: "Bad Request",
+        message : `Le plan d'abonnement ${req.body.planName} ne fait pas partis des listes d'achat de Lumen Juris`
+      })
+    }
+    
+    const userId = Number(req.idUser);
+    const checkout = await stripeService.createCheckout(userId, req.body.planName);
+
+    // Statut HTTP relayé depuis le service : 409 si abonnement déjà actif,
+    // 404 si plan introuvable, 500 par défaut en cas d'échec.
+    const httpStatus = checkout.success
+      ? 200
+      : "status" in checkout && typeof checkout.status === "number"
+        ? checkout.status
+        : 500;
+
+    return res.status(httpStatus).json({
+      success: checkout.success,
+      message: "message" in checkout ? checkout.message : undefined,
+      data: checkout ?? null
+    })
+  } catch (err) {
+    console.error("Une erreur est survenue lors de la la mthode post /create-checkout. Error : ", err)
+    return res.status(500).json({
+      success:false,
+      message : "Une erreur serveur est survenue lors de la creation de la souscription."
+    })
+  }
+})
+
+
+// Ouvre le Stripe Customer Portal (gestion de l'abonnement en self-service).
+routerBilling.post("/portal", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!req.idUser) {
+      return res.status(401).json({ success: false, message: "Utilisateur non authentifié." })
+    }
+
+    const userId = Number(req.idUser);
+    const portal = await stripeService.createPortalSession(userId);
+
+    const httpStatus = portal.success
+      ? 200
+      : "status" in portal && typeof portal.status === "number"
+        ? portal.status
+        : 500;
+
+    return res.status(httpStatus).json({
+      success: portal.success,
+      message: "message" in portal ? portal.message : undefined,
+      url: portal.success ? portal.url : undefined,
+    })
+  } catch (err) {
+    console.error("Erreur POST /billing/portal:", err)
+    return res.status(500).json({
+      success: false,
+      message: "Erreur serveur lors de l'ouverture du portail de facturation."
+    })
+  }
+})
 
 
 
 // Crée un customer Stripe pour l'utilisateur connecté (ou renvoie l'existant)
-routerBilling.post("/customer",authMiddleware, async (req: Request, res: Response) => {
-    const idUser = Number(req.idUser);
+routerBilling.post("/customer", authMiddleware, async (req: Request, res: Response) => {
+  const idUser = Number(req.idUser);
 
-    const user = await prisma.user.findUnique({
-      where: { idUser },
-      select: { email: true, prenom: true, nom: true, stripeCustomerId: true },
-    });
+  const user = await prisma.user.findUnique({
+    where: { idUser },
+    select: { email: true, prenom: true, nom: true, stripeCustomerId: true },
+  });
 
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Utilisateur introuvable." });
-    }
-
-    // Customer déjà créé — on le renvoie directement
-    if (user.stripeCustomerId) {
-      return res
-        .status(200)
-        .json({ success: true, stripeCustomerId: user.stripeCustomerId });
-    }
-
-    const name =
-      [user.prenom, user.nom].filter(Boolean).join(" ") || user.email;
-
-    const result = await new StripeLumenJuris().createCustomer(
-      user.email,
-      name,
-    );
-
-
-    console.log("result at de la creation d'un customers stripe : \n", result)
-
-    if (!result.success || !result.customerId) {
-      return res.status(500).json({ success: false, message: result.message });
-    }
-
-    await prisma.user.update({
-      where: { idUser },
-      data: { stripeCustomerId: result.customerId },
-    });
-
+  if (!user) {
     return res
-      .status(201)
-      .json({ success: true, stripeCustomerId: result.customerId });
-  },
+      .status(404)
+      .json({ success: false, message: "Utilisateur introuvable." });
+  }
+
+  // Customer déjà créé — on le renvoie directement
+  if (user.stripeCustomerId) {
+    return res
+      .status(200)
+      .json({ success: true, stripeCustomerId: user.stripeCustomerId });
+  }
+
+  const name =
+    [user.prenom, user.nom].filter(Boolean).join(" ") || user.email;
+
+  const result = await new StripeLumenJuris().createCustomer(
+    user.email,
+    name,
+  );
+
+  if (!result.success || !result.customerId) {
+    return res.status(500).json({ success: false, message: result.message });
+  }
+
+  await prisma.user.update({
+    where: { idUser },
+    data: { stripeCustomerId: result.customerId },
+  });
+
+  return res
+    .status(201)
+    .json({ success: true, stripeCustomerId: result.customerId });
+},
 );
 
 
 
 // Retourne le ClientSecret
-routerBilling.post( "/payment-intent", authMiddleware, async (req: Request, res: Response) => {
-    const idUser = Number(req.idUser);
-    const { amount, automaticPayment = true } = req.body;
+routerBilling.post("/payment-intent", authMiddleware, async (req: Request, res: Response) => {
+  const idUser = Number(req.idUser);
+  const { amount, automaticPayment = true } = req.body;
 
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Montant invalide." });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { idUser },
-      select: { stripeCustomerId: true },
-    });
-
-    if (!user?.stripeCustomerId) {
-      return res.status(400).json({
-        success: false,
-        message: "Cet utilisateur n'a pas encore d'identifiant Stripe.",
-      });
-    }
-
-    const result = await new StripeLumenJuris().createPayementIntent(
-      user.stripeCustomerId,
-      amount,
-      automaticPayment,
-    );
-
-    if (!result.success) {
-      return res.status(500).json({ success: false, message: result.message });
-    }
-
+  if (!amount || typeof amount !== "number" || amount <= 0) {
     return res
-      .status(200)
-      .json({ success: true, clientSecret: result.clientSecret });
-  },
+      .status(400)
+      .json({ success: false, message: "Montant invalide." });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { idUser },
+    select: { stripeCustomerId: true },
+  });
+
+  if (!user?.stripeCustomerId) {
+    return res.status(400).json({
+      success: false,
+      message: "Cet utilisateur n'a pas encore d'identifiant Stripe.",
+    });
+  }
+
+  const result = await new StripeLumenJuris().createPayementIntent(
+    user.stripeCustomerId,
+    amount,
+    automaticPayment,
+  );
+
+  if (!result.success) {
+    return res.status(500).json({ success: false, message: result.message });
+  }
+
+  return res
+    .status(200)
+    .json({ success: true, clientSecret: result.clientSecret });
+},
 );
 
 
@@ -177,29 +253,36 @@ routerBilling.get("/plans", async (_req: Request, res: Response) => {
 
 
 
+/* ─── OBSOLÈTE ─────────────────────────────────────────────────────────────
+ * Enregistrait un abonnement en BDD après un paiement carte (ancien flux
+ * PaymentIntent). Remplacé par Stripe Checkout + webhook : l'activation se fait
+ * désormais dans stripe.service (onCheckoutCompleted / onPaymentSucceeded).
+ * Conservé commenté le temps de la refonte crédits, à supprimer ensuite.
+ *
 // Enregistre un abonnement en BDD après confirmation du paiement Stripe
-routerBilling.post( "/subscription", authMiddleware, async (req: Request, res: Response) => {
-    const idUser = Number(req.idUser);
-    const { planName, interval, amount, stripePaymentIntentId } = req.body;
+routerBilling.post("/subscription", authMiddleware, async (req: Request, res: Response) => {
+  const idUser = Number(req.idUser);
+  const { planName, interval, amount, stripePaymentIntentId } = req.body;
 
-    if (!planName || !interval || typeof amount !== "number") {
-      return res.status(400).json({
-        success: false,
-        message: "Paramètres manquants : planName, interval, amount requis.",
-      });
-    }
+  if (!planName || !interval || typeof amount !== "number") {
+    return res.status(400).json({
+      success: false,
+      message: "Paramètres manquants : planName, interval, amount requis.",
+    });
+  }
 
-    const result = await new Subscription().createOrUpdate(
-      idUser,
-      planName,
-      interval,
-      amount,
-      stripePaymentIntentId,
-    );
+  const result = await new Subscription().createOrUpdate(
+    idUser,
+    planName,
+    interval,
+    amount,
+    stripePaymentIntentId,
+  );
 
-    return res.status(result.success ? 201 : 400).json(result);
-  },
+  return res.status(result.success ? 201 : 400).json(result);
+},
 );
+ * ─────────────────────────────────────────────────────────────────────────── */
 
 
 

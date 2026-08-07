@@ -84,6 +84,14 @@ export function buildCustomerInvoiceInfo(user: UserInvoiceInfo): {
 }
 
 export class Subscription {
+  /* ─── OBSOLÈTE ───────────────────────────────────────────────────────────
+   * Activait l'abonnement + créait la facture + posait les quotas après un
+   * paiement carte (ancien flux PaymentIntent, route POST /billing/subscription
+   * elle aussi commentée). Remplacé par Stripe Checkout + webhook :
+   * stripe.service onCheckoutCompleted (lien plan) et onPaymentSucceeded
+   * (quotas + facture + email). Conservé commenté le temps de la refonte
+   * crédits, à supprimer ensuite.
+   *
   async createOrUpdate(
     userId: number,
     planName: string,
@@ -186,6 +194,7 @@ export class Subscription {
       };
     }
   }
+   * ───────────────────────────────────────────────────────────────────────── */
 
   async get(userId: number): Promise<ReturnData> {
     try {
@@ -212,6 +221,9 @@ export class Subscription {
             interval: subscription.plan.interval,
             startAt: subscription.startAt.toISOString(),
             expiresAt: subscription.expiresAt.toISOString(),
+            // Vrai seulement pour un abonnement Stripe payant : conditionne
+            // l'affichage du bouton "Gérer mon abonnement" côté front.
+            canManageBilling: subscription.stripeSubscriptionId != null,
           },
           credits: credits
             ? {
