@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   UploadCloud, FileText, Loader2, ChevronLeft, ChevronRight, Check,
   Sparkles, AlertCircle, ShieldCheck, X,
@@ -6,6 +6,7 @@ import {
 import { contractApi } from "./api";
 import { FIELD_LABEL } from "./types";
 import type { ExtractedField } from "./types";
+import { ConfirmationModal } from "../../ui/ConfirmationModal";
 
 interface Props {
   onDone: () => void;
@@ -36,6 +37,8 @@ export function ImportWizard({ onDone, onCancel }: Props) {
   const [active, setActive] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [existingContractTitle, setExistingContractTitle] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ── Étape 1 : sélection des fichiers ──────────────────────────────────────
@@ -50,6 +53,17 @@ export function ImportWizard({ onDone, onCancel }: Props) {
 
   // ── Étape 2 : extraction IA séquentielle ──────────────────────────────────
   async function runExtraction() {
+    // Vérifie si le contrat existe déjà avant de lancer l'analyse, demande à l'utilisateur si il souhaite tout de même continuer via une modale
+    const existingContracts = await contractApi.list({pageSize: 1000});
+
+      const duplicate = items.find((item) => existingContracts.items.some((c) => c.title.trim().toLowerCase === item.title.trim().toLowerCase));
+
+      if (duplicate && !duplicateModalOpen) {
+        setExistingContractTitle(duplicate.title);
+        setDuplicateModalOpen(true);
+        setSaving(false);
+        return;
+      }
     setStep("extract");
     setError("");
     const next = [...items];
@@ -73,6 +87,7 @@ export function ImportWizard({ onDone, onCancel }: Props) {
     setSaving(true);
     setError("");
     try {
+      
       for (const it of items) {
         if (it.status === "error") continue;
         const fileBase64 = await fileToBase64(it.file);
@@ -103,6 +118,19 @@ export function ImportWizard({ onDone, onCancel }: Props) {
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
+        <ConfirmationModal
+          open={duplicateModalOpen}
+          title="Contrat déjà existant"
+          description={`Un contrat nommé "${existingContractTitle}" existe déjà dans votre contrathèque. Souhaitez-vous quand même l'enregistrer (doublon) ?`}
+          confirmLabel="Enregistrer quand même"
+          onConfirm={() => {
+            setDuplicateModalOpen(false);
+            void runExtraction();
+          }}
+          onCancel={() => {
+            setDuplicateModalOpen(false);
+          }}
+        />
         <div>
           <h1 className="text-2xl font-bold text-ink tracking-tight">Importer un contrat</h1>
           <p className="text-sm text-ink-muted mt-1">Upload → extraction IA → revue humaine → enregistrement.</p>
@@ -180,13 +208,6 @@ function UploadStep({
   onNext: () => void;
 }) {
   const [drag, setDrag] = useState(false);
-
-  // Ouvre automatiquement le sélecteur de fichier à l'arrivée sur l'assistant,
-  // pour éviter un second clic (uniquement si aucun fichier n'est déjà ajouté).
-  useEffect(() => {
-    if (items.length === 0) fileRef.current?.click();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <div className="space-y-4">

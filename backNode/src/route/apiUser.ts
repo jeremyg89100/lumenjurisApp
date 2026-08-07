@@ -74,17 +74,37 @@ routerUser.post(
     try {
       const { email, nom, prenom, password, cgu, enterprise } = req.body;
 
-      if (!password) {
+      // Les controles du formulaire ne protegent que le formulaire : la route
+      // reste appelable directement. Sans ces verifications, une adresse vide
+      // ou un mot de passe trop court partaient en erreur Prisma, renvoyee a
+      // l'utilisateur sous la forme d'un "une erreur est survenue" opaque.
+      if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Une adresse email valide est requise.",
+        });
+      }
+
+      if (!password || typeof password !== "string" || password.length < 8) {
         return res.status(400).json({
           success: false,
           message:
-            "Un mot de passe est requis pour la création d'un compte utilisateur.",
+            "Un mot de passe d'au moins 8 caractères est requis pour la création d'un compte.",
+        });
+      }
+
+      if (cgu !== true) {
+        return res.status(400).json({
+          success: false,
+          message: "Les conditions générales d'utilisation doivent être acceptées.",
         });
       }
 
       const user = new User();
       const createdUser = await user.create({
-        email,
+        // Trim seulement : passer l'adresse en minuscules ici la desaccorderait
+        // de la connexion, qui cherche l'email tel qu'il est saisi.
+        email: email.trim(),
         nom,
         prenom,
         password,
@@ -92,10 +112,17 @@ routerUser.post(
       });
 
       if (!createdUser.success || !createdUser.data) {
-        return res.status(500).json({
+        // Adresse deja inscrite : le cas le plus frequent, et le seul que
+        // l'utilisateur peut corriger lui-meme. Il etait masque par un message
+        // generique en 500, qui laissait croire a une panne du serveur.
+        const dejaInscrit = createdUser.message === "Cet email est déjà utilisé.";
+
+        return res.status(dejaInscrit ? 409 : 500).json({
           success: false,
-          message:
-            "Une erreur est survenue avec le serveur, nous n'avons pas pu créer votre compte utilisateur.",
+          reason: dejaInscrit ? "email-existant" : "serveur",
+          message: dejaInscrit
+            ? "Un compte existe déjà avec cette adresse email. Connectez-vous, ou utilisez « Mot de passe oublié ? » si vous ne vous en souvenez plus."
+            : "Une erreur est survenue avec le serveur, nous n'avons pas pu créer votre compte utilisateur.",
         });
       }
 
@@ -118,14 +145,55 @@ routerUser.post(
         await new Enterprise().updateByUser(idUser, enterpriseInput);
       }
 
-      const mailer = await new Mailer(email).sendVerifyAccount(
-        url,
-        `${prenom} ${nom}`,
-      );
+      // L'inscription n'attend plus la fin de l'echange SMTP : on laisse au
+      // mail un court delai pour aboutir (cas normal, on confirme l'envoi),
+      // au-dela la reponse part sans lui et l'envoi se termine en arriere-plan.
+      // Avant, un SMTP lent bloquait le formulaire jusqu'a 10 secondes.
+      // Une poignee de main SMTP vers o2switch coute environ 1 s : au-dela de
+      // ce delai l'envoi n'a pas abouti normalement, inutile de retenir le
+      // formulaire plus longtemps.
+      const MAIL_ATTENTE_MS = 1500;
+
+      const envoi = new Mailer(email)
+        .sendVerifyAccount(url, `${prenom} ${nom}`)
+        .catch((err) => {
+          console.error("Envoi de l'email de vérification échoué:", err);
+          return { success: false as const };
+        });
+
+      const resultat = await Promise.race([
+        envoi,
+        new Promise<"en-cours">((resolve) =>
+          setTimeout(() => resolve("en-cours"), MAIL_ATTENTE_MS),
+        ),
+      ]);
+
+      // Envoi encore en cours : le compte existe, on ne fait pas patienter.
+      if (resultat === "en-cours") {
+        return res.status(200).json({
+          success: true,
+          mailSent: "pending",
+          message: `Votre compte a été créé. L'email de vérification part à l'instant vers ${email} : consultez votre boîte de réception, et vos spams.`,
+        });
+      }
+
+      // Echec avere : on cesse d'annoncer un envoi qui n'a pas eu lieu, sinon
+      // l'utilisateur attend un e-mail qui ne viendra jamais au lieu d'utiliser
+      // le renvoi depuis /verify-account.
+      if (!resultat.success) {
+        return res.status(200).json({
+          success: false,
+          mailSent: false,
+          message:
+            "Votre compte a bien été créé, mais l'e-mail de vérification n'a pas pu être envoyé. " +
+            "Utilisez le lien de renvoi depuis la page de vérification, ou contactez contact@lumenjuris.com.",
+        });
+      }
 
       return res.status(200).json({
-        success: mailer.success,
-        message: mailer.message,
+        success: true,
+        mailSent: true,
+        message: resultat.message,
       });
     } catch (err) {
       console.error(
@@ -140,7 +208,10 @@ routerUser.post(
   },
 );
 
-routerUser.post("/resend-verify", async (req: Request, res: Response) => {
+// Route d'envoi d'e-mail sans quota : n'importe qui pouvait la marteler avec
+// l'adresse d'un tiers et inonder sa boite. Meme quota que "mot de passe
+// oublie", qui repond au meme besoin.
+routerUser.post("/resend-verify", forgotPasswordLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
 
@@ -162,7 +233,11 @@ routerUser.post("/resend-verify", async (req: Request, res: Response) => {
 
     const prenom = user.prenom;
     const nom = user.nom;
-    await new Mailer(user.email).sendVerifyAccount(verifyUrl, `${prenom} ${nom}`);
+    // Envoi en arriere-plan : la reponse ne depend plus de la poignee de main
+    // SMTP (environ 1 seconde vers o2switch, plus la remise du message).
+    void new Mailer(user.email)
+      .sendVerifyAccount(verifyUrl, `${prenom} ${nom}`)
+      .catch((err) => console.error("Renvoi de l'email de vérification échoué:", err));
 
     return res.status(200).json({success: true, message: "L'e-mail de vérification a bien été envoyé. "})
   } catch (error) {
@@ -263,18 +338,12 @@ routerUser.post(
   async (req: Request, res: Response) => {
     try {
       const { password, email } = req.body;
-      const logUser = await new User().authenticate(password, email);
-
-      const userStatus = await prisma.user.findUnique({
-        where: {idUser: logUser.data?.idUser},
-        select: {isBanned: true},
-      })
-
-      if (userStatus?.isBanned) {
-        return res.status(403).json({
-          success: false, message: "Cet utilisateur est banni et ne peut donc pas se connecter."
-        })
-      }
+      // Meme normalisation qu'a l'inscription : une adresse collee avec une
+      // espace de trop ne doit pas passer pour un identifiant different.
+      const logUser = await new User().authenticate(
+        password,
+        typeof email === "string" ? email.trim() : email,
+      );
 
       if (!logUser.success || !logUser.data) {
         return res.status(401).json({
@@ -283,7 +352,34 @@ routerUser.post(
         });
       }
 
-      createCookieAuth(logUser.data.idUser, "USER", res);
+      const userStatus = await prisma.user.findUnique({
+        where: {idUser: logUser.data.idUser},
+        select: {isBanned: true},
+      })
+
+      if (userStatus?.isBanned) {
+        return res.status(403).json({
+          success: false,
+          reason: "banned",
+          message: "Cet utilisateur est banni et ne peut donc pas se connecter."
+        })
+      }
+
+      // Compte non valide : aucune session n'est ouverte. Sans ce controle, le
+      // cookie etait pose malgre le refus affiche par le front, et il suffisait
+      // d'aller sur /dashboard pour entrer sans avoir valide son adresse.
+      if (!logUser.data.isVerified) {
+        return res.status(403).json({
+          success: false,
+          reason: "unverified",
+          message:
+            "Votre compte n'est pas encore validé. Cliquez sur le lien reçu par email pour l'activer.",
+        });
+      }
+
+      // Le role vient du compte : le figer a "USER" retirait ses droits a un
+      // administrateur des qu'il se connectait par ce formulaire.
+      createCookieAuth(logUser.data.idUser, logUser.data.role, res);
 
       if (logUser.data.twoFactorEnabled) {
         const codeResult = await new Token().createTwoFactorCode(
@@ -291,10 +387,14 @@ routerUser.post(
         );
 
         if (codeResult.success && codeResult.code) {
-          await new Mailer(logUser.data.email).sendTwoFactor(
-            codeResult.code,
-            logUser.data.email,
-          );
+          // Envoi en arriere-plan : la reponse ne depend plus du SMTP. Le
+          // resultat n'etait de toute facon pas exploite, l'attente ne servait
+          // qu'a retarder l'ouverture de la fenetre de saisie du code.
+          void new Mailer(logUser.data.email)
+            .sendTwoFactor(codeResult.code, logUser.data.email)
+            .catch((err) =>
+              console.error("Envoi du code de double authentification échoué:", err),
+            );
         }
 
         return res.status(200).json({
@@ -602,14 +702,16 @@ routerUser.post(
         });
       }
 
-      const mailer = await new Mailer(user.email).sendTwoFactor(
-        result.code,
-        `${user.prenom ?? ""} ${user.nom ?? ""}`.trim(),
-      );
+      // Envoi en arriere-plan : le code est deja genere et enregistre, faire
+      // patienter le navigateur pendant l'echange SMTP ne le fait pas arriver
+      // plus vite et retarde l'ouverture de la saisie du code.
+      void new Mailer(user.email)
+        .sendTwoFactor(result.code, `${user.prenom ?? ""} ${user.nom ?? ""}`.trim())
+        .catch((err) => console.error("Envoi du code de double authentification échoué:", err));
 
-      return res.status(mailer.success ? 200 : 500).json({
-        success: mailer.success,
-        message: mailer.message,
+      return res.status(200).json({
+        success: true,
+        message: `Un code de vérification a été envoyé à ${user.email}.`,
         data: { enabled: false },
       });
     } catch (err) {
@@ -723,8 +825,11 @@ routerUser.post(
             "Adresse e-mail de l'utilisateur introuvable dans la base de données",
         });
       }
-      const mailer = new Mailer(targetMail);
-      await mailer.sendUserData(fullExport, firstName || undefined);
+      // Envoi en arriere-plan : l'export est deja constitue, et la piece jointe
+      // rend l'echange SMTP d'autant plus long a attendre.
+      void new Mailer(targetMail)
+        .sendUserData(fullExport, firstName || undefined)
+        .catch((err) => console.error("Envoi de l'export de données échoué:", err));
       return res.status(200).json({
         success: true,
         message: "Votre export de données a été envoyé par e-mail avec succès",
@@ -763,7 +868,10 @@ routerUser.post(
     try {
       const token = await new Token().createToken(userId, "deleteAccount");
       const url = `${process.env.HOST_FRONT}/user/deleteaccount/${token.token}`;
-      await new Mailer(email).sendDeleteAccount(url, prenom);
+      // Envoi en arriere-plan : le jeton est enregistre, le lien reste valable.
+      void new Mailer(email)
+        .sendDeleteAccount(url, prenom)
+        .catch((err) => console.error("Envoi du mail de suppression de compte échoué:", err));
 
       return res.status(200).json({
         success: true,

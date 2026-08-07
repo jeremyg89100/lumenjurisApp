@@ -4,7 +4,7 @@
  */
 
 export type ContractStatus =
-  | "DRAFT" | "IN_NEGOTIATION" | "ACTIVE" | "TACIT_RENEWAL" | "EXPIRED" | "TERMINATED";
+  | "DRAFT" | "IN_NEGOTIATION" | "ACTIVE" | "TACIT_RENEWAL" | "EXPIRED" | "TERMINATED" | "CLOSED";
 
 export type RenewalType = "NONE" | "TACIT" | "EXPRESS";
 
@@ -166,6 +166,7 @@ export const STATUS_LABEL: Record<ContractStatus, string> = {
   TACIT_RENEWAL: "Tacite reconduction",
   EXPIRED: "Échu",
   TERMINATED: "Résilié",
+  CLOSED: "Clos",
 };
 
 export const STATUS_STYLE: Record<ContractStatus, { bg: string; fg: string }> = {
@@ -175,6 +176,7 @@ export const STATUS_STYLE: Record<ContractStatus, { bg: string; fg: string }> = 
   TACIT_RENEWAL: { bg: "#dbeafe", fg: "#1e40af" },
   EXPIRED: { bg: "#fee2e2", fg: "#991b1b" },
   TERMINATED: { bg: "#f3f4f6", fg: "#6b7280" },
+  CLOSED: { bg: "#f3f4f6", fg: "#6b7280" },
 };
 
 export const RENEWAL_LABEL: Record<RenewalType, string> = {

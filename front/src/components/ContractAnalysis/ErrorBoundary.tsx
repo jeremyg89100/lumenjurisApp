@@ -1,3 +1,4 @@
+import log from '../../utils/logger';
 import React from 'react';
 
 interface ErrorBoundaryState { hasError: boolean; error?: any; info?: any }
@@ -10,7 +11,10 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Erro
   }
 
   componentDidCatch(error: any, info: any) {
-    console.error('🔥 Erreur non interceptée React:', error, info);
+    const stackTrace = info?.componentStack || error?.stack || (typeof info === "object" ? JSON.stringify(info) : "");
+    const errorMessage = error?.message || String(error);
+
+    log.error(`[REACT ErrorBoundary] ${errorMessage}`, stackTrace);
     this.setState({ info });
   }
 

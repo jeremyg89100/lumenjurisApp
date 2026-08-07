@@ -34,10 +34,23 @@ export type MailResult = {
 };
 
 
+// Serveur d'envoi configurable. Valeurs par defaut : la messagerie o2switch,
+// comportement inchange si rien n'est precise. Les rendre parametrables permet
+// de basculer vers un service d'envoi dedie (reputation propre, journal de
+// remise) sans toucher au code : trois lignes dans le .env suffisent.
+const MAILER_HOST = process.env.MAILER_HOST || "mail.lumenjuris.com";
+const MAILER_PORT = Number(process.env.MAILER_PORT || 465);
+
+/** Adresse affichee comme expediteur. Doit appartenir au domaine authentifie. */
+const MAILER_FROM =
+  process.env.MAILER_FROM || '"Lumen Juris" <no-reply@lumenjuris.com>';
+
 const transporter = nodemailer.createTransport({
-  host: "mail.lumenjuris.com",
-  port: 465,
-  secure: true,
+  host: MAILER_HOST,
+  port: MAILER_PORT,
+  // 465 = canal chiffre des la connexion ; 587 = chiffrement negocie ensuite,
+  // port standard des services d'envoi dedies.
+  secure: MAILER_PORT === 465,
 
   pool: true,
   maxConnections: 5,
@@ -105,7 +118,7 @@ export class Mailer {
     const textBrutFallback = html.replace(/<[^>]*>/g, "");
 
     return {
-      from: '"Lumen Juris" <no-reply@lumenjuris.com>',
+      from: MAILER_FROM,
       to: this.email,
       ...(extra.cc ? { cc: extra.cc } : {}),
       subject,
@@ -122,6 +135,8 @@ export class Mailer {
     mailOptions: SendMailOptions,
     successMessage?: string,
   ): Promise<MailResult> {
+    const debut = Date.now();
+
     try {
       const sending = await transporter.sendMail(mailOptions);
 
@@ -130,6 +145,20 @@ export class Mailer {
           `Échec lors de l'envoi de l'email "${mailOptions.subject}" : messageId indisponible.`,
         );
       }
+
+      // Les envois partent en arrière-plan : sans trace du succès, un e-mail
+      // qui n'arrive pas ne permet pas de distinguer un envoi jamais tenté d'un
+      // message accepté par le serveur puis perdu en route (spam, file
+      // d'attente de l'hébergeur). `accepted`/`rejected` viennent du serveur.
+      logger.info("Email envoyé", {
+        sujet: mailOptions.subject,
+        destinataire: this.email,
+        messageId: sending.messageId,
+        accepte: sending.accepted,
+        refuse: sending.rejected,
+        reponseServeur: sending.response,
+        dureeMs: Date.now() - debut,
+      });
 
       return { success: true, message: successMessage };
     } catch (err) {

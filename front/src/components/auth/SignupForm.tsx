@@ -27,8 +27,6 @@ interface SignupFormProps {
   setEmail: React.Dispatch<React.SetStateAction<string>>;
   password: string;
   setPassword: React.Dispatch<React.SetStateAction<string>>;
-  siren: string;
-  setSiren: React.Dispatch<React.SetStateAction<string>>;
   acceptCgu: boolean;
   setAcceptCgu: React.Dispatch<React.SetStateAction<boolean>>;
   confirmPassword: string;
@@ -41,14 +39,11 @@ const PROXY_URL: string =
 /**
  * Formulaire d'inscription gérant deux flux de création de compte :
  *
- * 1. **Email / mot de passe** — pipeline en deux étapes :
- *    - (Optionnel) Lookup INSEE via `GET /api/enterprise/insee/:siren` pour pré-remplir
- *      les données entreprise. L'appel est best-effort : un échec ne bloque pas
- *      l'inscription, le compte est créé sans données entreprise.
- *    - `POST /api/user/signup` avec nom, prénom, email, mot de passe, CGU et,
- *      si disponible, les données entreprise issues de l'INSEE.
- *    - En cas de succès, affiche une alerte de confirmation avec l'adresse email
- *      utilisée, puis remet tous les champs à zéro.
+ * 1. **Email / mot de passe** — `POST /api/user/signup` avec nom, prénom, email,
+ *    mot de passe et CGU. Les données entreprise ne sont plus demandées ici :
+ *    elles sont renseignées depuis le profil une fois le compte actif.
+ *    En cas de succès, affiche une alerte de confirmation avec l'adresse email
+ *    utilisée, puis remet tous les champs à zéro.
  *
  * 2. **Google OAuth** — redirige `window.location` vers `PROXY_URL/api/google`.
  *
@@ -60,8 +55,6 @@ const PROXY_URL: string =
  * @param setEmail     Setter du champ email.
  * @param password     Valeur contrôlée du champ mot de passe (obligatoire).
  * @param setPassword  Setter du champ mot de passe.
- * @param siren        Valeur contrôlée du champ SIREN (optionnel, 9 chiffres).
- * @param setSiren     Setter du champ SIREN.
  * @param acceptCgu    `true` si l'utilisateur a coché les CGU (obligatoire pour soumettre).
  * @param setAcceptCgu Setter de l'état d'acceptation des CGU.
  */
@@ -74,8 +67,6 @@ const SignupForm = ({
   setEmail,
   password,
   setPassword,
-  siren,
-  setSiren,
   acceptCgu,
   setAcceptCgu,
   confirmPassword,
@@ -102,21 +93,31 @@ const SignupForm = ({
     null,
   );
 
-  const topRef = useRef<HTMLDivElement>(null);
-  const scrollToTop = () => {
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Les messages sont rendus sous le bouton d'inscription : on amene ce bloc
+  // dans le champ de vision plutot que le haut du formulaire, sinon la reponse
+  // s'affiche hors ecran juste apres le clic.
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const scrollToFeedback = () => {
+    // Laisse React peindre l'alerte avant de la faire defiler.
+    requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    scrollToTop();
 
     if (!lastName || !email || !password) {
       setSubmitError(true);
+      scrollToFeedback();
       return;
     }
     if (acceptCgu === false) {
       setSubmitCguError(true);
+      scrollToFeedback();
       return;
     }
 
@@ -131,25 +132,9 @@ const SignupForm = ({
 
     setSubmitLoading(true);
     setSubmitPending(true);
+    scrollToFeedback();
     const trimedLastName = lastName.trim();
     const trimedFirstName = firstName.trim();
-
-    let enterpriseData: object | null = null;
-    if (siren && siren.trim().replace(/\D/g, "").length === 9) {
-      try {
-        const sirenNormalized = siren.trim().replace(/\D/g, "");
-        const res = await fetchProxy(`/api/enterprise/insee/${encodeURIComponent(sirenNormalized)}`, {
-          credentials: "include",
-        });
-        const payload = await res.json().catch(() => null);
-        console.log(payload.data);
-        if (res.ok && payload?.success && payload.data) {
-          enterpriseData = payload.data;
-        }
-      } catch {
-        // INSEE lookup best-effort, on continue sans données entreprise
-      }
-    }
 
     try {
       const signupResponse = await fetchProxy("/api/user/signup", {
@@ -161,27 +146,57 @@ const SignupForm = ({
           prenom: trimedFirstName,
           password,
           cgu: acceptCgu,
-          ...(enterpriseData ? { enterprise: enterpriseData } : {}),
         }),
         credentials: "include",
       });
 
-      const data = await signupResponse.json();
+      // Une reponse non-JSON (page d'erreur, proxy coupe) ne doit pas partir en
+      // exception : sans ce garde-fou l'utilisateur ne voyait qu'un message
+      // generique de creation impossible.
+      const data = await signupResponse.json().catch(() => null);
 
       if (!signupResponse.ok) {
         setSubmitPending(false);
         setServerError(true);
+        // Le limiteur d'inscriptions repond dans "error", les autres routes
+        // dans "message" : sans les deux, la banniere s'affichait vide.
+        setServerErrorMessage(
+          data?.message ||
+            data?.error ||
+            (signupResponse.status === 429
+              ? "Trop de tentatives d'inscription. Réessayez dans une heure."
+              : "Une erreur s'est produite, nous n'avons pas pu créer votre compte..."),
+        );
+        // Le bouton doit redevenir cliquable : l'utilisateur a une correction a
+        // faire (adresse deja prise, mot de passe trop court) et doit pouvoir
+        // resoumettre sans avoir a fermer la banniere au prealable.
+        setSubmitLoading(false);
+        scrollToFeedback();
+        return;
+      }
+
+      if (data?.mailSent === false) {
+        // Compte créé mais e-mail non parti : on affiche le message du serveur
+        // plutôt qu'une confirmation d'envoi, pour que l'utilisateur sache
+        // qu'il doit passer par le renvoi.
+        setSubmitPending(false);
+        setServerError(true);
         setServerErrorMessage(data.message);
-        throw new Error(`BackNode Auth Error : ${signupResponse.status}`);
+        setSubmitLoading(false);
       } else {
         setSubmitPending(false);
         setSubmitSuccess(true);
+        // Le serveur distingue l'envoi confirme de l'envoi encore en cours :
+        // on reprend son message plutot que d'affirmer un envoi abouti.
         setSuccessMessage(
-          `Votre compte a été créé. Un email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception et vos spams.`,
+          data?.message ||
+            `Votre compte a été créé. Un email de vérification a été envoyé à ${email}. Veuillez vérifier votre boîte de réception et vos spams.`,
         );
       }
+      scrollToFeedback();
     } catch (error) {
       setSubmitPending(false);
+      setSubmitLoading(false);
       setServerError(true);
       setServerErrorMessage(
         "Une erreur s'est produite, nous n'avons pas pu créer votre compte...",
@@ -262,18 +277,15 @@ const SignupForm = ({
     }
   };
 
-  const handleChangeSiren = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSiren(value);
-  };
-
   const handleCheckCgu = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.checked;
     setAcceptCgu(value);
   };
 
-  return (
-    <div ref={topRef} className="flex flex-col gap-5">
+  // Bloc de retour affiche sous le bouton d'inscription (voir plus bas dans le
+  // formulaire) : la reponse apparait la ou l'utilisateur vient de cliquer.
+  const feedback = (
+    <div ref={feedbackRef} className="flex flex-col gap-3 empty:hidden">
       {submitError && (
         <AlertBanner
           title="Champs manquants !"
@@ -309,9 +321,9 @@ const SignupForm = ({
       )}
       {submitPending && (
         <AlertBanner
-          title="Inscription réussie !"
+          title="Inscription en cours…"
           variant="info"
-          detail={`Votre compte a été créé. Un email de vérification est en cours d'envoi à ${email}. Veuillez attendre quelques secondes...`}
+          detail={`Création de votre compte et envoi de l'email de vérification à ${email}.`}
           duration={0}
           onClose={() => setSubmitPending(false)}
         />
@@ -331,12 +343,15 @@ const SignupForm = ({
             setEmail("");
             setPassword("");
             setConfirmPassword("");
-            setSiren("");
             setAcceptCgu(false);
           }}
         />
       )}
+    </div>
+  );
 
+  return (
+    <div className="flex flex-col gap-5">
       <form onSubmit={handleSubmit}>
         <section className="flex flex-col gap-6">
           <div className="grid gap-2">
@@ -475,22 +490,6 @@ const SignupForm = ({
           </div>
 
           <div className="grid gap-2">
-            <Field>
-              <FieldLabel htmlFor="siren">Siren</FieldLabel>
-              <FieldDescription className="text-gray-500">
-                Saisissez le numéro Siren de votre société
-              </FieldDescription>
-              <Input
-                id="siren"
-                type="text"
-                placeholder="552 178 639"
-                value={siren}
-                onChange={handleChangeSiren}
-              />
-            </Field>
-          </div>
-
-          <div className="grid gap-2">
             <FieldGroup className="w-72">
               <Field orientation="horizontal">
                 <Checkbox
@@ -544,6 +543,9 @@ const SignupForm = ({
               <PenBoxIcon />
               S'inscrire
             </Button>
+
+            {feedback}
+
             <div className="flex items-center gap-3">
               <div className="w-full h-px bg-gray-300"></div>
               <span className="text-gray-400">OU</span>
