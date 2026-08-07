@@ -16,7 +16,6 @@ export function Inscription() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [siren, setSiren] = useState("");
   const [acceptCgu, setAcceptCgu] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -93,8 +92,6 @@ export function Inscription() {
                   setEmail={setEmail}
                   password={password}
                   setPassword={setPassword}
-                  siren={siren}
-                  setSiren={setSiren}
                   acceptCgu={acceptCgu}
                   setAcceptCgu={setAcceptCgu}
                   confirmPassword={confirmPassword}

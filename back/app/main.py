@@ -28,6 +28,7 @@ if IS_PROD:
         _sanitize_query_text,
         _legifrance_search,
         _judilibre_search,
+        _judilibre_hydrate_text,
         _openai_client,
     )   
     from legal_watch.router import router as legal_watch_router
@@ -44,6 +45,7 @@ else:
         _sanitize_query_text,
         _legifrance_search,
         _judilibre_search,
+        _judilibre_hydrate_text,
         _openai_client,
     )   
     from back.legal_watch.router import router as legal_watch_router

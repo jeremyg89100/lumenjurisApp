@@ -148,6 +148,57 @@ function parseDraft(out: string, title: string): ContractDraft {
   return { title: title.toUpperCase(), variables: [], sections: [{ content: out.trim() }] };
 }
 
+/**
+ * Identité d'une partie, telle que renvoyée par la recherche d'entreprise
+ * (base publique SIREN/SIRET) ou saisie à la main.
+ */
+export interface PartyIdentity {
+  role: string;
+  nom?: string | null;
+  forme_juridique?: string | null;
+  siren?: string | null;
+  code_postal?: string | null;
+  ville?: string | null;
+  rcs_ville?: string | null;
+  representant?: string | null;
+  qualite?: string | null;
+}
+
+/**
+ * Bloc d'instructions décrivant les parties connues. Ces données sont ecrites
+ * en toutes lettres dans le contrat : inutile d'en faire des variables a
+ * remplir, elles sont deja renseignees.
+ */
+function blocParties(parties: PartyIdentity[] = []): string {
+  const connues = parties.filter((p) => p.nom?.trim());
+  if (connues.length === 0) return "";
+
+  const fiches = connues
+    .map((p) => {
+      const lignes: string[] = [];
+      const ajoute = (label: string, v?: string | null) => {
+        if (v?.trim()) lignes.push(`  ${label} : ${v.trim()}`);
+      };
+      ajoute("Dénomination", p.nom);
+      ajoute("Forme juridique", p.forme_juridique);
+      ajoute("SIREN", p.siren);
+      ajoute("Ville", p.ville);
+      ajoute("Code postal", p.code_postal);
+      ajoute("Greffe RCS", p.rcs_ville);
+      ajoute("Représentant", p.representant);
+      ajoute("Qualité du représentant", p.qualite);
+      return `- ${p.role} :\n${lignes.join("\n")}`;
+    })
+    .join("\n");
+
+  return (
+    `PARTIES DÉJÀ IDENTIFIÉES — reprends ces informations telles quelles dans le préambule ` +
+    `et partout où la partie est désignée. Ne crée AUCUNE variable {{…}} pour une donnée ` +
+    `figurant ci-dessous : elle est connue, écris-la en clair. Les données absentes de cette ` +
+    `liste (capital, adresse précise…) restent, elles, des variables.\n${fiches}\n\n`
+  );
+}
+
 /** Format de sortie commun aux deux modes de rédaction. */
 const FORMAT_JSON_CONTRAT =
   `Emploie des VARIABLES au format {{snake_case}} pour TOUTES les données factuelles à remplir ` +
@@ -162,11 +213,13 @@ const FORMAT_JSON_CONTRAT =
 export async function generateContractDraft(
   title: string,
   answers: { question: string; answer: string }[],
+  parties: PartyIdentity[] = [],
 ): Promise<ContractDraft> {
   const choices = answers.map((a) => `- ${a.question} → ${a.answer || "(indifférent)"}`).join("\n");
   const prompt =
     `Tu es un juriste français. Rédige un contrat de type « ${title.trim()} » conforme et structuré, ` +
     `en tenant compte des choix de cadrage suivants :\n${choices}\n\n` +
+    blocParties(parties) +
     EXIGENCE_LICEITE + EXIGENCE_RGPD + FORMAT_JSON_CONTRAT;
   const out = await callOpenAi52(prompt, "medium", "medium", "gpt-5.2");
   return parseDraft(out, title);
@@ -187,6 +240,7 @@ export async function generateContractDraftFromBrief(
   title: string,
   brief: string,
   attachments: BriefAttachment[] = [],
+  parties: PartyIdentity[] = [],
 ): Promise<ContractDraft> {
   const docs = attachments
     .filter((a) => a.text.trim())
@@ -208,7 +262,12 @@ export async function generateContractDraftFromBrief(
         `utiles, reste cohérent avec elles, et signale par une variable {{…}} toute donnée qu'elles ne ` +
         `fournissent pas :\n${docs}\n\n`
       : "") +
+    blocParties(parties) +
     EXIGENCE_LICEITE + EXIGENCE_RGPD + FORMAT_JSON_CONTRAT;
-  const out = await callOpenAi52(prompt, "high", "medium", "gpt-5.2");
+  // Profondeur "medium" et non "high" : la redaction depuis une consigne libre
+  // attendait nettement plus longtemps que le parcours par questions, pour un
+  // resultat comparable — ce dernier redige deja en "medium". Le gain de temps
+  // est immediat ; a reevaluer si la qualite des contrats produits baisse.
+  const out = await callOpenAi52(prompt, "medium", "medium", "gpt-5.2");
   return parseDraft(out, title);
 }
