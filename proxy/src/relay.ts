@@ -89,6 +89,9 @@ export function relayToNode(
     body: req.method === "GET" ? undefined : JSON.stringify(req.body),
   })
     .then(async (r) => {
+      if ((r.headers.has("x-auto-logged") || r.headers.get("x-auto-logged")) === true) {
+        res.setHeader("X-Auto-Logged", "true");
+      }
       const setCookieHeader =
         typeof (r.headers as any).getSetCookie === "function"
           ? (r.headers as any).getSetCookie()

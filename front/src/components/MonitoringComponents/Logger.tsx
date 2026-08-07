@@ -150,13 +150,33 @@ export function Logger() {
   const [panelLoading, setPanelLoading] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
 
+  interface MonitoringResponse {
+    success: boolean;
+    data: {
+      front: FeedbackEntry[],
+      proxy: FeedbackEntry[],
+      back: FeedbackEntry[],
+    }
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetchProxy("/api/logger", { credentials: "include" });
-      const data = await res.json() as { success: boolean; data: FeedbackEntry[] };
-      setFeedbacks(Array.isArray(data.data) ? data.data : []);
+      const res = await fetchProxy("/api/logger/monitoring", { credentials: "include" });
+      const data = (await res.json()) as MonitoringResponse;
+
+      if (data.success && data.data) {
+        const allLogs = [
+          ...(data.data.front || []),
+          ...(data.data.proxy || []),
+          ...(data.data.back || []),
+        ]
+        setFeedbacks(allLogs);
+      } else {
+        setFeedbacks([]);
+      }
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -229,11 +249,11 @@ export function Logger() {
     const ids = [...selectedIds];
     setDeleting(true);
     try {
-      const res = await fetchProxy("/api/logger/bulk", {
+      const res = await fetchProxy(`/api/logger/bulk?ids=${encodeURIComponent(ids.join(","))}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ids }),
+        body: JSON.stringify({ids}),
       });
       const json = await res.json() as { success: boolean; message?: string };
       if (!json.success) throw new Error(json.message ?? "Erreur inconnue");
@@ -432,25 +452,35 @@ export function Logger() {
 
               {/* Card body */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 px-2.5 py-1 rounded-full">
-                      {f.page}
-                    </span>
-                    <span className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 px-2.5 py-1 rounded-full">
-                      {f.context}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between gap-4 mb-3">
                   <div className="flex items-center gap-1 text-xs text-gray-400 shrink-0">
                     <Calendar className="w-3.5 h-3.5" />
                     {formatDateTime(f.date)}
                   </div>
                 </div>
 
-                <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap whitespace-pre-line mb-3">
-                  {f.comment}
-                </p>
+                {/* Bloc de détails structuré */}
+                <div className="bg-gray-50 dark:bg-gray-900/60 rounded-lg p-3.5 border border-gray-100 dark:border-gray-700 space-y-2 mb-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-b border-gray-200/60 dark:border-gray-800 pb-2">
+                    <div>
+                      <span className="font-semibold text-gray-500 dark:text-gray-400">Context : </span>
+                      <span className="text-gray-800 dark:text-gray-200 font-medium">{f.context}</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-500 dark:text-gray-400">Page : </span>
+                      <span className="text-gray-800 dark:text-gray-200 font-medium">{f.page}</span>
+                    </div>
+                  </div>
 
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Comment / Erreur :</span>
+                    <p className="text-gray-800 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-wrap font-mono bg-white dark:bg-gray-800 p-2.5 rounded border border-gray-200 dark:border-gray-700">
+                      {f.comment}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Profil Utilisateur */}
                 <div className="flex items-center pt-2 border-t border-gray-100 dark:border-gray-700">
                   {f.userId ? (
                     <button
@@ -470,7 +500,7 @@ export function Logger() {
                       )}
                     </button>
                   ) : (
-                    <span className="flex items-center gap-1.5 text-xs text-gray-300 dark:text-gray-600">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                       <User className="w-3.5 h-3.5" />
                       Anonyme
                     </span>

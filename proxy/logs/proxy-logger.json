@@ -1,0 +1,16 @@
+[
+  {
+    "id": "576f2c0e-1ce9-456f-afa8-dd71af0e0873",
+    "date": "2026-08-07T10:19:41.808Z",
+    "comment": "[PROXY] - Erreur HTTP 502 (Bad Gateway)\nDurée : 37ms.\nDétails : backnode_unreachable",
+    "context": "[Auto-Log SERVER_ERROR] GET /api/admin/fiscalite?year=2026",
+    "page": "/api/admin/fiscalite"
+  },
+  {
+    "id": "baf1b693-6d05-4299-940f-4492b7a3bad9",
+    "date": "2026-08-07T09:45:08.102Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 2ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/contract/d280ed3b-28e8-49cf-84c5-b928ae8a31ae/amendment",
+    "page": "/api/contract/d280ed3b-28e8-49cf-84c5-b928ae8a31ae/amendment"
+  }
+]

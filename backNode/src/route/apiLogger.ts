@@ -58,48 +58,54 @@ export function addErrorFeedbackLog(params: {comment: string, context: string, p
 // POST /logger — soumettre un commentaire
 routerLogger.post(
   "/",
-  feedBackLimiter,
-  authMiddleware,
   (req: Request, res: Response) => {
     try {
-      const { comment, context, page } = req.body as {
-        comment?: string;
-        context?: string;
-        page?: string;
-      };
+      let rawList: any[] = [];
 
-      if (!comment || typeof comment !== "string" || !comment.trim()) {
-        return res.status(400).json({ success: false, message: "Commentaire vide." });
+      if (req.body?.logs && Array.isArray(req.body.logs)) {
+        rawList = req.body.logs;
+      } else if (Array.isArray(req.body)) {
+        rawList = req.body;
+      } else if (req.body && typeof req.body === "object") {
+        rawList = [req.body];
       }
 
-      const entry: FeedbackEntry = {
-        id: crypto.randomUUID(),
-        date: new Date().toISOString(),
-        comment: comment.trim().slice(0, 2000),
-        context: (context || "Inconnu").trim(),
-        page: (page || "/").trim(),
-        userId: req.idUser ?? undefined,
-      };
+      const newEntries: FeedbackEntry[] = [];
+
+      for (const item of rawList) {
+        const { comment, context, page } = item || {};
+
+        if (comment && typeof comment === "string" && comment.trim()) {
+          newEntries.push({
+            id: crypto.randomUUID(),
+            date: new Date().toISOString(),
+            comment: comment.trim().slice(0, 2000),
+            context: (context || "Inconnu").trim(),
+            page: (page || "/").trim(),
+            userId: req.idUser ?? undefined,
+          });
+        }
+      }
+
+      if (newEntries.length === 0) {
+        return res.status(400).json({ success: false, message: "Aucun log valide fourni." });
+      }
 
       const entries = readLog();
-      // Plus récent en premier
-      entries.unshift(entry);
+      entries.unshift(...newEntries);
       writeLog(entries);
 
-      console.log(`[logger] #${entries.length} from user ${entry.userId ?? "anon"} on "${entry.context}"`);
-
-      return res.status(201).json({ success: true, data: entry });
+      return res.status(201).json({ success: true, count: newEntries.length });
     } catch (err) {
       console.error("[logger] POST error", err);
       return res.status(500).json({ success: false, message: "Erreur serveur." });
     }
-  },
+  }
 );
 
 // GET /logger — consulter tous les logs (admin/dev)
 routerLogger.get(
   "/",
-  authMiddleware,
   (_req: Request, res: Response) => {
     try {
       const entries = readLog();
@@ -117,7 +123,9 @@ routerLogger.delete(
   authMiddleware,
   (req: Request, res: Response) => {
     try {
-      const { ids } = req.body as { ids?: unknown };
+      const idsParam = req.query.ids as string | undefined;
+      const ids = idsParam ? idsParam.split(",") : [];
+      
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ success: false, message: "ids doit être un tableau non vide." });
       }
@@ -153,5 +161,32 @@ routerLogger.delete(
     }
   },
 );
+
+routerLogger.post("/auto-log", (req: Request, res: Response) => {
+  try {
+    const { comment, context, page, userId } = req.body as {
+      comment?: string;
+      context?: string;
+      page?: string;
+      userId?: string;
+    };
+
+    if (!comment) {
+      return res.status(400).json({ success: false, message: "Contenu vide." });
+    }
+
+    addErrorFeedbackLog({
+      comment,
+      context: context || "Auto-Log Proxy",
+      page: page || "/",
+      userId: userId || undefined,
+    });
+
+    return res.status(201).json({ success: true });
+  } catch (err) {
+    console.error("[logger] POST auto-log error", err);
+    return res.status(500).json({ success: false, message: "Erreur serveur." });
+  }
+});
 
 export default routerLogger;

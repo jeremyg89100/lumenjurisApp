@@ -1,32 +1,37 @@
 import { NextFunction, Request, Response } from "express";
-import { addErrorFeedbackLog } from "../route/apiLogger.js";
+import crypto from "crypto";
+// Importez votre helper d'écriture créé précédemment
+import { appendLogsToFile } from "../utils/logger.js";
 
 export const addErrorFeedbackLogger = (req: Request, res: Response, next: NextFunction) => {
-    if (req.originalUrl.includes("logger") || req.originalUrl.includes("auto-log")) {
+    if (req.originalUrl.includes("/logger") || req.originalUrl.includes("auto-log") || req.originalUrl.includes("/monitoring")) {
         return next();
     }
 
     const start = Date.now();
 
     const originalSend = res.send;
+    const originalJson = res.json;
     let responseBody: any = null;
 
-    
     res.send = function (body?: any) {
-        if (res.statusCode >= 400) {
-            res.setHeader("X-Auto-Logged", "true");
-        }
         if (body) {
-            try {
-                responseBody = typeof body === "string" ? JSON.parse(body) : body;
-                } catch {
-                    responseBody = body;
-                }
-            }
-            return originalSend.call(this, body);
+            try { responseBody = typeof body === "string" ? JSON.parse(body) : body; } 
+            catch { responseBody = body; }
         }
+    return originalSend.call(this, body);
+    };
+
+    res.json = function (body?: any) {
+        if (body) responseBody = body;
+        return originalJson.call(this, body);
+    };
 
     res.on("finish", () => {
+        if (res.getHeader("x-auto-logged") || res.getHeader("X-Auto-Logged")) {
+            return;
+        }
+        
         if (res.statusCode >= 400) {
             const duration = Date.now() - start;
             const cleanUrl = decodeURI(req.originalUrl || req.url);
@@ -43,15 +48,25 @@ export const addErrorFeedbackLogger = (req: Request, res: Response, next: NextFu
             }
 
             const detailMsg = extractedMessage ? `Détails : ${extractedMessage}` : "";
-            const comment = `[BACKNODE] - Erreur HTTP ${res.statusCode} (${res.statusMessage || "Error"}) \nDurée : ${duration}ms.\n${detailMsg}`;
+            const comment = `[PROXY] - Erreur HTTP ${res.statusCode} (${res.statusMessage || "Error"})\nDurée : ${duration}ms.\n${detailMsg}`;
 
             const page = cleanUrl.split("?")[0] || "/";
 
             const rawUserId = (req as any).idUser;
             const userId = rawUserId ? String(rawUserId) : undefined;
 
-            addErrorFeedbackLog({comment, context, page, userId});
+            const logEntry = {
+                id: crypto.randomUUID(),
+                date: new Date().toISOString(),
+                comment,
+                context,
+                page,
+                userId
+            };
+
+            appendLogsToFile("proxy-logger.json", [logEntry]);
         }
     });
+
     next();
-}
+};

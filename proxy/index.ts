@@ -28,6 +28,8 @@ import { legalTextRouter } from "./src/routes/legalText.js";
 import { aiRouter } from "./src/routes/ai.js";
 import { adminRouter } from "./src/routes/admin.js";
 import { summarizeContractRouter } from "./src/routes/summarizeContract.js";
+import { globalErrorHandler } from "./src/middleware/globalErrorHandler.js";
+import { addErrorFeedbackLogger } from "./src/middleware/loggerFeedback.js";
 
 const app = express();
 app.set("etag", false);
@@ -49,6 +51,8 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json({ limit: "80mb" }));
+
+app.use(addErrorFeedbackLogger);
 
 // ─── Montage des routers par domaine ───
 app.use("/api/llm", llmRouter);
@@ -94,6 +98,7 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+app.use(globalErrorHandler);
 
 
 // Démarrage du serveur
