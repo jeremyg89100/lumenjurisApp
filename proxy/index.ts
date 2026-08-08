@@ -31,6 +31,8 @@ import { summarizeContractRouter } from "./src/routes/summarizeContract.js";
 import { globalErrorHandler } from "./src/middleware/globalErrorHandler.js";
 import { addErrorFeedbackLogger } from "./src/middleware/loggerFeedback.js";
 
+
+
 const app = express();
 app.set("etag", false);
 // Le proxy est derriere le reverse proxy de l'hebergeur : sans ce reglage,

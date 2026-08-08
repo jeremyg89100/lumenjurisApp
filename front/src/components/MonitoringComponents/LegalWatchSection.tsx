@@ -63,7 +63,7 @@ export function LegalWatchSection() {
 
             {isAlertSuccess && (
             <AlertBanner
-            title="Ajout de la convention collective réussie"
+            title="Convention collective ajoutée avec succès"
             variant="success"
             detail="La convention collective a bien été ajoutée"
             duration={8000}

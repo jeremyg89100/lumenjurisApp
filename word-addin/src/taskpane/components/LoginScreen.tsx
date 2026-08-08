@@ -55,7 +55,7 @@ const LoginScreen: React.FC<Props> = ({ notice, onSignedIn }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src="assets/icon-64.png" alt="" width={36} height={36} style={{ borderRadius: 8 }} />
           <div>
-            <h3 style={{ margin: 0 }}>LumenJuris — Analyse de contrats</h3>
+            <h3 style={{ margin: 0 }}>Lumen Juris — Analyse de contrats</h3>
             <p className="lj-muted" style={{ margin: "2px 0 0" }}>L'assistant juridique IA dans Word</p>
           </div>
         </div>
@@ -75,7 +75,7 @@ const LoginScreen: React.FC<Props> = ({ notice, onSignedIn }) => {
       <div className="lj-card">
         <h3>Connectez-vous pour commencer</h3>
         <p className="lj-muted" style={{ margin: "0 0 8px" }}>
-          Utilisez vos identifiants LumenJuris. Pas encore de compte ? L'offre Free permet de
+          Utilisez vos identifiants Lumen Juris. Pas encore de compte ? L'offre Free permet de
           démarrer gratuitement, sans engagement.
         </p>
         <form onSubmit={handleSubmit}>

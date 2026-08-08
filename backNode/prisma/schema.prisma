@@ -19,17 +19,6 @@ enum Role {
   LECTEUR // lecture seule
 }
 
-enum AuthProvider {
-  GOOGLE
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  EXPIRED
-  PENDING
-}
-
 enum TokenState {
   ACTIVE
   EXPIRED
@@ -43,6 +32,42 @@ enum EnvelopeStatus {
   SIGNED
   DECLINED
   EXPIRED
+}
+
+enum AuthProvider {
+  GOOGLE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PENDING
+}
+
+enum CreditTransactionType {
+  SUBSCRIPTION
+  PURCHASE
+  CONSUMPTION
+  BONUS
+  REFUND
+  ADMIN
+  EXPIRE
+}
+
+// --- PLAN ----
+enum PlanName {
+  Freemium
+  Betatesteur
+  Starter_mensuel
+  Starter_annuel
+  Pro_mensuel
+  Pro_annuel
+}
+
+enum PlanInterval {
+  monthly
+  yearly
 }
 
 // ─── CONTRATHÈQUE ───
@@ -139,31 +164,32 @@ model User {
   stripeCustomerId String?
 
   //relation 
-  tokens        Token[]
-  events        Event[]
-  authProviders AuthProviderAccount[]
-  subscription  Subscription?
-  enterprise    Enterprise?
+  tokens            Token[]
+  events            Event[]
+  authProviders     AuthProviderAccount[]
+  subscription      Subscription?
+  enterprise        Enterprise?
   contractSummaries ContractSummary[]
 
-  userCredit        UserCredit?
-  preference        UserPreference?
-  featureUsages     FeatureUsage[]
-  documentCustom    DocumentCustom[]
-  contractHistory   ContractHistory[]
-  chatHistory       ChatHistory?
-  userLlmUsage      UserLlmUsage[]
-  userUpload        UserUpload?
-  contractTemplates ContractTemplate[]
+  userCredit         UserCredit?
+  creditTransaction  CreditTransaction[]
+  preference         UserPreference?
+  featureUsages      FeatureUsage[]
+  documentCustom     DocumentCustom[]
+  contractHistory    ContractHistory[]
+  chatHistory        ChatHistory?
+  userLlmUsage       UserLlmUsage[]
+  userUpload         UserUpload?
+  contractTemplates  ContractTemplate[]
   signatureEnvelopes SignatureEnvelope[]
 
   // Contrathèque
-  contracts         Contract[]
-  contractFolders   Folder[]
-  contractTags      Tag[]
-  auditLogs         AuditLog[]
-  clauses           Clause[]
-  contractComments  ContractComment[]
+  contracts        Contract[]
+  contractFolders  Folder[]
+  contractTags     Tag[]
+  auditLogs        AuditLog[]
+  clauses          Clause[]
+  contractComments ContractComment[]
 }
 
 // --- AUTH VIA PROVIDER ---
@@ -274,7 +300,7 @@ model DocumentCustom {
 model DocumentTemplate {
   idDocument      Int    @id @default(autoincrement())
   type            String
-  templateContent String @db.Text 
+  templateContent String @db.Text
 }
 
 // --- HISTORIQUE CHAT JURIDIQUE ---
@@ -316,17 +342,59 @@ model ContractHistory {
 
 // --- CREDIT ET PAYMENT ---
 
-/// Crédits disponibles d'un utilisateur : `creditIncluded` vient du plan, `creditAdded` sont des bonus.
-/// Décrémentés à chaque appel IA — épuisement (tous à 0) bloque les fonctionnalités payantes.
+/// Quotas restants d'un utilisateur pour la période en cours.
+/// `quotas` est une copie vivante de `Plan.creditsIncluded` (même structure JSON) :
+/// réinitialisée à chaque paiement Stripe, puis décrémentée à chaque usage pour les
+/// valeurs numériques (analyzer, signatureEnhanced, contrathequeLimit). Les features
+/// booléennes servent uniquement de droit d'accès (pas de décrément).
 model UserCredit {
-  idUserCredit   Int @id @default(autoincrement())
-  creditIncluded Int
-  creditAdded    Int
+  idUserCredit Int  @id @default(autoincrement())
+  quotas       Json
 
   //relation
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+}
+
+/// Journal des mouvements de quotas *à valeur finie* (analyzer, signatureEnhanced,
+/// contrathequeLimit). `feature` précise le quota concerné ; `amount` est le delta
+/// (+ à l'attribution, - à la consommation) et `balanceAfter` le restant après coup.
+/// Les features booléennes (enabled on/off) ne sont PAS journalisées ici : ce sont
+/// des droits d'accès liés au plan, pas des mouvements de crédit.
+model CreditTransaction {
+  id Int @id @default(autoincrement())
+
+  feature String
+
+  amount Int
+
+  balanceAfter Int
+
+  type CreditTransactionType
+
+  description String?
+
+  sourceId String?
+
+  createdAt DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([feature])
+}
+
+/// Journal des events Stripe déjà traités (idempotence du webhook).
+/// Stripe livre chaque event *at-least-once* : le même `eventId` peut arriver
+/// plusieurs fois (timeout, rejeu). La contrainte @unique sur `eventId` garantit
+/// qu'un doublon est détecté et ignoré au lieu d'être rejoué en base.
+model ProcessedStripeEvent {
+  idProcessed Int      @id @default(autoincrement())
+  eventId     String   @unique
+  type        String
+  processedAt DateTime @default(now())
 }
 
 // --- SUIVI D'USAGE DES FONCTIONNALITÉS ---
@@ -366,15 +434,23 @@ model Subscription {
 }
 
 /// Définition d'un plan tarifaire : nom, prix, intervalle de facturation et crédits inclus.
+
 model Plan {
-  idPlan         Int    @id @default(autoincrement())
-  name           String
-  price          Int
-  interval       String
-  creditIncluded Int
+  idPlan Int @id @default(autoincrement())
+
+  name     PlanName
+  price    Int
+  interval PlanInterval
+
+  creditsIncluded Json
+
+  stripeProductId String
+  stripePriceId   String
 
   //relation
   subscription Subscription[]
+
+  @@unique([name, interval])
 }
 
 /// Facture générée pour un abonnement, associée à une transaction Stripe.
@@ -405,7 +481,6 @@ model Llm {
   userLlmUsage UserLlmUsage[]
 }
 
-
 // --- MODELES DE CONTRATS (import + playbook + génération) ---
 
 /// Template de contrat importé ou créé par un utilisateur : structure chiffrée + métadonnées.
@@ -434,11 +509,11 @@ model ContractTemplate {
 /// Playbook de règles juridiques associé à un template (instructions, garde-fous de négociation).
 /// Guide la génération IA et la logique de repli entre positions contractuelles.
 model TemplatePlaybook {
-  idPlaybook  Int      @id @default(autoincrement())
-  rulesText   String   @db.LongText
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  idPlaybook Int      @id @default(autoincrement())
+  rulesText  String   @db.LongText
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   templateId Int              @unique
   template   ContractTemplate @relation(fields: [templateId], references: [idTemplate], onDelete: Cascade)
@@ -446,13 +521,13 @@ model TemplatePlaybook {
 
 /// Note doctrinale rattachée à une clause d'un template : conseils d'interprétation et références juridiques.
 model DoctrinalNote {
-  idNote      Int      @id @default(autoincrement())
-  externalId  String   @unique
-  title       String
-  content     String   @db.LongText
-  clauseRef   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  idNote     Int      @id @default(autoincrement())
+  externalId String   @unique
+  title      String
+  content    String   @db.LongText
+  clauseRef  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   templateId Int
   template   ContractTemplate @relation(fields: [templateId], references: [idTemplate], onDelete: Cascade)
@@ -462,13 +537,13 @@ model DoctrinalNote {
 
 /// Log de chaque génération de contrat depuis un template : variables utilisées, tokens consommés et résultat chiffré.
 model GenerationLog {
-  idLog           Int      @id @default(autoincrement())
-  externalId      String   @unique
-  variables       Json
-  promptTokens    Int      @default(0)
-  completionTokens Int     @default(0)
-  encryptedOutput String   @db.LongText
-  createdAt       DateTime @default(now())
+  idLog            Int      @id @default(autoincrement())
+  externalId       String   @unique
+  variables        Json
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  encryptedOutput  String   @db.LongText
+  createdAt        DateTime @default(now())
 
   templateId Int
   template   ContractTemplate @relation(fields: [templateId], references: [idTemplate], onDelete: Cascade)
@@ -481,44 +556,43 @@ model GenerationLog {
 /// Enveloppe de signature électronique entre un utilisateur et sa contrepartie.
 /// Champs de signature chiffrés AES-256-GCM ; suivi complet du cycle de vie (DRAFT → SIGNED).
 model SignatureEnvelope {
-  idEnvelope           Int            @id @default(autoincrement())
-  externalId           String         @unique
-  documentName         String
-  documentFilePath     String?
-  numPages             Int            @default(1)
+  idEnvelope       Int            @id @default(autoincrement())
+  externalId       String         @unique
+  documentName     String
+  documentFilePath String?
+  numPages         Int            @default(1)
   // Token public unique pour la page de signature du cocontractant
-  signingToken         String         @unique
+  signingToken     String         @unique
   // Champs (zones de signature + signatures capturées) chiffrés AES-256-GCM
-  encryptedFields      String         @db.LongText
-  status               EnvelopeStatus @default(DRAFT)
+  encryptedFields  String         @db.LongText
+  status           EnvelopeStatus @default(DRAFT)
 
   // Métadonnées signataires (clair pour permettre les filtres/recherche)
-  selfName             String
-  selfEmail            String
-  counterpartyName     String
-  counterpartyEmail    String
+  selfName          String
+  selfEmail         String
+  counterpartyName  String
+  counterpartyEmail String
 
   // Suivi du cycle de vie
   sentAt               DateTime?
   selfSignedAt         DateTime?
   counterpartySignedAt DateTime?
   completedAt          DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  userId               Int
-  user                 User           @relation(fields: [userId], references: [idUser], onDelete: Cascade)
+  userId Int
+  user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
 }
 
-
 // --- ASSETS UTILISATEUR (filigranes) ---
 /// Images uploadées par l'utilisateur (ex : filigrane sur contrats exportés), stockées en JSON.
 model UserUpload {
-  idUserUpload    Int    @id @default(autoincrement())
-  uploadedImages  Json
+  idUserUpload   Int  @id @default(autoincrement())
+  uploadedImages Json
 
   userId Int  @unique
   user   User @relation(fields: [userId], references: [idUser], onDelete: Cascade)
@@ -575,9 +649,9 @@ model Contract {
   status           ContractStatus @default(DRAFT)
 
   // Dates clés
-  signatureDate DateTime?
-  effectiveDate DateTime? // date d'effet
-  endDate       DateTime? // date d'échéance (null = sans date de fin)
+  signatureDate  DateTime?
+  effectiveDate  DateTime? // date d'effet
+  endDate        DateTime? // date d'échéance (null = sans date de fin)
   durationMonths Int?
 
   // Renouvellement — pilote la logique d'alerte (Chatel B2C vs art. 1215 B2B)
@@ -618,14 +692,13 @@ model Contract {
   user     User    @relation(fields: [userId], references: [idUser], onDelete: Cascade)
   folderId Int?
   folder   Folder? @relation(fields: [folderId], references: [idFolder], onDelete: SetNull)
- 
 
-  metadataFields ContractMetadataField[]
-  amendments     Amendment[]
-  versions       ContractVersion[]
-  tags           ContractTag[]
-  auditLogs      AuditLog[]
-  comments       ContractComment[]
+  metadataFields    ContractMetadataField[]
+  amendments        Amendment[]
+  versions          ContractVersion[]
+  tags              ContractTag[]
+  auditLogs         AuditLog[]
+  comments          ContractComment[]
   contractSummaries ContractSummary[]
   negotiationSessions NegotiationSession[]
 
@@ -1010,9 +1083,9 @@ model NegotiationParticipant {
 
 /// Accès invité temporaire à une négociation via un token secret, limité dans le temps et révocable.
 model GuestAccess {
-  idGuest       Int       @id @default(autoincrement())
-  externalId    String    @unique
-  token         String    @unique // secret du lien invité
+  idGuest       Int        @id @default(autoincrement())
+  externalId    String     @unique
+  token         String     @unique // secret du lien invité
   participantId Int?
   name          String? // lien nominatif : destinataire affiché sur la page invité
   email         String? // destinataire de l'invitation et des relances
@@ -1020,7 +1093,7 @@ model GuestAccess {
   lastSentAt    DateTime? // dernier envoi d'e-mail (invitation ou relance)
   expiresAt     DateTime
   revokedAt     DateTime?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime   @default(now())
 
   negotiationId Int
   negotiation   NegotiationSession @relation(fields: [negotiationId], references: [idNegotiation], onDelete: Cascade)
@@ -1098,7 +1171,7 @@ model LegalWatchItem {
   createdAt DateTime             @default(now())
 
   sourceId Int
-  source   LegalWatchSource @relation(fields: [sourceId], references: [idSource])
+  source   LegalWatchSource  @relation(fields: [sourceId], references: [idSource])
   alerts   LegalWatchAlert[]
 
   @@unique([sourceId, providerId]) // idempotence : une décision par source
@@ -1135,13 +1208,13 @@ model LegalWatchAlert {
 }
 
 model NegotiationAudit {
-  idAudit       Int                    @id @default(autoincrement())
-  action        NegotiationAuditAction
-  actorUserId   Int?
-  actorLabel    String? // nom affiché (interne ou invité)
-  versionId     Int?
-  payload       Json?
-  createdAt     DateTime               @default(now())
+  idAudit     Int                    @id @default(autoincrement())
+  action      NegotiationAuditAction
+  actorUserId Int?
+  actorLabel  String? // nom affiché (interne ou invité)
+  versionId   Int?
+  payload     Json?
+  createdAt   DateTime               @default(now())
 
   negotiationId Int
   negotiation   NegotiationSession @relation(fields: [negotiationId], references: [idNegotiation], onDelete: Cascade)
@@ -1150,30 +1223,30 @@ model NegotiationAudit {
 }
 
 model ContractSummary {
-  idSummary   Int      @id @default(autoincrement())
-  externalId  String   @unique
+  idSummary  Int    @id @default(autoincrement())
+  externalId String @unique
 
   // Résumé IA structuré
-  identification          Json
-  resume_executif         String   @db.Text
-  parties                 Json     // Array d'objets ou strings
-  dates                   Json
-  objet                   String   @db.Text
-  obligations             Json     // string[] → stocké en JSON*
-  conditions_financieres  Json
-  responsabilite          Json
-  clauses_particulieres   Json
-  delais_importants       Json
-  annexes                 Json
-  resiliation             Json
-  points_attention        Json     // string[] → stocké en JSON
-  niveau_risque           Json?     // Objet { "niveau" : "", justification : ""}
+  identification         Json
+  resume_executif        String @db.Text
+  parties                Json // Array d'objets ou strings
+  dates                  Json
+  objet                  String @db.Text
+  obligations            Json // string[] → stocké en JSON*
+  conditions_financieres Json
+  responsabilite         Json
+  clauses_particulieres  Json
+  delais_importants      Json
+  annexes                Json
+  resiliation            Json
+  points_attention       Json // string[] → stocké en JSON
+  niveau_risque          Json? // Objet { "niveau" : "", justification : ""}
 
-  duree           String?
+  duree String?
 
   // Texte source (pour pouvoir re-générer sans re-uploader)
-  fileName  String?
-  rawText   String?  @db.LongText
+  fileName String?
+  rawText  String? @db.LongText
 
   createdAt DateTime @default(now())
 

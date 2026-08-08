@@ -45,7 +45,7 @@ export class Google {
         return {
           success: true,
           message:
-            "Les données utisateurs de l'authProvider Google ont été récupéré avec succès.",
+            "Les données utilisateurs de l'authProvider Google ont été récupérées avec succès.",
           data: {
             provider: "GOOGLE",
             avatarUrl: dataProvider?.avatarUrl ?? null,

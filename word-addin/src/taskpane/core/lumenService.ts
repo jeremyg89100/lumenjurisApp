@@ -48,7 +48,7 @@ async function post<T>(endpoint: string, body: unknown): Promise<T> {
   } catch {
     // TypeError « Failed to fetch » : réseau coupé, serveur injoignable ou CORS.
     throw new Error(
-      "Serveur LumenJuris injoignable. Vérifiez votre connexion internet puis réessayez."
+      "Serveur Lumen Juris injoignable. Vérifiez votre connexion internet puis réessayez."
     );
   }
   if (response.status === 401) {

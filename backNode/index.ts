@@ -3,7 +3,6 @@ import type { Request, Response } from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import path from "path";
-import { User } from "./src/services/classUser.js";
 import routerGoogleAuth from "./src/route/authGoogle.js";
 import routerLlm from "./src/route/apiLlm.js";
 import routerUser from "./src/route/apiUser.js";
@@ -26,7 +25,6 @@ import routerLogger from "./src/route/apiLogger.js";
 import routerFeatureEvent from "./src/route/apiFeatureEvent.js";
 import cors from "cors";
 import { seedBootstrapUsers } from "./src/services/bootstrapUsers.js";
-import { seedPlans } from "./src/services/planSeeder.js";
 import { Mailer } from "./src/infrastructure/mailer/classMailer.js";
 import { globalLimiter } from "./src/securite/limiter.js";
 import { authMiddleware } from "./src/middleware/authMiddleware.js";
@@ -36,7 +34,8 @@ import { internalApiKeyMiddleware } from "./src/middleware/internalApiKeyMiddlew
 import { addErrorFeedbackLogger } from "./src/middleware/loggerFeedback.js";
 import { globalErrorHandler } from "./src/middleware/globalErrorHandle.js";
 
-
+import { seedPlans } from "./prisma/seedPlans.js";
+import { StripeLumenJuris } from "./billing/stripe.service.js";
 /**
  * Préparation du serveur nodejs/express pour ce backend
  * Ici sera traité toute les opérations avec la base de données
@@ -53,20 +52,42 @@ const app = express();
 //SECURITE
 app.set("etag", false);
 const port = process.env.PORT || 3020;
+
+//NE PAS DEPLACER CETTE ROUTE
+//Le reste de la route est gérer dans le controller billing mais celle-ci est déclarer avant express.json()
+//Pour conserver le corp non parse (indispensable pour la signature de stripe!)
+app.use(
+  "/billing/stripe/webhook",
+  express.raw({ type: "application/json" })
+);
+
 app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === "dev"
-        ? ["http://localhost:5173", "http://localhost:3020", HOST_PROXY]
-        : HOST_PROXY,
-    credentials: true,
-  }),
+app.use(cors({
+  origin:
+    process.env.NODE_ENV === "dev"
+      ? ["http://localhost:5173", "http://localhost:3020", HOST_PROXY]
+      : HOST_PROXY,
+  credentials: true,
+}),
 );
+// Rate-limiter global, SAUF le webhook Stripe : Stripe peut envoyer des rafales
+// d'events (renouvellements groupés) et un 429 déclencherait des rejeux inutiles.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/billing/stripe/webhook")) return next();
+  return globalLimiter(req, res, next);
+});
+app.set("trust-proxy", 1);
+
+// Frontière de sécurité : backNode n'accepte QUE les requêtes portant la clé
+// interne (posée par le proxy et le cron). Sans elle, un appel direct pourrait
+// injecter lui-même `x-user-id`/`x-user-role` et usurper un rôle. Les routes
+// OAuth Google et /health, atteintes directement par le navigateur, sont
+// exemptées dans le middleware.
+app.use(internalApiKeyMiddleware);
 // Doit rester AVANT les limiteurs : sans ce reglage, req.ip vaut l'adresse du
 // proxy pour tout le monde et les quotas sont partages par tous les utilisateurs.
 app.set("trust proxy", 1);
@@ -101,6 +122,10 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+
+
+
+
 app.get("/userassets/:filename", authMiddleware, async (req, res) => {
   try {
     const filename = req.params.filename as string;
@@ -131,21 +156,29 @@ app.use(globalErrorHandler);
 
 
 app.listen(port, async () => {
-  console.log(`Serveur backend nodejs running on port ${port}`);
-  
   try {
-    await seedBootstrapUsers();
+    //Initialisation des seed de plan. 
+    void await seedPlans()
+
+    //Initialisation des utilisateurs de developpement
+    void await seedBootstrapUsers();
+
+    //Initialisation du transporteur pour s'assurer qu'il soit bien ok au démarrage
     void Mailer.initTransporter();
+
+    // Purge des events Stripe traités (idempotence) : au démarrage puis 1×/jour,
+    // pour éviter que la table ProcessedStripeEvent grossisse indéfiniment.
+    void StripeLumenJuris.purgeOldProcessedEvents();
+    setInterval(
+      () => void StripeLumenJuris.purgeOldProcessedEvents(),
+      24 * 60 * 60 * 1000,
+    );
+
+    console.log(`Serveur backend nodejs running on port ${port}`);
   } catch (err) {
     console.error(
-      "Erreur lors de l'initialisation des utilisateurs de bootstrap:",
+      "Une erreur est survenue lors de demarage du serveur backNode, error :",
       err,
     );
   }
-  try {
-    await seedPlans();
-  } catch (err) {
-    console.error("Erreur lors du seeding des plans:", err);
-  }
-  //await sandbox()
 });

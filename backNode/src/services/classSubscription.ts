@@ -1,5 +1,5 @@
 import { prisma } from "../../prisma/singletonPrisma.js";
-import { SubscriptionStatus } from "@prisma/client";
+import { Prisma, SubscriptionStatus, PlanName, PlanInterval } from "@prisma/client";
 import { Mailer } from "../infrastructure/mailer/classMailer.js";
 import { generateInvoicePDF } from "../infrastructure/pdf/invoicePDF.js";
 
@@ -13,7 +13,7 @@ export type ReturnDataSubscription<T = any> = {
   data?: T;
 };
 
-function buildInvoiceNumber(idFacture: number, date: Date): string {
+export function buildInvoiceNumber(idFacture: number, date: Date): string {
   const yyyymmdd = date.toISOString().slice(0, 10).replace(/-/g, "");
   return `LJ-${yyyymmdd}-${String(idFacture).padStart(4, "0")}`;
 }
@@ -24,18 +24,18 @@ type UserInvoiceInfo = {
   prenom: string | null;
   nom: string | null;
   enterprise: {
-    name: string | null;
-    siren: string | null;
-    address: {
-      address: string | null;
-      codePostal: string | null;
-      pays: string | null;
+  name: string | null;
+  siren: string | null;
+  address: {
+    address: string | null;
+    codePostal: string | null;
+    pays: string | null;
     } | null;
   } | null;
 };
 
 /** Select Prisma partagé par les deux chemins de facturation (email + download). */
-const USER_INVOICE_SELECT = {
+export const USER_INVOICE_SELECT = {
   email: true,
   prenom: true,
   nom: true,
@@ -55,7 +55,7 @@ const USER_INVOICE_SELECT = {
  * fallback sur le nom/prénom de la personne (ou l'email en dernier recours).
  * L'adresse n'est ajoutée que si au moins une ligne est connue.
  */
-function buildCustomerInvoiceInfo(user: UserInvoiceInfo): {
+export function buildCustomerInvoiceInfo(user: UserInvoiceInfo): {
   customerName: string;
   customerEmail: string;
   customerAddress?: string;
@@ -84,6 +84,14 @@ function buildCustomerInvoiceInfo(user: UserInvoiceInfo): {
 }
 
 export class Subscription {
+  /* ─── OBSOLÈTE ───────────────────────────────────────────────────────────
+   * Activait l'abonnement + créait la facture + posait les quotas après un
+   * paiement carte (ancien flux PaymentIntent, route POST /billing/subscription
+   * elle aussi commentée). Remplacé par Stripe Checkout + webhook :
+   * stripe.service onCheckoutCompleted (lien plan) et onPaymentSucceeded
+   * (quotas + facture + email). Conservé commenté le temps de la refonte
+   * crédits, à supprimer ensuite.
+   *
   async createOrUpdate(
     userId: number,
     planName: string,
@@ -93,7 +101,7 @@ export class Subscription {
   ): Promise<ReturnData> {
     try {
       const plan = await prisma.plan.findFirst({
-        where: { name: planName, interval },
+        where: { name: planName as PlanName, interval: interval as PlanInterval },
       });
 
       if (!plan) {
@@ -114,7 +122,7 @@ export class Subscription {
 
       const now = new Date();
       const expiresAt =
-        interval === "year"
+        interval === PlanInterval.yearly
           ? new Date(new Date(now).setFullYear(now.getFullYear() + 1))
           : new Date(new Date(now).setMonth(now.getMonth() + 1));
 
@@ -147,11 +155,10 @@ export class Subscription {
         where: { userId },
         create: {
           userId,
-          creditIncluded: plan.creditIncluded,
-          creditAdded: 0,
+          quotas: plan.creditsIncluded as Prisma.InputJsonValue,
         },
         update: {
-          creditIncluded: plan.creditIncluded,
+          quotas: plan.creditsIncluded as Prisma.InputJsonValue,
         },
       });
 
@@ -187,6 +194,7 @@ export class Subscription {
       };
     }
   }
+   * ───────────────────────────────────────────────────────────────────────── */
 
   async get(userId: number): Promise<ReturnData> {
     try {
@@ -213,13 +221,17 @@ export class Subscription {
             interval: subscription.plan.interval,
             startAt: subscription.startAt.toISOString(),
             expiresAt: subscription.expiresAt.toISOString(),
+            // Vrai seulement pour un abonnement Stripe payant : conditionne
+            // l'affichage du bouton "Gérer mon abonnement" côté front.
+            canManageBilling: subscription.stripeSubscriptionId != null,
           },
           credits: credits
             ? {
-                creditIncluded: credits.creditIncluded,
-                creditAdded: credits.creditAdded,
-                totalIncluded: subscription.plan.creditIncluded,
-              }
+              // Quotas restants de l'utilisateur (structure par feature)
+              quotas: credits.quotas,
+              // Quotas pleins du plan (référence pour calculer la conso côté front)
+              planQuotas: subscription.plan.creditsIncluded,
+            }
             : null,
         },
       };
@@ -361,7 +373,7 @@ export class Subscription {
       if (existingSubscription) return;
 
       const plan = await prisma.plan.findFirst({
-        where: { name: "Freemium", interval: "month" },
+        where: { name: PlanName.Freemium, interval: PlanInterval.monthly },
       });
       if (!plan) {
         console.error("Plan Freemium introuvable en BDD");
@@ -384,8 +396,7 @@ export class Subscription {
       await prisma.userCredit.create({
         data: {
           userId,
-          creditIncluded: plan.creditIncluded,
-          creditAdded: 0,
+          quotas: plan.creditsIncluded as Prisma.InputJsonValue,
         },
       });
 

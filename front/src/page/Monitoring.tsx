@@ -22,7 +22,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType; description: stri
   { id: "users", label: "Utilisateurs", icon: Users, description: "Gestion des comptes et rôles" },
   { id: "revenue", label: "Revenus", icon: TrendingUp, description: "Abonnements et paiements" },
   { id: "activity", label: "Activité", icon: Activity, description: "Usage des fonctionnalités IA" },
-  { id: "legalWatch", label: "Legal Watch", icon: Library , description: "Ajout de conventions collectives"},
+  { id: "legalWatch", label: "Actualité juridique", icon: Library , description: "Ajout de conventions collectives"},
   { id: "fiscalite", label: "Fiscalité", icon: Landmark, description: "TVA et factures par mois" },
   {id: "logger", label: "Logger", icon: MessageSquare, description: "Logs des utilisateurs"}
 ];
@@ -34,7 +34,7 @@ const SECTION_TITLES: Record<Tab, { title: string; sub: string }> = {
   users: { title: "Gestion des utilisateurs", sub: "Rôles et droits d'accès" },
   revenue: { title: "Revenus", sub: "Abonnements actifs, paiements et chiffre d'affaires" },
   activity: { title: "Activité des fonctionnalités", sub: "Usage de chaque fonctionnalité IA par période" },
-  legalWatch: { title: "Legal Watch", sub: "Ajout de conventions collectives"},
+  legalWatch: { title: "Actualité juridique", sub: "Ajout de conventions collectives"},
   fiscalite: { title: "Fiscalité", sub: "Récapitulatif TVA mensuel et export des factures" },
   logger: {title: "Logger", sub: "Logs des utilisateurs"}
 };

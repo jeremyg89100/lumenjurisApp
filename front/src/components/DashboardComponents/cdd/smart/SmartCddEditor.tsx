@@ -922,7 +922,7 @@ export function SmartCddEditor({ onBack, model = cddAccroissementModel, fileBase
               onSelect={pickConvention}
               label="Identifier via une entreprise (open data)"
               hint="Recherchez l'entreprise par nom ou SIRET pour récupérer sa convention (code IDCC)."
-              placeholder="Ex. « LumenJuris » ou « 55203253400703 »"
+              placeholder="Ex. « Lumen Juris » ou « 55203253400703 »"
             />
             {ccFinderMsg && <p className="text-xs text-brand">{ccFinderMsg}</p>}
 

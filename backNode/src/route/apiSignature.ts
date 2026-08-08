@@ -64,7 +64,7 @@ router.post("/", authMiddleware, async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, message: "documentName, fileBase64 et fields requis." })
         }
         if (!body.counterpartyName || !body.counterpartyEmail) {
-            return res.status(400).json({ success: false, message: "Nom et email du cocontractant requis." })
+            return res.status(400).json({ success: false, message: "Nom et e-mail du cocontractant requis." })
         }
 
         // Sauvegarde le PDF sur le filesystem (pas en DB pour ne pas alourdir)

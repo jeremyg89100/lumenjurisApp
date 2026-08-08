@@ -75,7 +75,7 @@ export function ParticipantsPanel({ data, canEdit, onChanged }: Props) {
             </select>
           </div>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom" className="w-full text-sm px-3 py-1.5 border border-line rounded-lg outline-none focus:border-brand/40 placeholder:text-ink-placeholder" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full text-sm px-3 py-1.5 border border-line rounded-lg outline-none focus:border-brand/40 placeholder:text-ink-placeholder" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className="w-full text-sm px-3 py-1.5 border border-line rounded-lg outline-none focus:border-brand/40 placeholder:text-ink-placeholder" />
           <button onClick={() => void add()} disabled={busy} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand text-white text-xs font-semibold rounded-lg hover:bg-brand-hover transition-all disabled:opacity-50">
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Ajouter le participant
           </button>

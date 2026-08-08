@@ -2,6 +2,7 @@ import SignupForm from "../components/auth/SignupForm";
 import LoginForm from "../components/auth/LoginForm";
 import MainHeader from "../components/MainHeader/MainHeader";
 import { useUserStore } from "../store/userStore";
+import { PENDING_CHECKOUT_KEY } from "../utils/planMapping";
 
 // UI //
 import { Button } from "../components/ui/Button";
@@ -31,14 +32,22 @@ export function Inscription() {
     );
   }
 
-  return authStatus === "authenticated" ? (
-    <Navigate to="/dashboard" replace />
-  ) : (
+  // Si un plan a été choisi avant l'inscription, on renvoie l'utilisateur
+  // fraîchement connecté vers la page des offres pour y reprendre le paiement.
+  if (authStatus === "authenticated") {
+    const hasPendingCheckout = !!sessionStorage.getItem(PENDING_CHECKOUT_KEY);
+    return (
+      <Navigate to={hasPendingCheckout ? "/souscription" : "/dashboard"} replace />
+    );
+  }
+
+  // À ce stade, l'utilisateur n'est pas authentifié : on affiche le formulaire.
+  return (
     <>
       <MainHeader />
 
-      <div className="bg-lumenjuris-background min-h-[calc(100vh-64px)] w-screen">
-        <div className="w-[420px] mx-auto pt-12">
+      <div className="bg-lumenjuris-background min-h-[calc(100vh-64px)] w-full">
+        <div className="w-full max-w-[420px] mx-auto px-4 pt-12">
           <div className="w-full border border-border px-4 py-7 rounded-xl flex flex-col gap-5 bg-background">
             <section className="w-full flex items-center justify-between">
               <div className="w-44 flex flex-col items-center gap-1">

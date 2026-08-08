@@ -113,7 +113,7 @@ export function getParamConfirmationModalContent({
       return {
         title: "Authentification à deux facteurs",
         description:
-          "À chaque connexion, vous recevrez un code par email que vous devrez renseigner pour accéder à votre compte.",
+          "À chaque connexion, vous recevrez un code par e-mail que vous devrez renseigner pour accéder à votre compte.",
         confirmLabel: "Confirmer",
         confirmClassName: "bg-lumenjuris text-white hover:bg-lumenjuris/90",
         onConfirm: () => {
@@ -136,7 +136,7 @@ export function getParamConfirmationModalContent({
     case "export_data":
       return {
         title: "Exporter mes données",
-        description: "Souhaitez-vous recevoir un mail contenant vos données ?",
+        description: "Souhaitez-vous recevoir un e-mail contenant vos données ?",
         confirmLabel: "Exporter mes données",
         confirmClassName: "bg-lumenjuris text-white hover:bg-lumenjuris/90",
         onConfirm: () => {
@@ -147,7 +147,7 @@ export function getParamConfirmationModalContent({
       return {
         title: "Supprimer mon compte",
         description:
-          "Vous recevrez un email de confirmation contenant le lien de suppression de toutes vos données.",
+          "Vous recevrez un e-mail de confirmation contenant le lien de suppression de toutes vos données.",
         confirmLabel: "Supprimer mon compte",
         confirmClassName: "bg-red-600 text-white hover:bg-red-700",
         onConfirm: () => {

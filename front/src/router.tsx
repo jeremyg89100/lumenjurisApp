@@ -26,6 +26,8 @@ import { Sandbox } from "./page/Sandbox";
 import { ParamCompte } from "./page/ParamCompte";
 import { Monitoring } from "./page/Monitoring";
 import { Subscription } from "./page/Subscription";
+import { SubscriptionSuccess } from "./components/SubscriptionComponents/SubscriptionSuccess";
+import { SubscriptionFailed } from "./components/SubscriptionComponents/SubscriptionFailed";
 import { ConfirmDeleteAccountPage } from "./page/DeleteAccount";
 
 import { ScrollToTop } from "./components/common/ScrollToTop";
@@ -91,13 +93,7 @@ export function App() {
       <ScrollToTop />
 
       <Routes>
-        <Route
-          element={
-            <RequireAuth>
-              <MainLayout />
-            </RequireAuth>
-          }
-        >
+        <Route element={<RequireAuth> <MainLayout />  </RequireAuth>}>
           {/* Entrée principale de l'application sur le dashboard avec direction selon state de l'auth User*/}
           <Route path="/" element={<HomeRedirect />} />
 
@@ -117,10 +113,7 @@ export function App() {
           <Route path="/clauses" element={<ClausesLibrary />} />
           <Route path="/utilisateurs" element={<UserManagement />} />
           <Route path="/negociations" element={<NegotiationsList />} />
-          <Route
-            path="/negociation/:negotiationId"
-            element={<NegotiationWorkspace />}
-          />
+          <Route path="/negociation/:negotiationId" element={<NegotiationWorkspace />} />
           <Route path="/chatjuridique" element={<ChatJuridique />} />
           <Route path="/calculateur" element={<Calculateur />} />
           <Route path="/veille" element={<Veille />} />
@@ -128,6 +121,7 @@ export function App() {
           <Route path="/comprendre-contrat" element={<ComprendreContrat />} />
           <Route path="/mon-compte" element={<ParamCompte />} />
           <Route path="/analyzer" element={<ContractAnalysis />} />
+
 
           {/* Page de gestion d'un cluster pour les multi user
           <Route path="/cluster" element={<ClusterUserPage />} /> EN COURS DE DEV
@@ -137,30 +131,14 @@ export function App() {
         </Route>
 
         <Route
-          path="/sandbox"
-          element={
-            <RequireAuth>
-              {" "}
-              <Sandbox />{" "}
-            </RequireAuth>
-          }
-        />
-
+          path="/sandbox" element={<RequireAuth>{" "}<Sandbox />{" "}</RequireAuth>} />
         <Route path="/inscription" element={<Inscription />} />
 
-        <Route
-          path="/monitoring"
-          element={
-            <RequireAuth>
-              {" "}
-              <Monitoring />{" "}
-            </RequireAuth>
-          }
-        />
+
+        <Route path="/monitoring" element={<RequireAuth>{" "} <Monitoring />{" "} </RequireAuth>} />
 
         <Route path="/verify-account" element={<VerifyAccount />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/souscription" element={<Subscription />} />
 
         <Route element={<PublicLayout />}>
           <Route path="/user/deleteaccount/:token" element={<ConfirmDeleteAccountPage />} />
@@ -169,11 +147,18 @@ export function App() {
         {/* Page publique de signature pour le cocontractant — sans auth */}
         <Route path="/signer/:token" element={<SignerPage />} />
 
+
+        {/* Route pour les formulaire et l'achat d'un plan */}
+        <Route path="/souscription" element={<Subscription />} />
+
+        {/* Pages de retour Stripe Checkout (URLs configurées côté backend) */}
+        <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+        <Route path="/subscription/failed" element={<SubscriptionFailed />} />
+
+
+
         {/* Page publique de négociation pour un invité externe — sans auth */}
-        <Route
-          path="/negociation-invite/:token"
-          element={<NegotiationGuest />}
-        />
+        <Route path="/negociation-invite/:token" element={<NegotiationGuest />} />
       </Routes>
 
 

@@ -28,9 +28,9 @@ const FEATURE_META: Record<string, { label: string; color: string; llm: boolean;
   analyze_clause:    { label: "Analyse clause",       color: "#06b6d4", llm: true,  description: "Analyse approfondie d'une clause spécifique sélectionnée par l'utilisateur." },
   chat:              { label: "Chat juridique",        color: "#64748b", llm: true,  description: "Conversations avec le chat juridique principal de l'application." },
   openai_chat:       { label: "Assistant IA",         color: "#a78bfa", llm: true,  description: "Assistant IA généraliste (routes de chat secondaires)." },
-  legal_watch_run:   { label: "Veille — pipeline IA", color: "#a16207", llm: true,  description: "Exécution du pipeline de veille : collecte et enrichissement IA des articles (admin/juriste)." },
+  legal_watch_run:   { label: "Actualité juridique — pipeline IA", color: "#a16207", llm: true,  description: "Exécution du pipeline de veille : collecte et enrichissement IA des articles (admin/juriste)." },
   // Fonctionnalités sans coût IA (usage produit)
-  legal_watch:       { label: "Veille juridique",     color: "#84cc16", llm: false, description: "Consultation du digest de veille juridique (articles et alertes publiés)." },
+  legal_watch:       { label: "Actualité juridique",     color: "#84cc16", llm: false, description: "Consultation du digest de veille juridique (articles et alertes publiés)." },
   esignature:        { label: "E-signature",          color: "#0ea5e9", llm: false, description: "Création et envoi d'une enveloppe de signature électronique." },
   contract_library:  { label: "Contrathèque",         color: "#78716c", llm: false, description: "Ajout d'un contrat dans la contrathèque (import ou création)." },
   negotiation:       { label: "Négociation",          color: "#e11d48", llm: false, description: "Ouverture ou entrée dans une session de négociation de contrat." },
@@ -288,7 +288,7 @@ export function ActivitySection() {
       {data && !loading && (
         <>
           {/* Stat tiles */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatTile
               icon={<Zap className="w-4 h-4" />}
               label="Appels LLM"
@@ -724,7 +724,7 @@ function UserActivityPanel({
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="bg-gray-50 rounded-lg p-2.5 text-center">
                   <p className="text-lg font-bold text-gray-900">{detail.total.toLocaleString("fr-FR")}</p>
                   <p className="text-xs text-gray-400">appels</p>

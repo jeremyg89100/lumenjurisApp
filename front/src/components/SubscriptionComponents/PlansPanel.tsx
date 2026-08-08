@@ -1,12 +1,15 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
 import { Button } from "../ui/Button";
 import { cn } from "../../utils/shadcnUtils/cn";
 
 import { useUserStore } from "../../store/userStore";
-import { BillingStripePanel } from "./BillingStripePanel";
 import type { BillingInterval } from "../../types/subscriptionData";
+import { toCheckoutPlanName, PENDING_CHECKOUT_KEY } from "../../utils/planMapping";
+import { fetchProxy } from "../../utils/fetchProxy";
+
+//type PlanName = "Freemium" | "Betatesteur" | "Starter_mensuel" | "Starter_annuel" | "Pro_mensuel" | "Pro_annuel"
 
 type Plan = {
   name: string;
@@ -36,7 +39,7 @@ const PLANS: Plan[] = [
       "Signature électronique simple illimitée",
       "3 analyses de contrat par IA / mois",
       "Négociation collaborative incluse",
-      "Veille juridique incluse",
+      "Actualité juridique incluse",
       "Contrathèque : 5 contrats suivis",
     ],
   },
@@ -91,133 +94,139 @@ const PLANS: Plan[] = [
   },
 ];
 
-type SelectedPlan = {
-  name: string;
-  price: number;
-  interval: BillingInterval;
-};
-
 /**
- * Panneau de sélection et de souscription aux offres LumenJuris.
- * Gère trois états d'affichage successifs :
+ * Panneau de sélection des offres LumenJuris + démarrage du paiement Stripe.
  *
- * 1. **Grille des plans** — affiche les trois offres (Starter, Pro, Enterprise)
- *    avec un toggle mensuel / annuel (-20 %). Le plan "Pro" est mis en avant
- *    (`highlight`). "Enterprise" déclenche un `mailto:` au lieu d'un paiement.
- *    Une FAQ statique est affichée en bas de page.
+ * Workflow :
+ * 1. **Grille des plans** — affiche les offres (Free, Starter, Pro, Enterprise)
+ *    avec un toggle mensuel / annuel (-20 %). "Pro" est mis en avant
+ *    (`highlight`), "Enterprise" déclenche un `mailto:`, "Free" envoie vers
+ *    l'inscription. Une FAQ statique est affichée en bas de page.
  *
- * 2. **Paiement** (`selectedPlan !== null`) — remplace la grille par
- *    `BillingStripePanel` en mode `"plan"`. Le bouton "Retour" remet
- *    `selectedPlan` à `null` et revient à la grille.
+ * 2. **Démarrage du paiement** — au clic sur un plan payant, on appelle
+ *    `POST /billing/create-checkout` (via `startCheckout`) puis on redirige le
+ *    navigateur vers la page Stripe Checkout hébergée (`window.location.href`).
+ *    Utilisateur non connecté : le plan est mémorisé, on passe par l'inscription,
+ *    puis `startCheckout` est relancé automatiquement au retour (`useEffect`).
  *
- * 3. **Confirmation** (`paymentSuccess`) — remplace tout par un écran de succès
- *    avec un bouton de retour vers `/dashboard`.
+ * 3. **Retour** — Stripe redirige vers `/subscription/success` ou
+ *    `/subscription/failed`. L'abonnement est réellement activé côté webhook
+ *    (stripe.service : onCheckoutCompleted / onPaymentSucceeded), pas ici.
  *
- * **Prix** : stockés en euros dans `PLANS` (`monthly` / `yearly`),
- * convertis en centimes (`× 100`) avant d'être passés à `BillingStripePanel` (le montant doit-être transmis en centimes à Stripe).
+ * NB : le nom d'offre affiché ("Starter", "Pro") est traduit en `PlanName`
+ * backend par `toCheckoutPlanName`.
  */
 export function PlansPanel() {
   const [yearly, setYearly] = useState(true);
-  const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  // Nom d'offre (ex: "Pro") en cours de redirection vers Stripe, pour l'état du bouton.
+  const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const location = useLocation();
   const userData = useUserStore((s) => s.userData);
 
-  useEffect(() => {
-    const state = location.state as { plan?: SelectedPlan } | null;
-    if (state?.plan) {
-      setSelectedPlan(state.plan);
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, []);
+  const interval: BillingInterval = yearly ? "yearly" : "monthly";
 
-  const interval: BillingInterval = yearly ? "year" : "month";
+  /**
+   * Démarre un paiement : demande une session Stripe Checkout au backend puis
+   * redirige vers la page hébergée par Stripe. L'activation de l'abonnement se
+   * fait ensuite côté webhook (voir SubscriptionSuccess).
+   */
+  const startCheckout = useCallback(
+    async (uiName: string, billingInterval: BillingInterval) => {
+      const planName = toCheckoutPlanName(uiName, billingInterval);
+      // Free / Enterprise ne passent pas par Checkout — garde-fou.
+      if (!planName) return;
+
+      setCheckoutError(null);
+      setCheckoutLoadingPlan(uiName);
+      try {
+        const res = await fetchProxy("/api/billing/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ planName }),
+        });
+        const data = await res.json();
+        const url = data?.data?.url;
+        if (data.success && url) {
+          window.location.href = url; // redirection vers Stripe Checkout
+          return;
+        }
+        // Message précis renvoyé par le backend (ex : abonnement déjà actif),
+        // sinon message générique.
+        setCheckoutError(
+          typeof data?.message === "string"
+            ? data.message
+            : "Impossible de démarrer le paiement. Réessayez.",
+        );
+      } catch (err) {
+        console.error("Erreur create-checkout:", err);
+        setCheckoutError("Une erreur est survenue. Réessayez.");
+      }
+      setCheckoutLoadingPlan(null);
+    },
+    [],
+  );
+
+  // Reprise après inscription : un plan mémorisé (sessionStorage) avant la
+  // création du compte relance directement le checkout au retour sur la page.
+  useEffect(() => {
+    const pending = sessionStorage.getItem(PENDING_CHECKOUT_KEY);
+    if (!pending) return;
+    sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+    try {
+      const plan = JSON.parse(pending) as { name: string; interval: BillingInterval };
+      startCheckout(plan.name, plan.interval);
+    } catch {
+      // Valeur corrompue — on ignore.
+    }
+  }, [startCheckout]);
 
   const handlePlanSelect = (plan: Plan) => {
+    // Non connecté : on mémorise le plan choisi (persistant à travers l'inscription)
+    // puis on envoie vers l'inscription. Au retour authentifié, le checkout reprend.
     if (!userData) {
-      const priceEuros = yearly ? plan.yearly : plan.monthly;
-      navigate("/inscription", {
-        state: {
-          plan: { name: plan.name, price: priceEuros * 100, interval },
-        },
-      });
+      sessionStorage.setItem(
+        PENDING_CHECKOUT_KEY,
+        JSON.stringify({ name: plan.name, interval }),
+      );
+      navigate("/inscription");
       return;
     }
-    const priceEuros = yearly ? plan.yearly : plan.monthly;
-    setSelectedPlan({
-      name: plan.name,
-      price: priceEuros * 100,
-      interval,
-    });
+    // Connecté : on lance directement le paiement Stripe Checkout.
+    startCheckout(plan.name, interval);
   };
 
-  if (paymentSuccess) {
-    return (
-      <div className="mx-auto max-w-6xl rounded-md bg-white px-4 py-6">
-        <div className="flex flex-col items-center rounded-2xl border border-green-200 bg-green-50 px-6 py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-            <Check className="h-7 w-7 text-green-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900">
-            Abonnement activé !
-          </h2>
-          <p className="mt-2 max-w-sm text-sm text-gray-500">
-            Votre paiement a été accepté. Vous avez maintenant accès à toutes
-            les fonctionnalités LumenJuris.
-          </p>
-          <Button
-            type="button"
-            className="mt-6 bg-lumenjuris text-white hover:bg-lumenjuris/90"
-            onClick={() => {
-              setPaymentSuccess(false);
-              setSelectedPlan(null);
-              navigate("/dashboard");
-            }}
-          >
-            Aller sur mon tableau de bord
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
-  if (selectedPlan) {
-    return (
-      <div className="mx-auto max-w-lg rounded-md bg-white px-6 py-6">
-        <BillingStripePanel
-          planName={selectedPlan.name}
-          price={selectedPlan.price}
-          interval={selectedPlan.interval}
-          onBack={() => setSelectedPlan(null)}
-          onSuccess={() => {
-            setPaymentSuccess(true);
-          }}
-        />
-      </div>
-    );
-  }
+  // RETOUR DU JSX
+
 
   return (
-    <div className="mx-auto max-w-7xl rounded-md bg-white px-4 py-6">
-      <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      {/* ── En-tête + toggle mensuel/annuel ── */}
+      <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+        <div className="max-w-xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 text-xs font-semibold text-brand">
+            <Sparkles className="h-3.5 w-3.5" />
+            Tarifs
+          </span>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
             Accéder à nos outils
           </h1>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-2 text-ink-muted">
             Choisissez l'offre adaptée à votre équipe. Changez ou annulez à tout
             moment.
           </p>
         </div>
-        <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 text-sm">
+
+        <div className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-subtle p-1 text-sm shadow-sm">
           <button
             onClick={() => setYearly(false)}
             className={cn(
-              "rounded-full px-4 py-1.5 transition-colors",
+              "rounded-full px-4 py-1.5 font-medium transition-all",
               !yearly
-                ? "bg-primary text-gray-50"
-                : "text-muted_foreground hover:text-gray-700",
+                ? "bg-brand text-white shadow-sm"
+                : "text-ink-muted hover:text-ink",
             )}
           >
             Mensuel
@@ -225,18 +234,18 @@ export function PlansPanel() {
           <button
             onClick={() => setYearly(true)}
             className={cn(
-              "flex items-center gap-2 rounded-full px-4 py-1.5 transition-colors",
+              "flex items-center gap-2 rounded-full px-4 py-1.5 font-medium transition-all",
               yearly
-                ? "bg-primary text-gray-50"
-                : "text-muted_foreground hover:text-gray-700",
+                ? "bg-brand text-white shadow-sm"
+                : "text-ink-muted hover:text-ink",
             )}
           >
             Annuel
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                "rounded-full px-2 py-0.5 text-[10px] font-bold",
                 yearly
-                  ? "bg-gray-500/50 text-gray-100"
+                  ? "bg-white/20 text-white"
                   : "bg-emerald-500/10 text-emerald-600",
               )}
             >
@@ -246,76 +255,82 @@ export function PlansPanel() {
         </div>
       </div>
 
-      {/* Plans */}
-      <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {PLANS.map((plan) => {
+      {checkoutError && (
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {checkoutError}
+        </div>
+      )}
+
+      {/* ── Grille des 3 offres principales ── */}
+      <div className="mt-12 grid items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {PLANS.filter((plan) => !plan.contactOnly).map((plan) => {
           const price = yearly ? plan.yearly : plan.monthly;
           return (
             <div
               key={plan.name}
               className={cn(
-                "relative flex flex-col rounded-2xl border bg-card p-6 shadow-sm transition-shadow",
+                "group relative flex h-full flex-col rounded-2xl border bg-gradient-to-b to-white p-6 transition-all duration-300",
                 plan.highlight
-                  ? "border-primary shadow-lg ring-2 ring-primary/30 lg:-translate-y-2 lg:scale-[1.02]"
-                  : "border-border hover:shadow-md",
+                  ? "z-10 border-brand/30 from-brand-light/70 shadow-[0_20px_45px_-15px_rgba(44,58,94,0.45)] ring-1 ring-brand/20 lg:-translate-y-3 lg:scale-[1.03]"
+                  : "border-line from-brand-light/40 shadow-sm hover:-translate-y-1 hover:border-brand/30 hover:shadow-[0_18px_40px_-18px_rgba(44,58,94,0.35)]",
               )}
             >
+              {/* Liseré supérieur lumineux sur l'offre mise en avant */}
+              {plan.highlight && (
+                <span className="absolute inset-x-8 top-0 h-1 rounded-full bg-gradient-to-r from-brand/0 via-brand to-brand/0" />
+              )}
+
               {plan.badge && (
-                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-gray-50">
+                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white shadow-md">
                   <Sparkles className="h-3 w-3" />
                   {plan.badge}
                 </span>
               )}
+
               <div>
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-                <p className="mt-1 text-sm text-muted_foreground">
-                  {plan.tagline}
-                </p>
+                <h3 className="text-lg font-bold text-ink">{plan.name}</h3>
+                <p className="mt-1 text-sm text-ink-muted">{plan.tagline}</p>
               </div>
 
-              {plan.contactOnly ? (
-                <div className="mt-6">
-                  <span className="text-3xl font-bold tracking-tight">
-                    Sur devis
-                  </span>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Tarification adaptée à votre organisation
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="mt-6 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold tracking-tight">
-                      {price} €
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      HT / utilisateur / mois
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {plan.free
-                      ? "Gratuit, sans engagement"
-                      : yearly
-                        ? "Facturé annuellement"
-                        : "Facturé mensuellement"}
-                  </p>
-                </>
-              )}
+              <div className="mt-6 flex items-baseline gap-1">
+                <span
+                  className={cn(
+                    "text-4xl font-extrabold tracking-tight",
+                    plan.highlight ? "text-brand" : "text-ink",
+                  )}
+                >
+                  {price} €
+                </span>
+                <span className="text-sm text-ink-subtle">
+                  HT / utilisateur / mois
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-ink-subtle">
+                {plan.free
+                  ? "Gratuit, sans engagement"
+                  : yearly
+                    ? "Facturé annuellement"
+                    : "Facturé mensuellement"}
+              </p>
 
               <Button
                 variant={plan.highlight ? "default" : "outline"}
-                className={`mt-6 w-full ${plan.highlight ? "" : "border-lumenjuris/50 hover:bg-gray-100"}`}
+                disabled={checkoutLoadingPlan === plan.name}
+                className={cn(
+                  "mt-6 w-full",
+                  plan.highlight
+                    ? "bg-brand text-white shadow-sm hover:bg-brand-hover"
+                    : "border-brand/40 text-brand hover:bg-brand-light",
+                )}
                 onClick={() => {
-                  if (plan.contactOnly) {
-                    window.location.href = "mailto:contact@lumenjuris.com";
-                  } else if (plan.free) {
+                  if (plan.free) {
                     navigate("/inscription");
                   } else {
                     handlePlanSelect(plan);
                   }
                 }}
               >
-                {plan.cta}
+                {checkoutLoadingPlan === plan.name ? "Redirection…" : plan.cta}
               </Button>
 
               <ul className="mt-6 space-y-3 text-sm">
@@ -326,21 +341,28 @@ export function PlansPanel() {
                     return (
                       <li
                         key={f}
-                        className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                        className="pt-1 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
                       >
                         {f}
                       </li>
                     );
                   }
                   return (
-                    <li key={`${plan.name}-${i}`} className="flex items-start gap-2">
-                      <Check
+                    <li
+                      key={`${plan.name}-${i}`}
+                      className="flex items-start gap-2.5"
+                    >
+                      <span
                         className={cn(
-                          "mt-0.5 h-4 w-4 shrink-0",
-                          plan.highlight ? "text-primary" : "text-emerald-600",
+                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
+                          plan.highlight
+                            ? "bg-brand/10 text-brand"
+                            : "bg-emerald-500/10 text-emerald-600",
                         )}
-                      />
-                      <span className="text-foreground/80">{f}</span>
+                      >
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                      <span className="text-ink-secondary">{f}</span>
                     </li>
                   );
                 })}
@@ -350,8 +372,68 @@ export function PlansPanel() {
         })}
       </div>
 
-      {/* FAQ */}
-      <div className="mt-10 grid gap-4 md:grid-cols-2">
+      {/* ── Offre Enterprise : bandeau pleine largeur ── */}
+      {PLANS.filter((plan) => plan.contactOnly).map((plan) => (
+        <div
+          key={plan.name}
+          className="mt-6 rounded-2xl border border-brand/20 bg-gradient-to-r from-brand-light/70 to-white p-6 shadow-sm transition-shadow hover:shadow-[0_18px_40px_-18px_rgba(44,58,94,0.35)] sm:p-8"
+        >
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            {/* Bloc identité + prix + CTA */}
+            <div className="lg:max-w-xs lg:shrink-0">
+              <h3 className="text-xl font-bold text-ink">{plan.name}</h3>
+              <p className="mt-1 text-sm text-ink-muted">{plan.tagline}</p>
+              <div className="mt-4">
+                <span className="text-3xl font-bold tracking-tight text-ink">
+                  Sur devis
+                </span>
+                <p className="mt-1 text-xs text-ink-subtle">
+                  Tarification adaptée à votre organisation
+                </p>
+              </div>
+              <Button
+                className="mt-5 w-full bg-brand text-white shadow-sm hover:bg-brand-hover sm:w-auto"
+                onClick={() => {
+                  window.location.href = "mailto:contact@lumenjuris.com";
+                }}
+              >
+                {plan.cta}
+              </Button>
+            </div>
+
+            {/* Fonctionnalités sur 2 colonnes */}
+            <ul className="grid flex-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+              {plan.features.map((f, i) => {
+                const isHeading = f.endsWith("plus :");
+                if (isHeading) {
+                  return (
+                    <li
+                      key={f}
+                      className="text-xs font-semibold uppercase tracking-wide text-ink-subtle sm:col-span-2"
+                    >
+                      {f}
+                    </li>
+                  );
+                }
+                return (
+                  <li
+                    key={`${plan.name}-${i}`}
+                    className="flex items-start gap-2.5"
+                  >
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                    <span className="text-ink-secondary">{f}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      ))}
+
+      {/* ── FAQ ── */}
+      <div className="mt-12 grid gap-4 md:grid-cols-2">
         {[
           {
             q: "Puis-je changer d'offre à tout moment ?",
@@ -380,10 +462,10 @@ export function PlansPanel() {
         ].map((item) => (
           <div
             key={item.q}
-            className="rounded-xl border border-border bg-card p-5"
+            className="rounded-xl border border-line bg-white p-5 transition-colors hover:border-brand/30"
           >
-            <div className="font-medium">{item.q}</div>
-            <p className="mt-1 text-sm text-muted-foreground">{item.a}</p>
+            <div className="font-semibold text-ink">{item.q}</div>
+            <p className="mt-1 text-sm text-ink-muted">{item.a}</p>
           </div>
         ))}
       </div>

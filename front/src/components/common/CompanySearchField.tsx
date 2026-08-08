@@ -20,7 +20,7 @@ export function CompanySearchField({
   onSelect,
   label = "Remplissage automatique",
   hint = "Saisissez le nom ou le SIRET de l’entreprise pour préremplir les champs ci-dessous (modifiables ensuite).",
-  placeholder = "Ex. « LumenJuris » ou « 55203253400703 »",
+  placeholder = "Ex. « Lumen Juris » ou « 55203253400703 »",
 }: CompanySearchFieldProps) {
   const { query, setQuery, mode, status, results, error } = useCompanyLookup();
   const [open, setOpen] = useState(false);

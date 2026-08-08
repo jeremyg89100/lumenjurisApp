@@ -236,7 +236,7 @@ const SignupForm = ({
     const emailRegex =
       /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
     if (value.length > 0 && !emailRegex.test(value)) {
-      setEmailError("L'adresse email n'est pas valide");
+      setEmailError("L'adresse e-mail n'est pas valide");
     } else {
       setEmailError("");
     }

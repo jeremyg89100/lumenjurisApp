@@ -75,7 +75,7 @@ export const Loader: React.FC<LoaderProps> = ({
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="22 20 24 36"
                         height="30"
-                        aria-label="LumenJuris"
+                        aria-label="Lumen Juris"
                         role="img"
                         style={{
                             animation: 'pulse 1s ease-in-out infinite'

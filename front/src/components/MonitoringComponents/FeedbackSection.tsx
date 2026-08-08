@@ -19,6 +19,14 @@ import {
   Loader2,
 } from "lucide-react";
 import { fetchProxy } from "../../utils/fetchProxy";
+import { readQuotaValue, type PlanQuotas, type QuotaValue } from "../../types/quotas";
+
+/** Formate un quota à valeur pour un affichage compact (admin). */
+function formatQuota(v: QuotaValue): string {
+  if (v.kind === "unlimited") return "Illimité";
+  if (v.kind === "disabled") return "Non inclus";
+  return String(v.value);
+}
 
 type FeedbackEntry = {
   id: string;
@@ -41,7 +49,7 @@ type UserDetails = {
     status: string;
     startAt: string;
     expiresAt: string;
-    plan: { name: string; price: number; interval: string; creditIncluded: number };
+    plan: { name: string; price: number; interval: string; creditsIncluded: PlanQuotas };
     totalPaid: number;
     invoiceCount: number;
   } | null;
@@ -51,7 +59,7 @@ type UserDetails = {
     statusJuridique: string | null;
     address: { address: string | null; codePostal: string | null; pays: string | null } | null;
   } | null;
-  userCredit: { creditIncluded: number; creditAdded: number } | null;
+  userCredit: { quotas: PlanQuotas } | null;
   _count: { contracts: number; signatureEnvelopes: number; contractHistory: number };
 };
 
@@ -619,13 +627,13 @@ function UserDetailsPanel({ data }: { data: UserDetails }) {
               }
             />
             <Row
-              label="Crédits inclus"
-              value={`${data.subscription.plan.creditIncluded}`}
+              label="Analyses incluses"
+              value={formatQuota(readQuotaValue(data.subscription.plan.creditsIncluded?.analyzer))}
             />
             {data.userCredit && (
               <Row
-                label="Crédits dispo."
-                value={`${data.userCredit.creditIncluded + data.userCredit.creditAdded} (+ ${data.userCredit.creditAdded} ajouté${data.userCredit.creditAdded > 1 ? "s" : ""})`}
+                label="Analyses restantes"
+                value={formatQuota(readQuotaValue(data.userCredit.quotas?.analyzer))}
               />
             )}
           </div>
@@ -667,7 +675,7 @@ function UserDetailsPanel({ data }: { data: UserDetails }) {
 
       {/* Statistiques */}
       <PanelSection icon={<FileText className="w-4 h-4" />} title="Statistiques">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatTile label="Contrats" value={data._count.contracts} />
           <StatTile label="Signatures" value={data._count.signatureEnvelopes} />
           <StatTile label="Analyses" value={data._count.contractHistory} />
