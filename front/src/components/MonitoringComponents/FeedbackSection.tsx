@@ -237,11 +237,10 @@ export function FeedbackSection() {
     const ids = [...selectedIds];
     setDeleting(true);
     try {
-      const res = await fetchProxy("/api/feedback/bulk", {
+      const res = await fetchProxy(`/api/feedback/bulk?ids=${encodeURIComponent(ids.join(","))}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ ids }),
       });
       const json = await res.json() as { success: boolean; message?: string };
       if (!json.success) throw new Error(json.message ?? "Erreur inconnue");

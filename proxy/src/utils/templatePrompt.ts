@@ -163,10 +163,10 @@ export function promptSummary(content: string) {
     - transfert de propriété
     - transfert des risques
 
-    Pour chacune :
-
-    - présente : true/false
-    - résumé
+    Pour chaque clause détectée :
+    - type : nom de la clause en minuscules (ex: "confidentialite", "rgpd", "garantie", "loi_applicable")
+    - presente : true si la clause est présente dans le document, sinon false
+    - resume : court résumé du contenu de la clause (ou null si la clause est absente ou sans description)
 
     ---
 
@@ -247,7 +247,13 @@ export function promptSummary(content: string) {
         "conditions_financieres": {},
         "resiliation": {},
         "responsabilite": {},
-        "clauses_particulieres": [],
+        "clauses_particulieres": [
+            {
+                "type": "confidentialite",
+                "presente": true,
+                "resume": "Courte description de la clause"
+            }
+        ],
         "delais_importants": [],
         "annexes": [],
         "points_attention": [],

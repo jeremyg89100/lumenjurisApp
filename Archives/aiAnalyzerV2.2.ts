@@ -21,7 +21,6 @@ import { callOpenAI } from './aiClient';
  */
 export async function analyzeContractWithAI(content: string, context?: AnalysisContext): Promise<ClauseRisk[]> {
   console.log(`🧠 === ANALYSE IA OPENAI DÉMARRE ===`);
-  console.log(`📄 Contenu: ${content.length} caractères`);
 
   console.log("Le contexte de l'analyse :", context)
   if (context) {

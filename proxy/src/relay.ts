@@ -78,6 +78,9 @@ export function relayToNode(
     headers: {
       "Content-Type": "application/json",
       cookie: req.headers.cookie || "",
+      // IP reelle du visiteur : sans elle, backNode voit le proxy et applique
+      // ses quotas (connexion, quota global) a tous les utilisateurs en commun.
+      "x-forwarded-for": req.ip || "",
       "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
       ...(res.locals.userId !== undefined
         ? {
@@ -89,6 +92,9 @@ export function relayToNode(
     body: req.method === "GET" ? undefined : JSON.stringify(req.body),
   })
     .then(async (r) => {
+      if ((r.headers.has("x-auto-logged") || r.headers.get("x-auto-logged")) === true) {
+        res.setHeader("X-Auto-Logged", "true");
+      }
       const setCookieHeader =
         typeof (r.headers as any).getSetCookie === "function"
           ? (r.headers as any).getSetCookie()
@@ -144,6 +150,7 @@ export function relayToNodeRaw(
     method: req.method,
     headers: {
       cookie: req.headers.cookie || "",
+      "x-forwarded-for": req.ip || "",
       "x-internal-api-key": process.env.INTERNAL_API_KEY || "",
       ...(res.locals.userId !== undefined
         ? {

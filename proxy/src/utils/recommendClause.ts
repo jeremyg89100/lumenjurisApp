@@ -92,6 +92,12 @@ CONTRAINTES DE LONGUEUR :
 
 RÈGLE DE STYLE : n'utilise JAMAIS d'énumérations en chiffres romains ((i), (ii), (iii), i., ii.…) ;
 rédige en phrases complètes, ou numérote 1. 2. 3. si une liste est indispensable.
+
+LANGUE — IMPÉRATIF : la clause de remplacement et tous les textes d'accompagnement
+doivent être rédigés dans la LANGUE DE LA CLAUSE D'ORIGINE ci-dessus. Si elle est
+en anglais, réponds intégralement en anglais. Une clause de remplacement rédigée
+dans une autre langue que le contrat est inutilisable telle quelle.
+Le droit applicable reste le droit français : seule la langue de rédaction s'adapte.
 `;
 
   if (isComplex) {

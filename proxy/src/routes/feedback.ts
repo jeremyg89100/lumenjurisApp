@@ -17,7 +17,7 @@ feedbackRouter.get("/", auth, (req,res)=>{
 });
 
 feedbackRouter.delete("/bulk", auth, (req, res) =>
-    relayToNode(req, res, "/feedback/bulk"),
+    relayToNode(req, res, `/feedback/bulk?ids=${encodeURIComponent(req.query.ids as string)}`),
 );
 
 feedbackRouter.delete("/:id", auth, (req, res) =>

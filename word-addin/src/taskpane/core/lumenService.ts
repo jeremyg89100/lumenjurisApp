@@ -8,8 +8,8 @@ import { AnalysisContext, ClauseAI, ClauseRisk, JurisprudenceCase, Recommendatio
  *  - POST /api/addin/login       → JWT (Bearer) pour le complément
  *  - POST /api/analyzer/analyze-contract  → ClauseRisk[] (analyse IA du proxy)
  *  - POST /api/analyzer/recommend-clause  → recommandations alternatives
- *  - POST /api/jurisprudence     → recherche hybride (backend Python)
- *  - POST /api/openai-chat-5     → détail clause (issues/advice) et questions
+ *  - POST /api/legal-text/jurisprudence   → recherche hybride (backend Python)
+ *  - POST /api/openai/openai-chat-5       → détail clause (issues/advice) et questions
  *
  * Auth : l'iframe Word ne reçoit pas le cookie httpOnly `authLumenJuris`,
  * le proxy accepte donc aussi `Authorization: Bearer <jwt>` (voir
@@ -178,7 +178,7 @@ function buildJurisprudenceContext(clause: ClauseRisk): string {
 export async function fetchJurisprudence(clause: ClauseRisk): Promise<JurisprudenceCase[]> {
   const queries = buildJurisprudenceQueries(clause);
   if (queries.length === 0) return [];
-  const data = await post<Record<string, unknown>[]>("/api/jurisprudence", {
+  const data = await post<Record<string, unknown>[]>("/api/legal-text/jurisprudence", {
     queries,
     context: buildJurisprudenceContext(clause),
   });
@@ -206,7 +206,7 @@ const CLAUSE_AI_MODEL = "gpt-5.4-nano";
 async function chat5(prompt: string, reasoning: "none" | "low" = "none"): Promise<string> {
   // reasoning "none" = réglage de la plateforme pour gpt-5.4-nano
   // (ex. ClauseReformulator) : même qualité de sortie, latence réduite.
-  const data = await post<{ content?: string }>("/api/openai-chat-5", {
+  const data = await post<{ content?: string }>("/api/openai/openai-chat-5", {
     prompt,
     reasoning,
     verbosity: "low",
@@ -228,6 +228,10 @@ export async function fetchClauseDetail(clause: ClauseRisk): Promise<ClauseAI> {
   const prompt = `Tu es un avocat français spécialisé en droit des contrats. Tu t'adresses à des professionnels du droit.
 Analyse la clause suivante:
 """${clause.content}"""
+
+LANGUE — IMPÉRATIF : rédige TOUS les textes de ta réponse dans la langue de la
+clause ci-dessus. Si la clause est en anglais, réponds en anglais. Le droit
+applicable reste le droit français : seule la langue de rédaction s'adapte.
 
 STYLE DES "issues" (problèmes) — IMPÉRATIF :
 - 2 problèmes MAXIMUM (1 seul si un seul risque réel), classés du plus grave au moins grave.
@@ -268,6 +272,15 @@ Contexte : cette clause a été identifiée comme à risque (${clause.type}) pou
 
 Question du juriste : ${question}
 
-Réponds de façon concise, structurée et opérationnelle, en droit français, sans inventer de jurisprudence ni d'article de loi.`;
+Réponds de façon concise, structurée et opérationnelle, en droit français, sans inventer de jurisprudence ni d'article de loi.
+
+LANGUE — IMPÉRATIF : rédige ta réponse dans la langue de la clause ci-dessus.
+Si la clause est en anglais, réponds en anglais. Le droit applicable reste le
+droit français : seule la langue de rédaction s'adapte.
+
+FORMAT — le volet Word est étroit, la réponse doit se lire d'un coup d'œil :
+- 180 mots maximum.
+- Pas de titres de niveau 1 ou 2, pas de séparateurs horizontaux.
+- Va droit au fait, sans préambule ni relance finale proposant d'autres questions.`;
   return chat5(prompt, "low");
 }

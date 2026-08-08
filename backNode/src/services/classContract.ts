@@ -522,7 +522,7 @@ export class ContractService {
     async addAmendment(userId: number, externalId: string, data: { title: string; summary?: string; signatureDate?: string | null; effectiveDate?: string | null; documentFilePath?: string | null }): Promise<{ id: string } | null> {
         const contract = await prisma.contract.findFirst({ where: { userId, externalId } })
         if (!contract) return null
-        const amendmentExternalId = crypto.randomUUID()
+        const amendmentExternalId = crypto.randomUUID();
         await prisma.amendment.create({
             data: {
                 externalId: amendmentExternalId, title: data.title, summary: data.summary ?? null,
@@ -799,6 +799,29 @@ export class ContractService {
         } catch (err) {
             console.error("[GET-list-contract-summary] Erreur lors de la récupération :", err);
             throw err;
+        }
+    }
+
+    async deleteContractSummarize(userId: number, idSummary: number) {
+        try {
+            const contractSummary = await prisma.contractSummary.deleteMany({
+                where: {
+                    idSummary: idSummary,
+                    userId: userId
+                },
+            });
+
+            if (contractSummary.count === 0) {
+                return {
+                    success: false,
+                    message: "Contract introuvable ou vous n'avez pas les droits pour le supprimer",
+                };
+            }
+
+            return { success: true, message: "Le contrat a bien été supprimé avec succès."};
+        } catch (err) {
+            console.error("Erreur suppression du contrat : ", err);
+            throw new Error("Impossible de supprimer le résumé du contrat.");
         }
     }
 

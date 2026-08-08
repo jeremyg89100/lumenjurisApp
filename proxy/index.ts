@@ -14,6 +14,7 @@ import { contractRouter } from "./src/routes/contract.js";
 import { negotiationRouter } from "./src/routes/negociation.js";
 import { legalWatchRouter } from "./src/routes/legalWatch.js";
 import { feedbackRouter } from "./src/routes/feedback.js";
+import { loggerRouter } from "./src/routes/logger.js";
 import { userRouter } from "./src/routes/user.js";
 import { contractHistoryRouter } from "./src/routes/contractHistory.js";
 import { enterpriseRouter } from "./src/routes/enterprise.js";
@@ -27,11 +28,16 @@ import { legalTextRouter } from "./src/routes/legalText.js";
 import { aiRouter } from "./src/routes/ai.js";
 import { adminRouter } from "./src/routes/admin.js";
 import { summarizeContractRouter } from "./src/routes/summarizeContract.js";
+import { globalErrorHandler } from "./src/middleware/globalErrorHandler.js";
+import { addErrorFeedbackLogger } from "./src/middleware/loggerFeedback.js";
 
 
 
 const app = express();
 app.set("etag", false);
+// Le proxy est derriere le reverse proxy de l'hebergeur : sans ce reglage,
+// req.ip vaut 127.0.0.1 et l'IP reelle du visiteur n'est pas relayee a backNode.
+app.set("trust proxy", 1);
 
 //Cors adapté pour prod
 app.use(
@@ -51,7 +57,7 @@ app.use(
 app.use(cookieParser());
 app.use(express.json({ limit: "80mb" }));
 
-
+app.use(addErrorFeedbackLogger);
 
 // ─── Montage des routers par domaine ───
 app.use("/api/llm", llmRouter);
@@ -63,6 +69,7 @@ app.use("/api/contract", contractRouter);
 app.use("/api/negotiation", negotiationRouter);
 app.use("/api/legal-watch", legalWatchRouter);
 app.use("/api/feedback", feedbackRouter);
+app.use("/api/logger", loggerRouter);
 app.use("/api/user", userRouter);
 app.use("/api/contract-history", contractHistoryRouter);
 app.use("/api/enterprise", enterpriseRouter);
@@ -76,6 +83,7 @@ app.use("/api/legal-text", legalTextRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/admin", adminRouter)
 app.use("/api/summarize-contract", summarizeContractRouter)
+app.use("/api/delete-summarize-contract", summarizeContractRouter);
 
 
 
@@ -95,6 +103,7 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+app.use(globalErrorHandler);
 
 
 // Démarrage du serveur

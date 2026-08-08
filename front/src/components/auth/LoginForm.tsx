@@ -82,6 +82,7 @@ const LoginForm = ({
     "Pour valider votre compte veuillez cliquer sur le lien qui vous a été envoyé par e-mail.";
 
   const [showRateLimitModal, setShowRateLimitModal] = useState(false);
+  const [showRateLimitLogin, setShowRateLimitLogin] = useState(false);
 
   const navigate = useNavigate();
   const { fetchUser } = useUserStore();
@@ -111,12 +112,36 @@ const LoginForm = ({
         credentials: "include",
       });
 
-      const dataResponse = await loginResponse.json();
-      console.log("▶️▶️ RETOUR SERVEUR CONNEXION :", dataResponse);
+      // Quota de connexion atteint : le serveur repond en texte brut, pas en
+      // JSON. Sans ce cas traite avant l'analyse, la lecture echouait et
+      // l'utilisateur ne voyait qu'une erreur generique sans savoir qu'il
+      // devait simplement patienter.
+      if (loginResponse.status === 429) {
+        setShowRateLimitLogin(true);
+        setSubmitLoading(false);
+        return;
+      }
 
+      // Une reponse non-JSON (page d'erreur du serveur, coupure du proxy) ne
+      // doit pas partir en exception : on affiche un message exploitable.
+      const dataResponse = await loginResponse.json().catch(() => null);
+
+      if (!dataResponse) {
+        setServerError(true);
+        setServerErrorMessage(
+          "Le serveur n'a pas répondu correctement. Merci de réessayer dans un instant.",
+        );
+        setSubmitLoading(false);
+        return;
+      }
 
       if (!loginResponse.ok || !dataResponse.success) {
-        if(loginResponse.status == 403){
+        if (loginResponse.status === 403 && dataResponse.reason === "unverified") {
+          setVerificationError(true);
+          setSubmitLoading(false);
+          return;
+        }
+        if (loginResponse.status === 403) {
           setIsBanned(true);
           setServerError(false);
           setSubmitLoading(false);
@@ -127,12 +152,11 @@ const LoginForm = ({
           dataResponse.message ||
             "Une erreur est survenue, veuillez réessayer...",
         );
-        console.error("🛑🛑🛑 ERREUR CONNEXION", dataResponse);
         setSubmitLoading(false);
         return;
       }
 
-      if (!dataResponse.data.isVerified) {
+      if (!dataResponse.data?.isVerified) {
         setVerificationError(true);
         setSubmitLoading(false);
         return;
@@ -274,6 +298,16 @@ const LoginForm = ({
           onClose={() => {
             setShowRateLimitModal(false);
           }}
+        />
+      )}
+
+      {showRateLimitLogin && (
+        <AlertBanner
+          title="Trop de tentatives de connexion"
+          variant="error"
+          detail="Par sécurité, les tentatives sont bloquées pendant 15 minutes. Réessayez ensuite, ou utilisez « Mot de passe oublié ? » si vous ne le retrouvez pas."
+          duration={15000}
+          onClose={() => setShowRateLimitLogin(false)}
         />
       )}
 

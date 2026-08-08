@@ -20,6 +20,7 @@ import routerClause from "./src/route/apiClause.js";
 import routerAdmin from "./src/route/apiAdmin.js";
 import routerNegotiation from "./src/route/apiNegotiation.js";
 import routerLegalWatch from "./src/route/apiLegalWatch.js";
+import routerLogger from "./src/route/apiLogger.js";
 
 import routerFeatureEvent from "./src/route/apiFeatureEvent.js";
 import cors from "cors";
@@ -30,6 +31,8 @@ import { authMiddleware } from "./src/middleware/authMiddleware.js";
 import { prisma } from "./prisma/singletonPrisma.js";
 import fs from "fs";
 import { internalApiKeyMiddleware } from "./src/middleware/internalApiKeyMiddleware.js";
+import { addErrorFeedbackLogger } from "./src/middleware/loggerFeedback.js";
+import { globalErrorHandler } from "./src/middleware/globalErrorHandle.js";
 
 import { seedPlans } from "./prisma/seedPlans.js";
 import { StripeLumenJuris } from "./billing/stripe.service.js";
@@ -78,12 +81,19 @@ app.use((req, res, next) => {
   return globalLimiter(req, res, next);
 });
 app.set("trust-proxy", 1);
+
 // Frontière de sécurité : backNode n'accepte QUE les requêtes portant la clé
 // interne (posée par le proxy et le cron). Sans elle, un appel direct pourrait
 // injecter lui-même `x-user-id`/`x-user-role` et usurper un rôle. Les routes
 // OAuth Google et /health, atteintes directement par le navigateur, sont
 // exemptées dans le middleware.
 app.use(internalApiKeyMiddleware);
+// Doit rester AVANT les limiteurs : sans ce reglage, req.ip vaut l'adresse du
+// proxy pour tout le monde et les quotas sont partages par tous les utilisateurs.
+app.set("trust proxy", 1);
+app.use(globalLimiter);
+// app.use(internalApiKeyMiddleware);
+app.use(addErrorFeedbackLogger);
 
 app.use("/", routerGoogleAuth);
 app.use("/llm", routerLlm);
@@ -96,6 +106,7 @@ app.use("/veille", routerVeille);
 app.use("/legal-watch", routerLegalWatch);
 app.use("/user-uploads", routerUserUploads);
 app.use("/feedback", routerFeedback);
+app.use("/logger", routerLogger);
 app.use("/template", routerTemplate);
 app.use("/signature-envelope", routerSignature);
 app.use("/contract", routerContract);
@@ -140,8 +151,7 @@ app.get("/userassets/:filename", authMiddleware, async (req, res) => {
   }
 });
 
-
-
+app.use(globalErrorHandler);
 
 
 

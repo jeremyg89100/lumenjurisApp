@@ -98,7 +98,8 @@ routerFeedback.delete(
   authMiddleware,
   (req: Request, res: Response) => {
     try {
-      const { ids } = req.body as { ids?: unknown };
+      const idsParam = req.query.ids as string | undefined;
+      const ids = idsParam ? idsParam.split(",") : [];
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ success: false, message: "ids doit être un tableau non vide." });
       }

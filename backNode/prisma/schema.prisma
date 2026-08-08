@@ -78,7 +78,8 @@ enum ContractStatus {
   ACTIVE // signé / actif
   TACIT_RENEWAL // en tacite reconduction
   EXPIRED // échu
-  TERMINATED // résilié
+  TERMINATED  // résilié
+  CLOSED // clos
 }
 
 enum RenewalType {
@@ -699,6 +700,7 @@ model Contract {
   auditLogs         AuditLog[]
   comments          ContractComment[]
   contractSummaries ContractSummary[]
+  negotiationSessions NegotiationSession[]
 
   @@index([userId])
   @@index([status])
@@ -965,6 +967,8 @@ model NegotiationSession {
   guestAccesses GuestAccess[]
   auditLogs     NegotiationAudit[]
   fields        NegotiationField[]
+
+  contract      Contract        @relation(fields: [contractExternalId], references: [externalId], onDelete: Cascade)
 
   @@index([contractExternalId])
   @@index([ownerUserId])

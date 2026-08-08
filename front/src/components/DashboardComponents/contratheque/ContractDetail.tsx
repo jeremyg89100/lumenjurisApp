@@ -11,6 +11,9 @@ import { negotiationApi } from "../negotiation/api";
 import { fmtDate, daysUntil, RENEWAL_LABEL } from "./types";
 import type { ContractDetail as Detail, ValidationStatus } from "./types";
 import { ConfirmationModal } from "../../ui/ConfirmationModal";
+import { VersionCompare } from "./VersionCompare";
+import { AmendmentDTO } from "./types";
+import { Amendments } from "./Amendments";
 
 interface Props {
   contractId: string;
@@ -58,6 +61,11 @@ export function ContractDetail({ contractId, canDelete, onBack, onDeleted }: Pro
 
   async function handleValidate(fieldKey: string, value: string | null, status: ValidationStatus) {
     await contractApi.validateField(contractId, fieldKey, value, status);
+    await load();
+  }
+
+  async function handleAmendment( payload: Partial<AmendmentDTO>) {
+    await contractApi.addAmendment(contractId, payload );
     await load();
   }
 
@@ -167,6 +175,16 @@ export function ContractDetail({ contractId, canDelete, onBack, onDeleted }: Pro
         {/* Colonne droite : infos clés + métadonnées (validées en avant, manquantes en bas) */}
         <div className="space-y-4">
           <SummaryCard data={data} urgent={urgent} days={d} />
+          <VersionCompare
+            data={data}
+            canEdit={!editing}
+            onChanged={load}
+          />
+          <Amendments
+            contractId={contractId}
+            amendments={data.amendments ?? []}
+            onAddAmendment={handleAmendment}
+          />
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Métadonnées extraites</p>
             <MetadataPanel fields={data.metadataFields} onValidate={handleValidate} />

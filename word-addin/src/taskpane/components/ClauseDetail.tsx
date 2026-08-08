@@ -1,6 +1,7 @@
 import * as React from "react";
 import { ClauseAI, ClauseRisk, JurisprudenceCase, Recommendation } from "../core/types";
 import { fetchClauseDetail, fetchJurisprudence, fetchRecommendations, askQuestion } from "../core/lumenService";
+import RichText from "./RichText";
 import { applyRecommendationTracked } from "../core/wordDocument";
 import StatusMessage, { Status, TRACKED_OK, TRACKED_UNSUPPORTED } from "./StatusMessage";
 
@@ -268,7 +269,7 @@ const ClauseDetail: React.FC<Props> = ({ clause, onClose, onApplied }) => {
           </button>
           {answer && (
             <div className="lj-clause-text" style={{ marginTop: 8 }}>
-              {answer}
+              <RichText>{answer}</RichText>
             </div>
           )}
         </div>

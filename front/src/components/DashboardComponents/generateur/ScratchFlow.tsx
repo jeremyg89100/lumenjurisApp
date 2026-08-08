@@ -14,10 +14,13 @@ import {
 import type { BlockDef, ContractModel, VariableDef } from "../../../contractEngine/types";
 import {
   generateContractQuestions, generateContractDraft, generateContractDraftFromBrief,
-  type WizardQuestion, type ContractDraft, type BriefAttachment,
+  type WizardQuestion, type ContractDraft, type BriefAttachment, type PartyIdentity,
 } from "./contractAi";
 import { contractApi } from "../contratheque/api";
 import { extractDocumentContent } from "../../../utils/documentExtractor";
+import { CompanySearchField } from "../../common/CompanySearchField";
+import { mapCompanyToContractParty } from "../../../utils/companyLookup";
+import type { CompanyResult } from "../../../types/companySearch";
 
 function slug(s: string): string {
   const o = s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -73,6 +76,10 @@ export function ScratchWizard({ title, onReady, onBack }: {
   // Mode « Décrire le besoin »
   const [brief, setBrief] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Parties au contrat, renseignées par recherche d'entreprise (nom ou SIREN).
+  // Optionnel : sans elles le contrat sort avec des variables à compléter, avec
+  // elles il sort déjà nominatif. Commun aux deux modes de rédaction.
+  const [parties, setParties] = useState<PartyIdentity[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Garde d'annulation : chaque navigation invalide les appels IA en vol, pour
   // qu'une réponse tardive ne détourne pas l'écran courant ni n'ouvre l'éditeur
@@ -151,17 +158,38 @@ export function ScratchWizard({ title, onReady, onBack }: {
   useEffect(() => {
     opId.current += 1;
     setStep("mode"); setError(""); setBrief(""); setAttachments([]);
-    setQuestions([]); setIdx(0); setAnswers({});
+    setQuestions([]); setIdx(0); setAnswers({}); setParties([]);
   }, [title]);
 
-  async function finish(finalAnswers: Record<string, string>) {
-    const id = ++opId.current;
+  /** Enregistre l'entreprise choisie pour le rôle donné (remplace la précédente). */
+  const applyParty = (role: string, result: CompanyResult, siret?: string) => {
+    const p = mapCompanyToContractParty(result, siret);
+    setParties((prev) => [...prev.filter((x) => x.role !== role), { role, ...p }]);
+  };
+
+  const partyOf = (role: string) => parties.find((p) => p.role === role);
+
+  /** Fin du questionnaire : on rédige aussitôt. L'identité des parties se
+   *  renseigne ensuite dans l'éditeur, au moment de remplir les champs. */
+  function finish(finalAnswers: Record<string, string>) {
     origin.current = "asking";
+    void runGuided(finalAnswers);
+  }
+
+  /** Fin de la consigne libre : même chose. */
+  function finishBrief() {
+    if (!brief.trim()) return;
+    origin.current = "brief";
+    void runBrief();
+  }
+
+  async function runGuided(finalAnswers: Record<string, string>) {
+    const id = ++opId.current;
     setStep("generating");
     setError("");
     try {
       const qa = questions.map((q) => ({ question: q.question, answer: finalAnswers[q.id] ?? "" }));
-      const draft = await generateContractDraft(title, qa);
+      const draft = await generateContractDraft(title, qa, parties);
       if (opId.current !== id) return;
       onReady({ model: buildModel(title, draft), fileBase: slug(title) });
     } catch {
@@ -171,17 +199,15 @@ export function ScratchWizard({ title, onReady, onBack }: {
     }
   }
 
-  async function finishBrief() {
-    if (!brief.trim()) return;
+  async function runBrief() {
     const id = ++opId.current;
-    origin.current = "brief";
     setStep("generating");
     setError("");
     try {
       const docs: BriefAttachment[] = attachments
         .filter((a) => a.status === "ready" && a.text.trim())
         .map((a) => ({ name: a.file.name, text: a.text }));
-      const draft = await generateContractDraftFromBrief(title, brief, docs);
+      const draft = await generateContractDraftFromBrief(title, brief, docs, parties);
       if (opId.current !== id) return;
       onReady({ model: buildModel(title, draft), fileBase: slug(title) });
     } catch {
