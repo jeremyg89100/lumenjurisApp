@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "id": "1d0110a4-b06a-4ebf-b716-bdf29cea97e7",
+    "date": "2026-08-10T08:23:19.530Z",
+    "comment": "[ERROR] [REACT ErrorBoundary] storeBanned is not defined \n    at LoginForm (http://localhost:5173/src/components/auth/LoginForm.tsx?t=1786350068278:32:3)\n    at div\n    at div\n    at div\n    at Inscription (http://localhost:5173/src/page/Inscription.tsx?t=1786349765545:27:49)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:6352:26)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7219:3)\n    at App (http://localhost:5173/src/router.tsx?t=1786349765545:55:21)\n    at ErrorBoundary (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:8:5)\n    at Router (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7149:13)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:10360:3)     at ErrorBoundary.componentDidCatch (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:20:9)\n    at ErrorBoundary.callback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:14084:20)\n    at callCallback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:11248:20)\n    and 5 more",
+    "context": "FrontEnd error",
+    "page": "/inscription"
+  },
+  {
+    "id": "c0b7975a-2cd7-4433-afd7-3da9d0008a46",
+    "date": "2026-08-10T08:22:48.164Z",
+    "comment": "[ERROR] [REACT ErrorBoundary] storeBanned is not defined \n    at LoginForm (http://localhost:5173/src/components/auth/LoginForm.tsx?t=1786350068278:32:3)\n    at div\n    at div\n    at div\n    at Inscription (http://localhost:5173/src/page/Inscription.tsx?t=1786349765545:27:49)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:6352:26)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7219:3)\n    at App (http://localhost:5173/src/router.tsx?t=1786349765545:55:21)\n    at ErrorBoundary (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:8:5)\n    at Router (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7149:13)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:10360:3)     at ErrorBoundary.componentDidCatch (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:20:9)\n    at ErrorBoundary.callback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:14084:20)\n    at callCallback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:11248:20)\n    and 5 more",
+    "context": "FrontEnd error",
+    "page": "/inscription"
+  },
+  {
+    "id": "62de3b85-c48e-498b-b3f6-bf0c74ab4e64",
+    "date": "2026-08-10T08:22:15.177Z",
+    "comment": "[ERROR] [REACT ErrorBoundary] storeBanned is not defined \n    at LoginForm (http://localhost:5173/src/components/auth/LoginForm.tsx?t=1786350068278:32:3)\n    at div\n    at div\n    at div\n    at Inscription (http://localhost:5173/src/page/Inscription.tsx?t=1786349765545:27:49)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:6352:26)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7219:3)\n    at App (http://localhost:5173/src/router.tsx?t=1786349765545:55:21)\n    at ErrorBoundary (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:8:5)\n    at Router (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7149:13)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:10360:3)     at ErrorBoundary.componentDidCatch (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:20:9)\n    at ErrorBoundary.callback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:14084:20)\n    at callCallback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:11248:20)\n    and 5 more",
+    "context": "FrontEnd error",
+    "page": "/inscription"
+  },
+  {
+    "id": "d4c64d02-e720-4277-b6ec-c4ac2f93cfb6",
+    "date": "2026-08-10T08:21:43.179Z",
+    "comment": "[ERROR] [REACT ErrorBoundary] storeBanned is not defined \n    at LoginForm (http://localhost:5173/src/components/auth/LoginForm.tsx?t=1786350068278:32:3)\n    at div\n    at div\n    at div\n    at Inscription (http://localhost:5173/src/page/Inscription.tsx?t=1786349765545:27:49)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:6352:26)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7219:3)\n    at App (http://localhost:5173/src/router.tsx?t=1786349765545:55:21)\n    at ErrorBoundary (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:8:5)\n    at Router (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7149:13)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:10360:3)     at ErrorBoundary.componentDidCatch (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:20:9)\n    at ErrorBoundary.callback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:14084:20)\n    at callCallback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:11248:20)\n    and 5 more",
+    "context": "FrontEnd error",
+    "page": "/inscription"
+  },
+  {
+    "id": "b338ab67-dbf8-4f9e-af79-7ff5f6a9b7cd",
+    "date": "2026-08-10T08:21:20.177Z",
+    "comment": "[ERROR] [REACT ErrorBoundary] storeBanned is not defined \n    at LoginForm (http://localhost:5173/src/components/auth/LoginForm.tsx?t=1786350068278:32:3)\n    at div\n    at div\n    at div\n    at Inscription (http://localhost:5173/src/page/Inscription.tsx?t=1786349765545:27:49)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:6352:26)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7219:3)\n    at App (http://localhost:5173/src/router.tsx?t=1786349765545:55:21)\n    at ErrorBoundary (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:8:5)\n    at Router (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7149:13)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:10360:3)     at ErrorBoundary.componentDidCatch (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:20:9)\n    at ErrorBoundary.callback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:14084:20)\n    at callCallback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:11248:20)\n    and 5 more",
+    "context": "FrontEnd error",
+    "page": "/inscription"
+  },
+  {
+    "id": "4254ed57-f646-4c11-8996-63fa0608322e",
+    "date": "2026-08-10T08:21:09.194Z",
+    "comment": "[ERROR] [REACT ErrorBoundary] storeBanned is not defined \n    at LoginForm (http://localhost:5173/src/components/auth/LoginForm.tsx?t=1786350068278:32:3)\n    at div\n    at div\n    at div\n    at Inscription (http://localhost:5173/src/page/Inscription.tsx?t=1786349765545:27:49)\n    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:6352:26)\n    at Routes (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7219:3)\n    at App (http://localhost:5173/src/router.tsx?t=1786349765545:55:21)\n    at ErrorBoundary (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:8:5)\n    at Router (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:7149:13)\n    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/chunk-7PBOCMPL.js?v=fd1280ec:10360:3)     at ErrorBoundary.componentDidCatch (http://localhost:5173/src/components/ContractAnalysis/ErrorBoundary.tsx:20:9)\n    at ErrorBoundary.callback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:14084:20)\n    at callCallback (http://localhost:5173/node_modules/.vite/deps/chunk-NFC5BX5N.js?v=fd1280ec:11248:20)\n    and 5 more",
+    "context": "FrontEnd error",
+    "page": "/inscription"
+  }
+]

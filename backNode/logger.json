@@ -1,5 +1,257 @@
 [
   {
+    "id": "810cc1cf-be0a-4b86-8216-90da9d4b15fc",
+    "date": "2026-08-10T08:37:36.224Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "17ca22a5-2f28-4c0b-b0ed-cf78979db147",
+    "date": "2026-08-10T08:37:36.215Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "f8e8e69a-62a6-4152-8acb-d1d003d1260f",
+    "date": "2026-08-10T08:36:54.098Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "e50bb345-5448-46a9-be3d-98f353707945",
+    "date": "2026-08-10T08:36:54.086Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 4ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "6988020e-2036-416c-a3c5-ad880079b3c1",
+    "date": "2026-08-10T08:35:35.081Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 4ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "004a316c-a483-4e25-ad32-b4c5a598fcb9",
+    "date": "2026-08-10T08:35:35.072Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 5ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "34d594e0-f7d2-4aa0-bb37-591181345dea",
+    "date": "2026-08-10T08:35:08.999Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 4ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "73852ca4-8fd3-4b5e-a8b5-25c1a45870bc",
+    "date": "2026-08-10T08:35:08.987Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 4ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "7344a704-c8a9-4088-8f3d-8dc76c3f8e89",
+    "date": "2026-08-10T08:34:58.673Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "d1fc4794-ab61-44c3-b41a-53d85f8b25ae",
+    "date": "2026-08-10T08:34:58.665Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 7ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "563cb4db-f98f-457a-9a61-d5bc51e55941",
+    "date": "2026-08-10T08:34:22.483Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "295c1cb2-ce97-4c37-9499-04bf905e4f8f",
+    "date": "2026-08-10T08:34:22.474Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 5ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "a421428e-38ac-403f-b2ab-df899cee54a5",
+    "date": "2026-08-10T08:34:13.909Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "4369fe44-25b5-466a-b3b8-ed9c05657187",
+    "date": "2026-08-10T08:34:13.902Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 8ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "fdd705f9-de3a-4830-9536-8d087ed0e12b",
+    "date": "2026-08-10T08:32:06.936Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "8d0246f0-081b-4bf0-8e9e-1f0296272ce3",
+    "date": "2026-08-10T08:32:06.927Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "a4a04a93-2b5b-4b06-ac40-759b9f26a2d1",
+    "date": "2026-08-10T08:31:58.406Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "5ca787cb-4bf5-4f48-a2a9-2c0fc5aadc36",
+    "date": "2026-08-10T08:31:58.399Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 5ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "66d62b12-3457-41d6-aa1e-d15f43dce23a",
+    "date": "2026-08-10T08:30:41.669Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 6ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "5f06e115-1f86-45ff-b5bc-92fc5115ac63",
+    "date": "2026-08-10T08:30:41.657Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 5ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",
+    "context": "[Auto-Log CLIENT_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "328089d0-6295-41fd-93da-2bf415476d5b",
+    "date": "2026-08-10T08:23:27.910Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 5ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "f4193798-e3ff-430d-bbba-8fe9c6af13bd",
+    "date": "2026-08-10T08:23:27.898Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 4ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "d91d1743-f9e0-494b-8a5d-3e060a335cc6",
+    "date": "2026-08-10T08:23:20.690Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 54ms.\nDétails : Cet utilisateur est banni et ne peut donc pas se connecter.",
+    "context": "[Auto-Log CLIENT_ERROR] POST /user/auth/login",
+    "page": "/user/auth/login"
+  },
+  {
+    "id": "ff4db679-816c-48a7-a3c9-4901ca247774",
+    "date": "2026-08-10T08:19:00.623Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 7ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "d1fe45e2-256c-4db3-a3e8-ba24f1ecd574",
+    "date": "2026-08-10T08:19:00.606Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 5ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "af18789a-155a-4044-b60f-e5e2676543b2",
+    "date": "2026-08-10T08:18:52.321Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 54ms.\nDétails : Cet utilisateur est banni et ne peut donc pas se connecter.",
+    "context": "[Auto-Log CLIENT_ERROR] POST /user/auth/login",
+    "page": "/user/auth/login"
+  },
+  {
+    "id": "ce885a5b-0692-49b9-a17e-3cf7a82a5836",
+    "date": "2026-08-10T08:18:48.975Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 4ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "ace0ddeb-3eef-4912-99e8-26985de04a63",
+    "date": "2026-08-10T08:18:48.967Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 6ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "aae73d55-15a3-4c8d-87aa-1dfbfd698adb",
+    "date": "2026-08-10T08:18:43.217Z",
+    "comment": "[BACKNODE] - Erreur HTTP 404 (Not Found) \nDurée : 2ms.",
+    "context": "[Auto-Log CLIENT_ERROR] GET /favicon.ico",
+    "page": "/favicon.ico"
+  },
+  {
+    "id": "13383c3b-504e-4adb-b83a-9204403ae4fe",
+    "date": "2026-08-10T08:18:42.908Z",
+    "comment": "[BACKNODE] - Erreur HTTP 400 (Bad Request) \nDurée : 3ms.\nDétails : Invalid State",
+    "context": "[Auto-Log CLIENT_ERROR] GET /auth/google/callback?state=7e07110b-c409-4bda-91fa-39e4a157811a&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AXEQxIBXZxykzGj1drejI2yC0rz4y8YG372QBb7RGrCXDqpaYgAqh19JrkLpGJ5er7kX_A&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&authuser=0&prompt=none",
+    "page": "/auth/google/callback"
+  },
+  {
+    "id": "1d6fd35c-b1cb-47c1-b7bf-feb09f4b158c",
+    "date": "2026-08-10T08:18:10.920Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 56ms.\nDétails : Cet utilisateur est banni et ne peut donc pas se connecter.",
+    "context": "[Auto-Log CLIENT_ERROR] POST /user/auth/login",
+    "page": "/user/auth/login"
+  },
+  {
+    "id": "8c33f5c8-1144-499b-bd07-7804c114e863",
+    "date": "2026-08-10T08:18:06.767Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 5ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "b97fb593-a396-4117-a012-b62ddc269ecd",
+    "date": "2026-08-10T08:18:06.755Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 10ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
+    "id": "38f0b01e-6a01-4d20-bedd-bb47969aaa36",
+    "date": "2026-08-10T08:16:54.266Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 56ms.\nDétails : Cet utilisateur est banni et ne peut donc pas se connecter.",
+    "context": "[Auto-Log CLIENT_ERROR] POST /user/auth/login",
+    "page": "/user/auth/login"
+  },
+  {
+    "id": "37989e1c-4cf6-4a02-acaa-f978d7a9f318",
+    "date": "2026-08-10T08:16:14.794Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 56ms.\nDétails : Cet utilisateur est banni et ne peut donc pas se connecter.",
+    "context": "[Auto-Log CLIENT_ERROR] POST /user/auth/login",
+    "page": "/user/auth/login"
+  },
+  {
+    "id": "401793d3-ab7f-4e9b-ac1e-329d010af32c",
+    "date": "2026-08-10T08:13:54.241Z",
+    "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 55ms.\nDétails : Cet utilisateur est banni et ne peut donc pas se connecter.",
+    "context": "[Auto-Log CLIENT_ERROR] POST /user/auth/login",
+    "page": "/user/auth/login"
+  },
+  {
     "id": "d47ad6d4-1bda-4398-ad4f-bc29369f8038",
     "date": "2026-08-07T12:07:53.683Z",
     "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 6ms.\nDétails : r is not defined",
