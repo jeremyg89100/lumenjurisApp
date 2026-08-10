@@ -1,9 +1,17 @@
+import type { PlanQuotas } from "./quotas";
+
+/**
+ * Crédits renvoyés par GET /api/billing/subscription (champ `credits`).
+ * `quotas` = quotas restants de l'utilisateur ; `planQuotas` = quotas pleins
+ * du plan (référence pour calculer la consommation).
+ */
 export type CreditsData = {
-  creditIncluded: number;
-  creditAdded: number;
-  totalIncluded: number;
+  quotas: PlanQuotas;
+  planQuotas: PlanQuotas;
 };
 
+/** Corps attendu par PUT /api/billing/add-credits (bonus sur une feature ciblée). */
 export type CreditsPayload = {
-  addCredit: number;
+  feature: string;
+  amount: number;
 };

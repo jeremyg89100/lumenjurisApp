@@ -39,6 +39,10 @@ async function getOrCreateUserUpload(userId: number) {
   });
 }
 
+
+
+
+
 // GET / — liste des images de l'utilisateur
 routerUserUploads.get("/", authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -51,6 +55,8 @@ routerUserUploads.get("/", authMiddleware, async (req: Request, res: Response) =
     return res.status(500).json({ success: false, message: "Erreur serveur." });
   }
 });
+
+
 
 // POST /upload — image en base64 JSON → conversion WebP → stockage
 routerUserUploads.post("/upload", authMiddleware, async (req: Request, res: Response) => {
@@ -95,6 +101,9 @@ routerUserUploads.post("/upload", authMiddleware, async (req: Request, res: Resp
   }
 });
 
+
+
+
 // PUT /:filename — renommer l'image (displayName uniquement)
 routerUserUploads.put("/:filename", authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -131,6 +140,9 @@ routerUserUploads.put("/:filename", authMiddleware, async (req: Request, res: Re
     return res.status(500).json({ success: false, message: "Erreur serveur." });
   }
 });
+
+
+
 
 // DELETE /:filename — supprime le fichier et l'entrée en base
 routerUserUploads.delete("/:filename", authMiddleware, async (req: Request, res: Response) => {

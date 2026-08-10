@@ -16,7 +16,7 @@ function downloadIcs(event: DeadlineEvent) {
   const fmt = (dt: Date) =>
     `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}`;
   const uid = `${event.contractId}-${event.type}@lumenjuris`;
-  const summary = `[LumenJuris] ${DEADLINE_LABEL[event.type]} — ${event.contractTitle}`;
+  const summary = `[Lumen Juris] ${DEADLINE_LABEL[event.type]} — ${event.contractTitle}`;
   const description = event.counterpartyName ? `Cocontractant : ${event.counterpartyName}` : "";
   const ics = [
     "BEGIN:VCALENDAR",
@@ -43,7 +43,7 @@ function openGoogleCalendar(event: DeadlineEvent) {
   const d = new Date(event.date);
   const pad = (n: number) => String(n).padStart(2, "0");
   const fmt = (dt: Date) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}`;
-  const title = encodeURIComponent(`[LumenJuris] ${DEADLINE_LABEL[event.type]} — ${event.contractTitle}`);
+  const title = encodeURIComponent(`[Lumen Juris] ${DEADLINE_LABEL[event.type]} — ${event.contractTitle}`);
   const details = encodeURIComponent(event.counterpartyName ? `Cocontractant : ${event.counterpartyName}` : "");
   const dateStr = fmt(d);
   const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}`;

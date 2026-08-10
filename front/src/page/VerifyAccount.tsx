@@ -75,10 +75,10 @@ export const VerifyAccount = () => {
         {/* Actions ressend l'email */}
 
         <div className="space-y-3">
-          <label htmlFor="email">Saisissez votre adresse email</label>
+          <label htmlFor="email">Saisissez votre adresse e-mail</label>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="E-mail"
             id="email"
             name="email"
             className="border-2 w-full rounded-lg h-10 pl-4"

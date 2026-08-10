@@ -3,11 +3,11 @@ export const templateDeleteAccount = (resetLink: string, username?: string) => {
         <tr>
             <td style="padding:30px; font-family: Arial, sans-serif; color:#1f2937;">
 
-                <h2 style="margin-top:0; margin-bottom:10px;">Bonjour <strong>${username}</strong>.</h2>
+                <h2 style="margin-top:0; margin-bottom:10px;">Bonjour <strong>${username}</strong>,</h2>
 
                 <p style="font-size:14px; line-height:1.6;">
                     Nous avons reçu une demande de suppression de votre compte Lumen Juris.<br/>
-                    Cliquez sur le bouton ci-dessous pour choisir supprimer votre.
+                    Cliquez sur le bouton ci-dessous pour confirmer la suppression de votre compte.
                 </p>
 
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px 0;width:100%">
@@ -34,7 +34,7 @@ export const templateDeleteAccount = (resetLink: string, username?: string) => {
                 </p>
 
                 <p style="font-size:13px; color:#6b7280;">
-                    Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email. Votre mot de passe actuel restera inchangé.
+                    Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email. Votre compte ne sera pas supprimé.
                 </p>
 
             </td>

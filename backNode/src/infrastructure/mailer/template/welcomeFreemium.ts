@@ -8,7 +8,7 @@ export const templateWelcomeFreemium = (username?: string) => {
         </p>
         <h1 style="margin:0 0 20px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
                     font-size:26px; font-weight:700; color:#111827; line-height:1.2;">
-          Bienvenue sur Lumen Juris${username ? `,<br><span style="color:#716af9;">${username}</span>` : " !"} !
+          Bienvenue sur Lumen Juris${username ? `,<br><span style="color:#716af9;">${username}</span> !` : " !"}
         </h1>
         <p style="margin:0 0 28px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
                    font-size:15px; line-height:1.7; color:#374151;">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchProxy } from "../../utils/fetchProxy";
+import { readQuotaValue, type PlanQuotas } from "../../types/quotas";
 import {
   Users,
   UserCheck,
@@ -25,11 +26,28 @@ type CreditRow = {
   email: string;
   nom: string | null;
   prenom: string | null;
-  creditIncluded: number;
-  creditAdded: number;
-  total: number;
-  planCredit: number;
+  quotas: PlanQuotas;
+  planQuotas: PlanQuotas | null;
 };
+
+/**
+ * Métrique représentative pour le monitoring : le quota "analyzer" (le principal
+ * consommable). Renvoie le restant, le plein et si c'est illimité.
+ * NB : vue de synthèse — le détail par feature reste consultable ailleurs.
+ */
+function analyzerMetric(row: CreditRow): {
+  unlimited: boolean;
+  remaining: number | null;
+  full: number | null;
+} {
+  const rem = readQuotaValue(row.quotas?.analyzer);
+  const full = readQuotaValue(row.planQuotas?.analyzer);
+  return {
+    unlimited: rem.kind === "unlimited",
+    remaining: rem.kind === "finite" ? rem.value : null,
+    full: full.kind === "finite" ? full.value : null,
+  };
+}
 
 type LlmUserUsage = {
   userId: number;
@@ -115,8 +133,17 @@ export function OverviewSection() {
   if (!data) return null;
 
   const { users, conversion, costAlert, credits } = data;
-  const exhaustedUsers = credits.filter((c) => c.total === 0);
-  const lowUsers = credits.filter((c) => c.total > 0 && c.planCredit > 0 && c.total / c.planCredit < 0.2);
+  const exhaustedUsers = credits.filter((c) => analyzerMetric(c).remaining === 0);
+  const lowUsers = credits.filter((c) => {
+    const m = analyzerMetric(c);
+    return (
+      m.remaining !== null &&
+      m.remaining > 0 &&
+      m.full !== null &&
+      m.full > 0 &&
+      m.remaining / m.full < 0.2
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -228,15 +255,19 @@ export function OverviewSection() {
                 <thead className="bg-gray-50 text-xs text-gray-400 uppercase font-semibold sticky top-0">
                   <tr>
                     <th className="px-4 py-2 text-left">Utilisateur</th>
-                    <th className="px-4 py-2 text-right">Crédits</th>
+                    <th className="px-4 py-2 text-right">Analyses</th>
                     <th className="px-4 py-2 text-left w-20">État</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {credits.map((c) => {
                     const name = [c.prenom, c.nom].filter(Boolean).join(" ") || c.email.split("@")[0];
-                    const pct = c.planCredit > 0 ? Math.min((c.total / c.planCredit) * 100, 100) : null;
-                    const isExhausted = c.total === 0;
+                    const m = analyzerMetric(c);
+                    const pct =
+                      m.full !== null && m.full > 0 && m.remaining !== null
+                        ? Math.min((m.remaining / m.full) * 100, 100)
+                        : null;
+                    const isExhausted = m.remaining === 0;
                     const isLow = !isExhausted && pct !== null && pct < 20;
                     return (
                       <tr key={c.userId} className={`${isExhausted ? "bg-red-50/30" : isLow ? "bg-amber-50/30" : ""} hover:bg-gray-50/50`}>
@@ -246,10 +277,10 @@ export function OverviewSection() {
                         </td>
                         <td className="px-4 py-2 text-right">
                           <span className={`font-semibold text-xs ${isExhausted ? "text-red-600" : isLow ? "text-amber-600" : "text-gray-900"}`}>
-                            {c.total.toLocaleString("fr-FR")}
+                            {m.unlimited ? "∞" : (m.remaining ?? 0).toLocaleString("fr-FR")}
                           </span>
-                          {c.planCredit > 0 && (
-                            <p className="text-xs text-gray-400">/ {c.planCredit.toLocaleString("fr-FR")}</p>
+                          {!m.unlimited && m.full !== null && m.full > 0 && (
+                            <p className="text-xs text-gray-400">/ {m.full.toLocaleString("fr-FR")}</p>
                           )}
                         </td>
                         <td className="px-4 py-2">

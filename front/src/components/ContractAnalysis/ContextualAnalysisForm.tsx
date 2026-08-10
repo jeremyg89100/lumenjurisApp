@@ -157,7 +157,7 @@ export const ContextualAnalysisForm: React.FC<ContextualAnalysisFormProps> = ({
         <AlertBanner
           title="Fichier incorrect"
           variant="error"
-          detail="Le fichier que vous avez analyser n'a aucun rapport avec le droit."
+          detail="Le fichier que vous avez analysé n'a aucun rapport avec le droit."
           onClose={() => {
             setNotLegalDocument(false);
           }}

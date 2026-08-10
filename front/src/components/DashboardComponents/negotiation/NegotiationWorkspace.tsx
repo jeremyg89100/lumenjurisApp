@@ -125,7 +125,7 @@ export function NegotiationWorkspace() {
       <div className="flex items-start justify-between gap-4">
         {versionSuccess && (
             <AlertBanner
-              title="Erreur de l'envoi du mail !"
+              title="Erreur de l'envoi de l'e-mail !"
               variant="success"
               detail="Version finale transmise à la signature."
               duration={8000}
@@ -135,7 +135,7 @@ export function NegotiationWorkspace() {
 
           {versionError && (
             <AlertBanner
-              title="Erreur de l'envoi du mail !"
+              title="Erreur de l'envoi de l'e-mail !"
               variant="success"
               detail="Aucune version validée à transmettre."
               duration={8000}

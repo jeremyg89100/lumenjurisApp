@@ -105,7 +105,7 @@ export function ClauseEditor({ clause, onClose, onSaved }: Props) {
           ) : (
             <div className="space-y-4 pt-1 border-t border-line-subtle">
               {/* Catégorie + position */}
-              <div className="grid grid-cols-2 gap-3 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
                 <Field label="Catégorie">
                   <select
                     value={category}

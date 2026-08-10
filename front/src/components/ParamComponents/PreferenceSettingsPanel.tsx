@@ -31,7 +31,7 @@ export function PreferenceSettingsPanel({
       />
 
       <SettingsToggleRow
-        label="Notifications par email"
+        label="Notifications par e-mail"
         checked={isEmailNotificationsEnabled}
         onCheckedChange={onEmailNotificationsCheckedChange}
       />

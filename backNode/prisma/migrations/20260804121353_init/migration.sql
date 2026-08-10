@@ -147,12 +147,39 @@ CREATE TABLE `ContractHistory` (
 -- CreateTable
 CREATE TABLE `UserCredit` (
     `idUserCredit` INTEGER NOT NULL AUTO_INCREMENT,
-    `creditIncluded` INTEGER NOT NULL,
-    `creditAdded` INTEGER NOT NULL,
+    `quotas` JSON NOT NULL,
     `userId` INTEGER NOT NULL,
 
     UNIQUE INDEX `UserCredit_userId_key`(`userId`),
     PRIMARY KEY (`idUserCredit`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CreditTransaction` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `feature` VARCHAR(191) NOT NULL,
+    `amount` INTEGER NOT NULL,
+    `balanceAfter` INTEGER NOT NULL,
+    `type` ENUM('SUBSCRIPTION', 'PURCHASE', 'CONSUMPTION', 'BONUS', 'REFUND', 'ADMIN', 'EXPIRE') NOT NULL,
+    `description` VARCHAR(191) NULL,
+    `sourceId` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `userId` INTEGER NOT NULL,
+
+    INDEX `CreditTransaction_userId_idx`(`userId`),
+    INDEX `CreditTransaction_feature_idx`(`feature`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProcessedStripeEvent` (
+    `idProcessed` INTEGER NOT NULL AUTO_INCREMENT,
+    `eventId` VARCHAR(191) NOT NULL,
+    `type` VARCHAR(191) NOT NULL,
+    `processedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `ProcessedStripeEvent_eventId_key`(`eventId`),
+    PRIMARY KEY (`idProcessed`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
@@ -186,11 +213,14 @@ CREATE TABLE `Subscription` (
 -- CreateTable
 CREATE TABLE `Plan` (
     `idPlan` INTEGER NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(191) NOT NULL,
+    `name` ENUM('Freemium', 'Betatesteur', 'Starter_mensuel', 'Starter_annuel', 'Pro_mensuel', 'Pro_annuel') NOT NULL,
     `price` INTEGER NOT NULL,
-    `interval` VARCHAR(191) NOT NULL,
-    `creditIncluded` INTEGER NOT NULL,
+    `interval` ENUM('monthly', 'yearly') NOT NULL,
+    `creditsIncluded` JSON NOT NULL,
+    `stripeProductId` VARCHAR(191) NOT NULL,
+    `stripePriceId` VARCHAR(191) NOT NULL,
 
+    UNIQUE INDEX `Plan_name_interval_key`(`name`, `interval`),
     PRIMARY KEY (`idPlan`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -833,6 +863,9 @@ ALTER TABLE `ContractHistory` ADD CONSTRAINT `ContractHistory_userId_fkey` FOREI
 
 -- AddForeignKey
 ALTER TABLE `UserCredit` ADD CONSTRAINT `UserCredit_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `CreditTransaction` ADD CONSTRAINT `CreditTransaction_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `FeatureUsage` ADD CONSTRAINT `FeatureUsage_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`idUser`) ON DELETE SET NULL ON UPDATE CASCADE;

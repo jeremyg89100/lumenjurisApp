@@ -9,6 +9,7 @@ import { templateSignatureInvite } from "./template/signatureInvite.js";
 import { templateSignatureCompletion } from "./template/signatureCompletion.js";
 import { templateExportData } from "./template/userData.js";
 import { templateDeleteAccount } from "./template/deleteAccount.js";
+import { templatePaymentFailed } from "./template/paymentFailed.js";
 
 import { generateInvoicePDF, type InvoiceData } from "../pdf/invoicePDF.js";
 import { logger } from "../../logger/logger.js";
@@ -88,7 +89,7 @@ export class Mailer {
     } catch (err) {
       // Un SMTP indisponible ne doit jamais empêcher le serveur de démarrer :
       // seules les fonctionnalités d'e-mail sont dégradées.
-      console.error("Erreur lors de la vérification du transporteur SMTP");
+      console.error("Erreur lors de la vérification du transporteur SMTP, error:", err);
       logger.error("Erreur lors de la vérification du transporteur", err);
     }
   }
@@ -104,7 +105,7 @@ export class Mailer {
 
     return {
       success: false,
-      message: "Une erreur serveur est survenue lors de l'envoi d'un email.",
+      message: "Une erreur serveur est survenue lors de l'envoi d'un e-mail.",
       error: err,
     };
   }
@@ -174,7 +175,7 @@ export class Mailer {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td width="34" style="width:34px; padding-right:10px;" valign="middle">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="26" height="26" aria-label="LumenJuris" role="img" style="display:block;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="26" height="26" aria-label="Lumen Juris" role="img" style="display:block;">
                   <circle cx="16" cy="16" r="13" fill="none" stroke="#5B9DF5" stroke-width="2"></circle>
                   <circle cx="16" cy="16" r="4.5" fill="#5B9DF5"></circle>
                 </svg>
@@ -385,6 +386,25 @@ export class Mailer {
     } catch (err) {
       return this.errorCatching(err);
     }
+  }
+
+  /**
+   * Informe l'utilisateur qu'un paiement d'abonnement a échoué. Stripe retente
+   * automatiquement : l'email invite à vérifier le moyen de paiement pour éviter
+   * une rétrogradation. `manageBillingUrl` pointe vers l'espace de gestion.
+   */
+  async sendPaymentFailed(opts: {
+    username?: string;
+    planName: string;
+    amountCents: number;
+    manageBillingUrl: string;
+  }): Promise<MailResult> {
+    const html = this.createHtmlFullContent(templatePaymentFailed(opts));
+
+    return this.send(
+      this.createOption(html, "Échec de paiement — action requise"),
+      `Un email d'information sur l'échec de paiement a été envoyé à ${this.email}.`,
+    );
   }
 
   /**

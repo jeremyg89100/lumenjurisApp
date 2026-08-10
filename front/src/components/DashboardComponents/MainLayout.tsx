@@ -67,7 +67,7 @@ const navItems: NavItem[] = [
   { icon: ShieldCheck, label: "Analyse des risques", path: "/conformite" },
   { icon: ShieldCheck, label: "Comprendre ses contrats", path: "/comprendre-contrat"},
   { icon: MessageSquare, label: "Chat juridique", path: "/chatjuridique" },
-  { icon: Newspaper, label: "Veille", path: "/veille", notificationKey: "legalWatchUnread" },
+  { icon: Newspaper, label: "Actualité juridique", path: "/veille", notificationKey: "legalWatchUnread" },
   
   //{ icon: User, label: "Votre cluster", path:"/cluster" } EN COURS DE DEV 
 
@@ -177,7 +177,7 @@ function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate: () => voi
   );
 }
 
-export function MainLayout() {
+export function MainLayout({ children }: { children?: React.ReactNode }) {
   const userData = useUserStore((s) => s.userData);
   const isAdmin = userData?.profile?.role === "ADMIN";
   const location = useLocation();
@@ -296,7 +296,7 @@ export function MainLayout() {
             position:sticky enfants (sommaire, barres d'outils/IA), les rendant inertes. */}
         <main className="flex-1 p-4 sm:p-5 lg:p-7">
           <ErrorBoundary key={location.pathname}>
-            <Outlet />
+            {children ?? <Outlet />}
           </ErrorBoundary>
         </main>
       </div>

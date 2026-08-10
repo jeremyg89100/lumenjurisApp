@@ -57,14 +57,6 @@ async function ensureStripeCustomer(): Promise<string | null> {
     headers: { "Content-Type": "application/json" },
     credentials: "include",
   });
-
-  const res2 = await fetchProxy("/api/billing/customer", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  })
-  const data2 = await res2.json()
-  console.log("resultat de la requette data2 du stripe customers id", data2)
   const data = await res.json();
   if (!data.success) return null;
   return data.stripeCustomerId as string;
@@ -91,11 +83,16 @@ async function createPaymentIntent(amount: number): Promise<string | null> {
   return data.clientSecret as string;
 }
 
-/**
- * Enregistre l'abonnement en BDD après confirmation du paiement Stripe.
- * L'appel est best-effort : une erreur est loguée mais ne bloque pas le flux
- * (le paiement a déjà été confirmé côté Stripe).
- */
+
+
+
+
+/* ─── OBSOLÈTE, A RETIRER QUAND TOUT SERA FINIT AUDIT VALIDE───────────────────────────────────────────────────────────────
+ * Enregistrait l'abonnement en BDD après un paiement carte (mode "plan").
+ * Les abonnements passent désormais par Stripe Checkout (voir PlansPanel) et
+ * sont activés côté webhook. BillingForm n'est plus utilisé qu'en mode "credits".
+ * Conservé commenté le temps de la refonte crédits, à supprimer ensuite.
+ *
 async function saveSubscription(
   planName: string,
   interval: string,
@@ -111,6 +108,7 @@ async function saveSubscription(
     console.error("Erreur lors de l'enregistrement de l'abonnement:", err),
   );
 }
+ * ─────────────────────────────────────────────────────────────────────────── */
 
 /**
  * Signale au backend une tentative de paiement échouée (suivi admin).
@@ -184,17 +182,17 @@ export function BillingForm({
   const isCreditsMode = mode === "credits";
   const annualPrice = price * 12;
   const paymentAmount =
-    !isCreditsMode && interval === "year" ? annualPrice : price;
+    !isCreditsMode && interval === "yearly" ? annualPrice : price;
 
   const priceLabel = isCreditsMode
     ? `${formatPrice(price)} — paiement unique`
-    : interval === "year"
+    : interval === "yearly"
       ? `${formatPrice(annualPrice)} — paiement unique`
       : `${formatPrice(price)} / mois`;
 
   const intervalLabel = isCreditsMode
     ? "Achat ponctuel de crédits"
-    : interval === "year"
+    : interval === "yearly"
       ? "Abonnement annuel"
       : "Abonnement mensuel";
 
@@ -246,21 +244,15 @@ export function BillingForm({
       return;
     }
 
-    // 4. Enregistrer selon le mode
-    const paymentIntentId = clientSecret.split("_secret_")[0];
+    // 4. Créditer le compte. BillingForm n'est plus utilisé qu'en mode "credits" :
+    // l'ancien chemin "plan" (saveSubscription) est OBSOLÈTE — les abonnements
+    // passent désormais par Stripe Checkout (voir PlansPanel).
     if (isCreditsMode && creditsPayload) {
       await addCreditsToAccount(creditsPayload);
-    } else {
-      await saveSubscription(
-        planName,
-        interval ?? "month",
-        paymentAmount,
-        paymentIntentId,
-      );
     }
 
     setIsLoading(false);
-    onSuccess(planName, interval ?? "month", paymentAmount);
+    onSuccess(planName, interval ?? "monthly", paymentAmount);
   };
 
   return (

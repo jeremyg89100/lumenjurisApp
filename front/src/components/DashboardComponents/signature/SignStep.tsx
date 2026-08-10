@@ -113,13 +113,13 @@ export function SignStep(props: Props) {
         {allSelfSigned && !recipientFormValid && (
           <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span><strong>Signé !</strong>&nbsp;Renseignez maintenant le nom et l'email du cocontractant (à gauche) pour lui envoyer le contrat.</span>
+            <span><strong>Signé !</strong>&nbsp;Renseignez maintenant le nom et l'e-mail du cocontractant (à gauche) pour lui envoyer le contrat.</span>
           </div>
         )}
         {canSend && (
           <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <Send className="w-4 h-4 shrink-0" />
-            <span><strong>Tout est prêt :</strong>&nbsp;cliquez sur « Envoyer au cocontractant ». Il recevra un email pour signer à son tour.</span>
+            <span><strong>Tout est prêt :</strong>&nbsp;cliquez sur « Envoyer au cocontractant ». Il recevra un e-mail pour signer à son tour.</span>
           </div>
         )}
         <div className="bg-gray-50 rounded-xl p-4">
@@ -159,7 +159,7 @@ function ProgressCard({
         <p className="text-[11px] leading-snug text-gray-500">
           <span className="font-semibold text-gray-700">Cocontractant</span>
           {counterTotal > 0 ? ` — ${counterTotal} zone${counterTotal > 1 ? "s" : ""} à signer.` : " — "}
-          Il signera de son côté, après réception de l'email.
+          Il signera de son côté, après réception de l'e-mail.
         </p>
       </div>
     </div>

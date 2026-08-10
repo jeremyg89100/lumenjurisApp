@@ -175,7 +175,7 @@ router.post("/contract-summary", authMiddleware, async (req: Request, res: Respo
         return res.status(401).json({success: false, message: "Utilisateur non identifié."});
     }
     if (!summary || !fileName || !rawText ||  typeof fileName !== "string" || typeof rawText !== "string") {
-        return res.status(400).json({success: false, message: "Les données sont éronnées ou n'ont pas été remplies."})
+        return res.status(400).json({success: false, message: "Les données sont erronées ou n'ont pas été remplies."})
     }
     try {
         await svc.contractSummarizeToDB(summary, fileName, rawText, userId);

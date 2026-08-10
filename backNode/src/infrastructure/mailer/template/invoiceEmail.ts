@@ -24,7 +24,7 @@ function formatDate(date: Date): string {
 }
 
 function intervalLabel(interval: string): string {
-  return interval === "year" ? "annuel" : "mensuel";
+  return interval === "yearly" ? "annuel" : "mensuel";
 }
 
 export const templateInvoiceEmail = (
