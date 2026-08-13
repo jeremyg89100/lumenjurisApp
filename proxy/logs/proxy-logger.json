@@ -1,5 +1,96 @@
 [
   {
+    "id": "a17a05d9-06cd-47c9-afd5-5ba83ca870f6",
+    "date": "2026-08-12T13:21:08.371Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "ad151597-dd6e-4ae8-a55c-d01dfaef6661",
+    "date": "2026-08-12T13:21:07.524Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "a93453c4-7d02-4885-9dd3-46309890d6ae",
+    "date": "2026-08-12T13:21:07.011Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 0ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "21b002db-5bda-49fa-a642-19b153d8b7cd",
+    "date": "2026-08-12T13:21:06.380Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "79c6df2f-d2b1-44bd-9cfc-83c0e6d62aac",
+    "date": "2026-08-12T13:21:05.158Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "20e9d25f-8f30-4031-9588-24184643f2bb",
+    "date": "2026-08-12T13:20:01.209Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "876e064c-cb5d-4675-84ce-a7138c015e1c",
+    "date": "2026-08-12T13:19:38.647Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "b097d719-0d23-4ab6-b1c5-64dd6c7e6bec",
+    "date": "2026-08-12T13:18:32.832Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "86d778c7-5d7e-407d-9eae-ec8ece0c48e3",
+    "date": "2026-08-12T09:13:32.549Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 0ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "aa1a0cf0-7455-4905-b3e4-4c67c15c39da",
+    "date": "2026-08-12T09:13:30.952Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 0ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "6616d2b4-7f95-4112-aba6-bb269966700d",
+    "date": "2026-08-12T09:12:52.650Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "1a7508f7-8c7a-43a6-b1c2-0c00a1ca314f",
+    "date": "2026-08-12T09:12:29.014Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
+    "id": "d1a1d9ad-71d3-4ad6-a53a-c781a61e6a61",
+    "date": "2026-08-12T09:12:27.036Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 2ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
     "id": "fb169be6-2305-41fb-95ae-d386cc22ed4b",
     "date": "2026-08-10T09:42:41.224Z",
     "comment": "[PROXY] - Erreur HTTP 502 (Bad Gateway)\nDurée : 4ms.\nDétails : backnode_unreachable",

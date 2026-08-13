@@ -4,6 +4,8 @@ export default {
   theme: {
     extend: {
       colors: {
+        'blue-primary' : "#213957",
+        'red-primary' : "#E1000F",
         // ── Marque ──────────────────────────────────────
         brand: {
           DEFAULT: "#2C3A5E",

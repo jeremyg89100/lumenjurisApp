@@ -1,5 +1,12 @@
 [
   {
+    "id": "9c165b15-0f61-4351-923f-f705fa048039",
+    "date": "2026-08-12T09:00:01.946Z",
+    "comment": "[BACKNODE] - Erreur HTTP 500 (Internal Server Error) \nDurée : 10027ms.\nDétails : Erreur serveur",
+    "context": "[Auto-Log SERVER_ERROR] GET /user/get",
+    "page": "/user/get"
+  },
+  {
     "id": "810cc1cf-be0a-4b86-8216-90da9d4b15fc",
     "date": "2026-08-10T08:37:36.224Z",
     "comment": "[BACKNODE] - Erreur HTTP 403 (Forbidden) \nDurée : 3ms.\nDétails : Votre compte a été suspendu. Contactez l'administrateur .",

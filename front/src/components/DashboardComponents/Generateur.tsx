@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { useDropzone } from "react-dropzone";
 import {
   BookOpen, Upload, Sparkles, ChevronLeft, ChevronRight,
@@ -935,6 +935,8 @@ function ScratchEntry({ onStart, onBack }: { onStart: (title: string) => void; o
 
 export function Generateur() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [section, setSection]     = useState<Section>(null);
   const [formDocId, setFormDocId] = useState<DocId>("cdi");
   const [useTemplateId, setUseTemplateId] = useState<string | null>(null);
@@ -946,9 +948,21 @@ export function Generateur() {
   // bouton Précédent du navigateur.
   const wizardTitle = searchParams.get("titre");
 
+  const initialBriefRef = useRef<string | undefined>(
+    (location.state as { brief?: string } | null)?.brief
+  );
+
+  useEffect(() => {
+    if (location.state?.brief) {
+      navigate(location.pathname + location.search, { replace: true, state: null });
+    }
+  }, [location, navigate]);
+
+
   // Synchronise la section avec l'URL. TOUTES les sous-étapes (modèle ouvert,
   // éditeur, questionnaire) vivent dans l'historique : le bouton Précédent du
   // navigateur revient à l'étape précédente au lieu de tout réinitialiser.
+  // 1. On extrait le brief du state React Router
   useEffect(() => {
     const s = searchParams.get("section");
     if (s === "library" || s === "import" || s === "scratch") { setSection(s); return; }
@@ -987,7 +1001,11 @@ export function Generateur() {
   // Retour depuis le questionnaire : vers la bibliothèque si on en vient,
   // sinon vers l'écran d'entrée « Créer de zéro ».
   function handleScratchBack() {
-    if (searchParams.get("de") === "library") goLibrary();
+    const de = searchParams.get("de");
+    if (de === "library") goLibrary();
+    else if (de === "dashboard") {
+      navigate("/dashboard")
+    }
     else setSearchParams({ section: "scratch" });
   }
 
@@ -1206,6 +1224,7 @@ export function Generateur() {
       {section === "scratch"   && wizardTitle && (
         <ScratchWizard
           title={wizardTitle}
+          initialBrief={initialBriefRef.current}
           onReady={handleScratchReady}
           onBack={handleScratchBack}
         />
