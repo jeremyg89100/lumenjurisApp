@@ -6,6 +6,8 @@ export default {
       colors: {
         'blue-primary' : "#213957",
         'red-primary' : "#E1000F",
+        'gray-primary' : "#CACACA",
+        'gray-card' : "#F9F9F9",
         // ── Marque ──────────────────────────────────────
         brand: {
           DEFAULT: "#2C3A5E",

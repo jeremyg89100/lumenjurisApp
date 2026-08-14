@@ -24,6 +24,23 @@ const TOOLS: Tool[] = [
     to: "/contratheque",
     accent: "#354F99",
   },
+    {
+    icon: ShieldCheck,
+    name: "Analyser",
+    title: "Annotez vos contrats , échangez les redlines et validez la version finale.",
+    desc: "Débloquez vos discussions et défendez efficacement vos intérêts face à vos interlocuteurs. L'outil génère des contre-propositions équilibrées et vous fournit des arguments percutants pour négocier chaque clause stratégique sans fermer le dialogue.",
+    to: "/conformite",
+    accent: "#d97706",
+  },
+    {
+    icon: Handshake,
+    name: "Négociation",
+    title:"Annotez vos contrats , échangez les redlines et validez la version finale." ,
+    desc: "Débloquez vos discussions et défendez efficacement vos intérêts face à vos interlocuteurs. L'outil génère des contre-propositions équilibrées et vous fournit des arguments percutants pour négocier chaque clause stratégique sans fermer le dialogue.",
+    to: "/contratheque",
+    accent: "#7c3aed",
+  },
+
   {
     icon: Library,
     name: "Contratheque",
@@ -32,30 +49,7 @@ const TOOLS: Tool[] = [
     to: "/generateur",
     accent: "#059669",
   },
-  {
-    icon: Handshake,
-    name: "Négociation",
-    title:"Annotez vos contrats , échangez les redlines et validez la version finale." ,
-    desc: "Débloquez vos discussions et défendez efficacement vos intérêts face à vos interlocuteurs. L'outil génère des contre-propositions équilibrées et vous fournit des arguments percutants pour négocier chaque clause stratégique sans fermer le dialogue.",
-    to: "/contratheque",
-    accent: "#7c3aed",
-  },
-  {
-    icon: PenTool,
-    name: "Signature électronique",
-    title: "Faites signer vos contrats en ligne, en toute sécurité.",
-    desc: "Faites signer vos contrats en ligne rapidement et en toute sécurité. Envoyez vos documents validés directement depuis l'application, suivez l'avancement des signatures en temps réel et garantissez la valeur juridique de vos accords.",
-    to: "/signature",
-    accent: "#2563eb",
-  },
-  {
-    icon: ShieldCheck,
-    name: "Analyser",
-    title: "Annotez vos contrats , échangez les redlines et validez la version finale.",
-    desc: "Débloquez vos discussions et défendez efficacement vos intérêts face à vos interlocuteurs. L'outil génère des contre-propositions équilibrées et vous fournit des arguments percutants pour négocier chaque clause stratégique sans fermer le dialogue.",
-    to: "/conformite",
-    accent: "#d97706",
-  },
+
   {
     icon: ScrollText,
     name: "Bibliothèque de clauses",
@@ -63,6 +57,14 @@ const TOOLS: Tool[] = [
     desc: "Créez votre propre catalogue complet de clauses juridiques prêtes à l'emploi et parfaitement sécurisées. Retrouvez en un instant la formulation idéale pour enrichir vos contrats, adapter une obligation spécifique ou verrouiller une situation particulière selon le droit français.",
     to: "/clauses",
     accent: "#0891b2",
+  },
+    {
+    icon: PenTool,
+    name: "Signature électronique",
+    title: "Faites signer vos contrats en ligne, en toute sécurité.",
+    desc: "Faites signer vos contrats en ligne rapidement et en toute sécurité. Envoyez vos documents validés directement depuis l'application, suivez l'avancement des signatures en temps réel et garantissez la valeur juridique de vos accords.",
+    to: "/signature",
+    accent: "#2563eb",
   },
 ];
 
