@@ -35,6 +35,7 @@ const PLANS: Plan[] = [
     free: true,
     cta: "Commencer gratuitement",
     features: [
+      "Ce qui est inclus :",
       "Génération de contrats illimitée (export avec filigrane)",
       "Signature électronique simple illimitée",
       "3 analyses de contrat par IA / mois",
@@ -203,17 +204,18 @@ export function PlansPanel() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="flex flex-col mb-2">
+        <h3 className="text-lg font-bold text-ink">Tarifs</h3>
+        <p className="mt-1 text-sm text-ink-muted">Tarification adaptée à votre organisation</p>
+      </div>
       {/* ── En-tête + toggle mensuel/annuel ── */}
-      <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+      <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end bg-blue-primary py-4 px-8 rounded-2xl">
         <div className="max-w-xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 text-xs font-semibold text-brand">
-            <Sparkles className="h-3.5 w-3.5" />
-            Tarifs
-          </span>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+          
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Accéder à nos outils
           </h1>
-          <p className="mt-2 text-ink-muted">
+          <p className="mt-2 text-gray-primary">
             Choisissez l'offre adaptée à votre équipe. Changez ou annulez à tout
             moment.
           </p>
@@ -269,10 +271,10 @@ export function PlansPanel() {
             <div
               key={plan.name}
               className={cn(
-                "group relative flex h-full flex-col rounded-2xl border bg-gradient-to-b to-white p-6 transition-all duration-300",
+                "group relative flex h-full flex-col rounded-2xl border p-6 transition-all duration-300",
                 plan.highlight
-                  ? "z-10 border-brand/30 from-brand-light/70 shadow-[0_20px_45px_-15px_rgba(44,58,94,0.45)] ring-1 ring-brand/20 lg:-translate-y-3 lg:scale-[1.03]"
-                  : "border-line from-brand-light/40 shadow-sm hover:-translate-y-1 hover:border-brand/30 hover:shadow-[0_18px_40px_-18px_rgba(44,58,94,0.35)]",
+                  ? "z-10 border-brand/30 bg-blue-primary shadow-[0_20px_45px_-15px_rgba(44,58,94,0.45)] ring-1 ring-brand/20 lg:-translate-y-3 lg:scale-[1.03]"
+                  : "border-line shadow-sm hover:-translate-y-1 hover:border-brand/30 hover:shadow-[0_18px_40px_-18px_rgba(44,58,94,0.35)]",
               )}
             >
               {/* Liseré supérieur lumineux sur l'offre mise en avant */}
@@ -288,7 +290,7 @@ export function PlansPanel() {
               )}
 
               <div>
-                <h3 className="text-lg font-bold text-ink">{plan.name}</h3>
+                <h3 className="text-lg font-bold text-blue-primary">{plan.name}</h3>
                 <p className="mt-1 text-sm text-ink-muted">{plan.tagline}</p>
               </div>
 
@@ -296,7 +298,7 @@ export function PlansPanel() {
                 <span
                   className={cn(
                     "text-4xl font-extrabold tracking-tight",
-                    plan.highlight ? "text-brand" : "text-ink",
+                    plan.highlight ? "text-white" : "text-blue-primary",
                   )}
                 >
                   {price} €
@@ -320,7 +322,7 @@ export function PlansPanel() {
                   "mt-6 w-full",
                   plan.highlight
                     ? "bg-brand text-white shadow-sm hover:bg-brand-hover"
-                    : "border-brand/40 text-brand hover:bg-brand-light",
+                    : "border-blue-primary text-blue-primary hover:bg-brand-light",
                 )}
                 onClick={() => {
                   if (plan.free) {
@@ -333,15 +335,17 @@ export function PlansPanel() {
                 {checkoutLoadingPlan === plan.name ? "Redirection…" : plan.cta}
               </Button>
 
+              <div className="border border-t-blue-title-card-sub mt-6"></div>
+
               <ul className="mt-6 space-y-3 text-sm">
                 {plan.features.map((f, i) => {
                   // La première ligne ("Tout le X, plus :") sert d'intertitre.
-                  const isHeading = f.endsWith("plus :");
+                  const isHeading = f.endsWith("plus :") || f.endsWith("inclus :");
                   if (isHeading) {
                     return (
                       <li
                         key={f}
-                        className="pt-1 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+                        className="pt-1 text-xs font-semibold uppercase tracking-wide text-blue-title-card-sub"
                       >
                         {f}
                       </li>
@@ -356,8 +360,8 @@ export function PlansPanel() {
                         className={cn(
                           "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
                           plan.highlight
-                            ? "bg-brand/10 text-brand"
-                            : "bg-emerald-500/10 text-emerald-600",
+                            ? "bg-blue-card-sub text-blue-primary"
+                            : "bg-blue-card-sub text-blue-600",
                         )}
                       >
                         <Check className="h-3 w-3" strokeWidth={3} />

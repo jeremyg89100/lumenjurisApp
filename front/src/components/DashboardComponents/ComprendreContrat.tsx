@@ -209,7 +209,7 @@ export function ComprendreContrat() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 bg-blue-primary p-8 rounded-2xl">
         <div className="space-y-4 max-w-lg">
           <h2 className="text-2xl sm:text-3xl font-semibold text-white leading-tight">
-            Analyse et compréhension<br />de contrat
+            Analyse et compréhension de contrat
           </h2>
           <p className="text-sm text-gray-primary leading-relaxed">
             Référentiel de clauses approuvées, réutilisables pour la génération et la négociation.

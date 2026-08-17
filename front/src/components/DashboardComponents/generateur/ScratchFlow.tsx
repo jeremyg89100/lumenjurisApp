@@ -295,7 +295,7 @@ useEffect(() => {
   };
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="w-full max-w-2xl mx-auto space-y-4">
       <button onClick={step === "mode" ? onBack : backTarget} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-muted hover:text-brand">
         <ArrowLeft className="h-4 w-4" /> Retour
       </button>

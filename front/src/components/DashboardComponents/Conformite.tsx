@@ -146,22 +146,22 @@ export function Conformite() {
 
   return (
     <>
-    <div className="space-y-5">
+    <div className="lg:col-span-3 rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
       {/* Title + CTA */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-ink tracking-tight">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 bg-blue-primary px-8 py-8 rounded-2xl">
+        <div className="text-left">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-white leading-tight">
             Analyse de conformité
-          </h1>
-          <p className="text-sm text-ink-muted mt-1">
+          </h2>
+          <p className="text-sm text-gray-primary leading-relaxed mt-1">
             Vérifiez la conformité juridique de vos documents.
           </p>
         </div>
         <button
           onClick={() => navigate("/analyzer")}
-          className="shrink-0 flex items-center gap-2 px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-hover transition-all shadow-card"
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white text-gray-900 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors shadow-sm shrink-0 self-start sm:self-end"
         >
-          <Plus className="w-4 h-4" /> Nouvelle analyse
+          <Plus className="text-base font-normal" /> Nouvelle analyse
         </button>
       </div>
 
@@ -207,7 +207,7 @@ export function Conformite() {
       {/* History table */}
       <div className="bg-white border border-line rounded-card shadow-card">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-surface-subtle border-b border-line text-ink-subtle text-[10px] uppercase tracking-widest font-semibold">
+          <thead className="bg-blue-primary border-b border-line text-white text-[10px] uppercase tracking-widest font-semibold">
             <tr>
               <th className="px-6 py-4">Document</th>
               <th className="px-4 py-4 text-center">Clauses</th>

@@ -272,14 +272,14 @@ export const DocumentViewer = forwardRef<
     return (
       <div className="bg-white rounded-lg border border-gray-200 shadow h-full flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex-shrink-0 flex items-center justify-between gap-6">
-          <h2 className="min-w-0 text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="p-4 border-b border-gray-200 flex-shrink-0 flex items-center justify-between gap-6 bg-blue-primary">
+          <h2 className="min-w-0 text-lg font-semibold text-white flex items-center gap-2">
             <span className="truncate">{fileName}</span>
             {analysisContextRows.length > 0 && (
               <span className="relative inline-flex shrink-0 items-center group">
                 <button
                   type="button"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 text-gray-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors border-blue-300 bg-blue-50 text-blue-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   aria-label="Afficher les informations d'analyse"
                   title="Informations d'analyse"
                 >
