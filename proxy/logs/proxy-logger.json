@@ -1,5 +1,40 @@
 [
   {
+    "id": "322ca493-ef5d-43be-b6e8-183543b77c82",
+    "date": "2026-08-18T12:09:59.683Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/portal",
+    "page": "/api/billing/portal"
+  },
+  {
+    "id": "3c24dcc6-dc7c-4d0c-8607-13369810e039",
+    "date": "2026-08-18T12:08:51.803Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/portal",
+    "page": "/api/billing/portal"
+  },
+  {
+    "id": "c4301efd-a062-4fa5-8977-613263c0a2c2",
+    "date": "2026-08-18T12:03:52.327Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 0ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/portal",
+    "page": "/api/billing/portal"
+  },
+  {
+    "id": "eb818f18-7909-467f-b1b0-c95b6e156bd7",
+    "date": "2026-08-18T11:53:40.780Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/portal",
+    "page": "/api/billing/portal"
+  },
+  {
+    "id": "6e3d6f1c-cf48-401b-bcc2-ad322305c2e6",
+    "date": "2026-08-18T11:53:28.128Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 2ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/portal",
+    "page": "/api/billing/portal"
+  },
+  {
     "id": "a17a05d9-06cd-47c9-afd5-5ba83ca870f6",
     "date": "2026-08-12T13:21:08.371Z",
     "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",

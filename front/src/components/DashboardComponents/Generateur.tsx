@@ -882,19 +882,19 @@ function ScratchEntry({ onStart, onBack }: { onStart: (title: string) => void; o
           <label className="block text-sm font-medium text-ink-secondary mb-2">
             Quel contrat souhaitez-vous créer ?
           </label>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full min-w-0">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && canStart && onStart(title.trim())}
               placeholder="ex : Contrat de prestation de services informatiques"
-              className="flex-1 p-2.5 border border-line rounded-xl text-sm text-ink outline-none focus:border-brand/40 focus:shadow-ring-brand transition-all placeholder:text-ink-placeholder"
+              className="w-full sm:flex-1 p-2.5 border border-line rounded-xl text-sm text-ink outline-none focus:border-brand/40 focus:shadow-ring-brand transition-all placeholder:text-ink-placeholder min-w-0"
             />
             <button
               onClick={() => onStart(title.trim())}
               disabled={!canStart}
-              className="px-5 py-2.5 bg-brand text-white rounded-xl text-sm font-semibold hover:bg-brand-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-card"
+              className="w-full sm:w-auto px-5 py-2.5 bg-brand text-white rounded-xl text-sm font-semibold hover:bg-brand-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-card shrink-0"
             >
               Commencer
             </button>

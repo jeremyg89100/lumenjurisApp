@@ -305,7 +305,7 @@ export const DocumentViewer = forwardRef<
               </span>
             )}
           </h2>
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-col items-center gap-2 text-xs sm:flex-row">
             {clauses.length > 0 &&
               (() => {
                 const maxRisk = Math.max(...clauses.map((c) => c.riskScore));
@@ -332,9 +332,9 @@ export const DocumentViewer = forwardRef<
                     type="button"
                     onClick={() => setIsMobileClausesOpen(true)}
                     style={riskStyle}
-                    className="md:hidden flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium transition-opacity shrink-0 hover:opacity-80"
+                    className="md:hidden flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium transition-opacity shrink-0 hover:opacity-80"
                   >
-                    ⚖️ Voir les {clauses.length} clause
+                    Voir les {clauses.length} clause
                     {clauses.length > 1 ? "s" : ""}
                   </button>
                 );
