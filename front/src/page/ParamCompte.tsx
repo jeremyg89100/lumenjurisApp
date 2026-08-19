@@ -325,7 +325,7 @@ export function ParamCompte() {
       enterprise.isEditingEnterprise
     ) {
       enterprise.handleCancelEnterpriseEdit();
-    }
+    };
 
     setActiveConfirmationModal(null);
     setActiveTab(nextTab);
