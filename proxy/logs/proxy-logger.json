@@ -1,5 +1,12 @@
 [
   {
+    "id": "b5889b94-c784-42be-8a36-c6b46f8e82a9",
+    "date": "2026-08-19T09:26:20.278Z",
+    "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 2ms.\n",
+    "context": "[Auto-Log CLIENT_ERROR] POST /api/billing/create-checkout",
+    "page": "/api/billing/create-checkout"
+  },
+  {
     "id": "322ca493-ef5d-43be-b6e8-183543b77c82",
     "date": "2026-08-18T12:09:59.683Z",
     "comment": "[PROXY] - Erreur HTTP 404 (Not Found)\nDurée : 1ms.\n",
