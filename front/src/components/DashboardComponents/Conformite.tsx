@@ -166,6 +166,9 @@ export function Conformite() {
       </div>
 
       {/* KPI */}
+      <p className="text-sm text-blue-primary leading-relaxed mt-1">
+        Nos agents IA analysent vos documents, évaluent les clauses à risque du contrat et vous proposent des clauses à ajouter.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <KpiCard label="Total documents" value={history.length} icon={BarChart3} accent="#2C3A5E" />
         <KpiCard label="Risque élevé" value={highRiskCount} icon={ShieldAlert} accent="#dc2626" />
