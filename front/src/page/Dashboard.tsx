@@ -321,7 +321,9 @@ export function Dashboard() {
               key={t.title}
               ref={(el) => (cardRefs.current[index] = el)}
               to={t.to}
-              className="group flex flex-col md:flex-row gap-6 bg-white/95 backdrop-blur-sm rounded-xl border border-gray-200 p-6 hover:border-gray-300 transition-all shadow-sm hover:shadow-md"
+              className={`group flex flex-col md:flex-row gap-6 backdrop-blur-2xl rounded-xl border border-gray-200 
+              p-6 hover:border-gray-300 transition-all shadow-sm hover:shadow-md ${index % 2 === 0 ? "bg-gradient-to-r from-slate-100/30 via-slate-100/60 to-sky-200/35 hover:border-blue-200"
+          : "bg-gradient-to-r from-sky-200/35 via-slate-100/60 to-slate-100/40 hover:border-blue-200"}`}
             >
               <div className="flex flex-col gap-4 w-full md:w-44 shrink-0">
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-900">
